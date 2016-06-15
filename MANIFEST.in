@@ -1,0 +1,7 @@
+include LICENSE.txt
+include requirements.txt
+include README.rst
+include CONTRIBUTING.rst
+include conf/*
+include anchore/doc/man/*
+

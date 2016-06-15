@@ -1,0 +1,39 @@
+###### Anchore gate policy file - use to set up default actions for the navigate tool when --gate is specified
+# format is simple: <modulename>:<checkname>:<action>.   <action> can be STOP, GO, or WARN
+
+###### Dockerfile checks 
+# NOFROM: triggers if FROM line is missing from Dockerfile entirely
+# NOTAG: triggers if container is built with a FROM line that does not specify explicit parent tag (none or 'latest')
+# SUDO: triggers if 'sudo' commands are found in Dockerfile
+
+DOCKERFILECHECK:NOFROM:STOP
+DOCKERFILECHECK:NOTAG:STOP
+DOCKERFILECHECK:SUDO:GO
+DOCKERFILECHECK:EXPOSE:STOP:ALLOWEDPORTS=22
+
+###### Package comparison checks
+# PKGADD: triggers if image has added packages that are not in the base image
+# PKGDEL: triggers if image has packages that have been removed from the base image
+# PKGVERSIONDIFF: triggers if there is a version mismatch between packages in container and base image
+
+PKGDIFF:PKGADD:WARN
+PKGDIFF:PKGDEL:WARN
+PKGDIFF:PKGVERSIONDIFF:STOP
+
+###### File SUID checks
+# SUIDMODEDIFF: triggers if there is an SUID mode mismatch between files in container and base image
+# SUIDFILEADD: triggers if container has an SUID file that is not in the base
+# SUIDFILEDEL: triggers if the container has removed an SUID file from the base
+
+SUIDDIFF:SUIDMODEDIFF:STOP
+SUIDDIFF:SUIDFILEADD:STOP
+SUIDDIFF:SUIDFILEDEL:GO
+
+###### Anchore Security Checks
+# VULN*: triggers if anchore has found a major software bug/issue in the image
+
+ANCHORESEC:VULNUNKNOWN:GO
+ANCHORESEC:VULNLOW:GO
+ANCHORESEC:VULNMEDIUM:WARN
+ANCHORESEC:VULNHIGH:STOP
+ANCHORESEC:VULNCRITICAL:STOP

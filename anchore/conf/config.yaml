@@ -1,0 +1,18 @@
+# Anchore configuration file
+
+#
+# anchore_data_dir: <default is $HOME/.anchore/>
+#
+# tmpdir: /tmp
+# log_file: '/var/log/anchore.log'
+# debug_log_file: '/var/log/anchore_debug.log'
+#
+# image_data_store: 'data/'
+# resource_cache: ''
+#
+# vulnerabilities:
+#   url: 'https://service-data.anchore.com/vulnerabilities.tar.gz'
+# analysis:
+#   url: 'https://service-data.anchore.com/analysis_db.tar.gz'
+# images:
+#   docker_conn: 'unix://var/run/docker.sock'

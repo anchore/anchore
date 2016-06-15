@@ -1,0 +1,5 @@
+Place executable scripts in this directory to be run in lexicographic order when someone runs:
+anchore sync user-images input
+
+This is intended to hold scripts to pull user images to the local host for analysis etc.
+
