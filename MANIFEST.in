@@ -2,6 +2,7 @@ include LICENSE.txt
 include requirements.txt
 include README.rst
 include CONTRIBUTING.rst
-include conf/*
+include anchore/conf/*
 include anchore/doc/man/*
+recursive-include anchore/anchore-modules *
 
