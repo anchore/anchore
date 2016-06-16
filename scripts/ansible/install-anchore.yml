@@ -1,0 +1,35 @@
+---
+- hosts: docker
+  become: true
+  become_user: root
+
+  tasks:
+
+  - block:
+    - name: install EPEL
+      yum: name=epel-release state=latest
+
+    - name: install dependencies (CentOS)
+      yum: name={{item}} state=latest
+      with_items:
+        - python-pip
+        - graphviz
+        - rpm-python
+        - dpkg
+
+    - name: install Anchore
+      pip: name=anchore
+    when: ansible_distribution == 'CentOS'
+
+  - block:
+    - name: install dependencies (Ubuntu)
+      apt: name={{item}} state=latest
+      with_items:
+        - python-pip
+        - graphviz
+        - python-rpm
+        - yum
+    when: ansible_distribution == 'Ubuntu'
+
+  - name: install Anchore with PIP
+    pip: name=anchore
