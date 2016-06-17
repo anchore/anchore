@@ -219,7 +219,7 @@ def analyze(anchore_config, force, image, imagefile, include_allanchore, dockerf
         ecode = 1
     else:
 
-        step = 5
+        step = 1
         count = 0
         allimages = {}
         for imageId in imagedict.keys():
