@@ -13,6 +13,21 @@ except:
 if not config:
     sys.exit(0)
 
+# clean up the input params into usable imageIds
+newparams = list()
+
+for name in config['params']:
+    if name != 'all':
+        try:
+            imageId = anchore.anchore_utils.discover_imageId(config['anchore_config'], name).keys()[0]
+        except:
+            imageId = name
+    else:
+        imageId = 'all'
+    newparams.append(imageId)
+config['params'] = newparams
+print config['params']
+
 outlist = list()
 outlist.append(["InputImageId", "InputRepo/Tag", "CurrentBaseId", "CurrentBaseRepo/Tag", "Status", "LatestBaseId", "LatestBaseRepo/Tag"])
 
@@ -41,12 +56,13 @@ for imageId in config['images']:
             except:
                 pass
 
-        if uptodate:
-            if 'all' in config['params'] or bimage.meta['shortId'] in config['params'] or bimage.meta['imageId'] in config['params']:
-                outlist.append([image.meta['shortId'], image.meta['humanname'], bimage.meta['shortId'], bimage.get_human_name(), "up-to-date", "N/A", "N/A"])
-        else:
-            if 'all' in config['params'] or bimage.meta['shortId'] in config['params'] or bimage.meta['imageId'] in config['params']:
-                outlist.append([image.meta['shortId'], image.meta['humanname'], bimage.meta['shortId'], bimage.get_human_name(), "out-of-date", cimage.meta['shortId'], cimage.get_human_name()])
+        if image.meta['imageId'] != bimage.meta['imageId']:
+            if uptodate:
+                if 'all' in config['params'] or bimage.meta['shortId'] in config['params'] or bimage.meta['imageId'] in config['params']:
+                    outlist.append([image.meta['shortId'], image.meta['humanname'], bimage.meta['shortId'], bimage.get_human_name(), "up-to-date", "N/A", "N/A"])
+            else:
+                if 'all' in config['params'] or bimage.meta['shortId'] in config['params'] or bimage.meta['imageId'] in config['params']:
+                    outlist.append([image.meta['shortId'], image.meta['humanname'], bimage.meta['shortId'], bimage.get_human_name(), "out-of-date", cimage.meta['shortId'], cimage.get_human_name()])
     except:
         pass
 
