@@ -14,8 +14,9 @@ from rpmUtils.miscutils import splitFilename
 
 import logging
 
-import anchore_image
+import anchore_image, anchore_image_db
 from configuration import AnchoreConfiguration
+from anchore.util import contexts
 
 module_logger = logging.getLogger(__name__)
 
@@ -27,6 +28,8 @@ def init_analyzer_cmdline(argv, name):
         raise Exception
 
     anchore_conf = AnchoreConfiguration()
+    anchore_common_context_setup(anchore_conf)
+
     ret['anchore_config'] = anchore_conf.data
 
     ret['name'] = name
@@ -63,7 +66,10 @@ def init_query_cmdline(argv, paramhelp):
         raise Exception
 
     anchore_conf = AnchoreConfiguration()
+    anchore_common_context_setup(anchore_conf)
+
     ret['anchore_config'] = anchore_conf.data
+
 
     ret['name'] = argv[0].split('/')[-1]
     ret['imgfile'] = argv[1]
@@ -107,6 +113,104 @@ def init_query_cmdline(argv, paramhelp):
 
     return (ret)
 
+def anchore_common_context_setup(config):
+    if 'docker_cli' not in contexts or not contexts['docker_cli']:
+        try:
+            contexts['docker_cli'] = docker.Client(base_url=config['docker_conn'])
+            testconn = contexts['docker_cli'].images()
+        except Exception as err:
+            contexts['docker_cli']=None
+
+    if 'anchore_allimages' not in contexts or not contexts['anchore_allimages']:
+        contexts['anchore_allimages'] = {}
+
+    if 'anchore_db' not in contexts or not contexts['anchore_db']:
+        contexts['anchore_db'] = anchore_image_db.AnchoreImageDB(imagerootdir=config['image_data_store'])
+
+    return(True)
+
+
+def discover_imageIds(config, namelist):
+    ret = {}
+    for name in namelist:
+        result = discover_imageId(config, name)
+        ret.update(result)
+
+    return(ret)
+
+def discover_imageId(config, name):
+
+    ret = {}
+
+    imageId = None
+    try:
+        docker_cli = contexts['docker_cli']
+        if docker_cli:
+            try:
+                docker_data = docker_cli.inspect_image(name)
+                imageId = re.sub("sha256:", "", docker_data['Id'])
+                repos = []
+                for r in docker_data['RepoTags']:
+                    repos.append(r)
+                ret[imageId] = repos
+            except Exception as err:
+                pass
+
+        if not imageId:
+            images = contexts['anchore_db'].load_all_images()
+            # check if name is an imageId
+            if name in images.keys():
+                ret[name] = images[name]['all_tags']
+            else:
+                # search for input name as an Id (prefix) or repo/tag match
+                match = False
+                for imageId in images.keys():
+                    image = images[imageId]
+                    alltags = image['all_tags']
+                    currtags = image['current_tags']
+                    if re.match("^"+name, imageId):
+                        if not match:
+                            match=True
+                            matchId = imageId
+                            ret[imageId] = alltags
+                        else:
+                            raise ValueError("Input image name (ID) '"+str(name)+"' is ambiguous in anchore:\n\tprevious match=" + str(matchId) + "("+str(ret[matchId])+")\n\tconflicting match=" + str(imageId)+"("+str(alltags)+")")
+
+                if not match:
+                    for imageId in images.keys():
+                        image = images[imageId]
+                        alltags = image['all_tags']
+                        currtags = image['current_tags']
+                        if name in currtags or name+":latest" in currtags:
+                            if not match:
+                                match = True
+                                matchId = imageId
+                                ret[imageId] = alltags
+                            else:
+                                raise ValueError("Input image name (CURRTAGS) '"+str(name)+"' is ambiguous in anchore:\n\tprevious match=" + str(matchId) + "("+str(ret[matchId])+")\n\tconflicting match=" + str(imageId)+"("+str(alltags)+")")
+
+                if not match:
+                    for imageId in images.keys():
+                        image = images[imageId]
+                        alltags = image['all_tags']
+                        currtags = image['current_tags']
+                        if name in alltags or name+":latest" in alltags:
+                            if not match:
+                                match = True
+                                matchId = imageId
+                                ret[imageId] = alltags
+                            else:
+                                raise ValueError("Input image name (ALLTAGS) '"+str(name)+"' is ambiguous in anchore:\n\tprevious match=" + str(matchId) + "("+str(ret[matchId])+")\n\tconflicting match=" + str(imageId)+"("+str(alltags)+")")
+                    
+    except ValueError as err:
+        raise err
+    except Exception as err:
+        raise err
+
+    if len(ret.keys()) <= 0:
+        raise ValueError("Input image name '"+str(name)+"' not found in local dockerhost or anchore DB.")
+
+    return(ret)
 
 def print_result(config, result, outputmode=None):
     if not result:
@@ -300,17 +404,57 @@ def image_context_add(imagelist, allimages, docker_cli=None, dockerfile=None, an
                 errorstr = "Image(s) must be analyzed before operation can be performed.\n\tImage: " + str(i)
                 raise Exception(errorstr)
 
-            #elif must_be_analyzed and not newimage.is_analyzed():
-            #    raise Exception(errorstr)
-            # Check that all input images are successfully loaded
-            #if must_load_all and (len(retlist) != len(imagelist)):
-            #    lnames = list()
-            #    for i in retlist:
-            #        lnames.append(allimages[i].meta['imagename'])
-            #    ldiff = list(set(imagelist) - set(lnames))
-            #    raise Exception(errorstr)
-
     return (retlist)
+
+
+def diff_images(image, baseimage):
+    retdata = {}
+
+    shortida = image.meta['shortId']
+    shortidb = baseimage.meta['shortId']
+
+    if not image.is_analyzed():
+        return (retdata)
+
+    if not baseimage.is_analyzed():
+        return (retdata)
+
+    areport = image.get_analysis_report()
+    breport = baseimage.get_analysis_report()
+    
+    for azkey in areport.keys():
+        if azkey in breport:
+            for aokey in areport[azkey].keys():
+                if aokey in breport[azkey]:
+                    outputdict = {}
+
+                    adatadict = {}
+                    for l in areport[azkey][aokey]:
+                        l = l.strip()
+                        (k, v) = l.split()
+                        adatadict[k] = v
+
+                    bdatadict = {}
+                    for l in breport[azkey][aokey]:
+                        l = l.strip()
+                        (k, v) = l.split()
+                        bdatadict[k] = v
+
+                    for dkey in adatadict.keys():
+                        if not dkey in bdatadict:
+                            outputdict[dkey] = "INIMG_NOTINBASE"
+                        elif adatadict[dkey] != bdatadict[dkey]:
+                            outputdict[dkey] = "VERSION_DIFF"
+
+                    for dkey in bdatadict.keys():
+                        if not dkey in adatadict:
+                            outputdict[dkey] = "INBASE_NOTINIMG"
+                    if azkey not in retdata:
+                        retdata[azkey] = {}
+                    retdata[azkey][aokey] = outputdict
+    return (retdata)
+
+
 
 
 def update_file_list(listbuf, outfile, backup=False):

@@ -193,47 +193,17 @@ class Analyzer(object):
             self._logger.debug("output directory '" + str(thedir) + "' does not exist, creating")
             os.makedirs(thedir)
 
-        self._logger.debug("getting analysis reports for images")
-        areport = image.get_analysis_report()
-        breport = baseimage.get_analysis_report()
-
-        self._logger.debug("performing comparison")
-        for azkey in areport.keys():
-            if azkey in breport:
-                for aokey in areport[azkey].keys():
-                    if aokey in breport[azkey]:
-                        outputdict = {}
-
-                        adatadict = {}
-                        for l in areport[azkey][aokey]:
-                            l = l.strip()
-                            (k, v) = l.split()
-                            adatadict[k] = v
-
-                        bdatadict = {}
-                        for l in breport[azkey][aokey]:
-                            l = l.strip()
-                            (k, v) = l.split()
-                            bdatadict[k] = v
-
-                        for dkey in adatadict.keys():
-                            if not dkey in bdatadict:
-                                outputdict[dkey] = "INIMG_NOTINBASE"
-                            elif adatadict[dkey] != bdatadict[dkey]:
-                                outputdict[dkey] = "VERSION_DIFF"
-
-                        for dkey in bdatadict.keys():
-                            if not dkey in adatadict:
-                                outputdict[dkey] = "INBASE_NOTINIMG"
-
-                        thedir = outputdir + "/compare_output/" + baseimage.meta['imageId'] + "/" + azkey + "/"
-                        if not os.path.exists(thedir):
-                            os.makedirs(thedir)
-
+        compares = anchore_utils.diff_images(image, baseimage)
+        for azkey in compares.keys():
+            for aokey in compares[azkey].keys():
+                outputdict = compares[azkey][aokey]
+                thedir = outputdir + "/compare_output/" + baseimage.meta['imageId'] + "/" + azkey + "/"
+                if not os.path.exists(thedir):
+                    os.makedirs(thedir)
                         
-                        thefile = thedir + "/" + aokey
-                        anchore_utils.write_kvfile_fromdict(thefile, outputdict)
-
+                thefile = thedir + "/" + aokey
+                anchore_utils.write_kvfile_fromdict(thefile, outputdict)
+                
         self._logger.debug("all comparisons completed")
 
         anchore_utils.touch_file(outputdir + "/compare_output/" + baseimage.meta['imageId'] + "/differs.done")

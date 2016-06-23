@@ -34,8 +34,16 @@ def explore(anchore_config, image, imagefile, include_allanchore):
     try:
         imagedict = build_image_list(anchore_config, image, imagefile, not (image or imagefile), include_allanchore)
         imagelist = imagedict.keys()
+
+        try:
+            ret = anchore_utils.discover_imageIds(anchore_config, imagelist)
+        except ValueError as err:
+            raise err
+        else:
+            imagelist = ret.keys()
+
     except Exception as err:
-        anchore_print_err("could not load any images")
+        anchore_print_err("could not load input images")
         sys.exit(1)
 
 def init_nav_vis_contexts():

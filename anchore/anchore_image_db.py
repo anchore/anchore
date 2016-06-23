@@ -83,13 +83,13 @@ class AnchoreImageDB(object):
         self.initialized = True
 
     def load_all_images(self):
-        ret = []
+        ret = {}
         
         for d in os.listdir(self.imagerootdir):
             try:
                 result = self.load_image(d)
                 if result['meta']['imageId'] not in ret:
-                    ret.append(result['meta']['imageId'])
+                    ret[result['meta']['imageId']] = result
             except Exception as err:
                 pass
             

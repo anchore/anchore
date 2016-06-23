@@ -156,7 +156,7 @@ def build_image_list(config, image, imagefile, all_local, include_allanchore, do
             raise Exception("Could not load any images from local docker host - is docker running?")
 
     if include_allanchore:
-        ret = contexts['anchore_db'].load_all_images()
+        ret = contexts['anchore_db'].load_all_images().keys()
         if ret and len(ret) > 0:
             for l in list(set(imagelist.keys()) | set(ret)):
                 imagelist[l] = {'dockerfile':None}

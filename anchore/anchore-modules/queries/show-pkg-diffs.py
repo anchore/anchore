@@ -17,6 +17,9 @@ except:
 if not config:
     sys.exit(0)
 
+if len(config['params']) <= 0:
+    config['params'] = ['base']
+
 outlist = list()
 outlist.append(["ImageId", "Repo/Tag", "CompareImageId","Package","InputImageVersion","CompareImageVersion"])
 
@@ -27,39 +30,39 @@ hascontent = False
 
 for fid in config['params']:
     try:
-        fimageId = fid
-
         if fid == 'base':
             fimageId = image.get_earliest_base()
+        else:
+            try:
+                fimageId = anchore.anchore_utils.discover_imageId(config['anchore_config'], fid).keys()[0]
+            except ValueError as err:
+                fimageId = fid
 
         fimage = anchore.anchore_image.AnchoreImage(fimageId, config['anchore_config']['image_data_store'], allimages)
-
+    
+        image_report = anchore.anchore_utils.diff_images(image, fimage)
         fpkgs = fimage.get_allpkgs()
 
-        image_report = image.get_compare_report()
-
-        if fimageId in image_report.keys():
-
-            for p in image_report[fimageId]['package_list']['pkgs.all']:
-
-                (pkg, status) = re.match('(\S*)\s*(.*)', p).group(1, 2)
-                ivers = ipkgs.pop(pkg, "NA")
-
-                if status == 'VERSION_DIFF':
-                    pvers = fpkgs.pop(pkg, "NA")
-                    outlist.append([config['meta']['shortId'], config['meta']['humanname'], fid,pkg,ivers,pvers])
-                    hascontent=True
-                elif status == 'INIMG_NOTINBASE':
-                    outlist.append([config['meta']['shortId'], config['meta']['humanname'], fid,pkg,ivers,"NOTINSTALLED"])
-                    hascontent=True
-    except:
-        pass
+        for pkg in image_report['package_list']['pkgs.all'].keys():
+            status = image_report['package_list']['pkgs.all'][pkg]
+            ivers = ipkgs.pop(pkg, "NA")
+            if status == 'VERSION_DIFF':
+                pvers = fpkgs.pop(pkg, "NA")
+                outlist.append([config['meta']['shortId'], config['meta']['humanname'], fimage.meta['shortId'], pkg,ivers,pvers])
+                hascontent=True
+            elif status == 'INIMG_NOTINBASE':
+                outlist.append([config['meta']['shortId'], config['meta']['humanname'], fimage.meta['shortId'], pkg,ivers,"NOTINSTALLED"])
+                hascontent=True
+    except Exception as err:
+        import traceback
+        traceback.print_exc()
+        print "WARN: " + str(err)
 
 if not hascontent:
-    #outlist.append(["NOMATCH","NOMATCH","NOMATCH","NOMATCH"])
     pass
 
 anchore.anchore_utils.write_kvfile_fromlist(config['output'], outlist)
 
 allimages.clear()    
 sys.exit(0)
+
