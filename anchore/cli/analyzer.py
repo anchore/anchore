@@ -80,6 +80,14 @@ def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy
     try:
         imagedict = build_image_list(anchore_config, image, imagefile, not (image or imagefile), include_allanchore)
         imagelist = imagedict.keys()
+
+        try:
+            ret = anchore_utils.discover_imageIds(anchore_config, imagelist)
+        except ValueError as err:
+            raise err
+        else:
+            imagelist = ret.keys()
+
     except Exception as err:
         anchore_print_err("could not load any images")
         sys.exit(1)
@@ -214,6 +222,14 @@ def analyze(anchore_config, force, image, imagefile, include_allanchore, dockerf
     try:
         imagedict = build_image_list(anchore_config, image, imagefile, not (image or imagefile), include_allanchore, exclude_file=excludefile, dockerfile=dockerfile)
         imagelist = imagedict.keys()
+
+        try:
+            ret = anchore_utils.discover_imageIds(anchore_config, imagelist)
+        except ValueError as err:
+            raise err
+        else:
+            imagelist = ret.keys()
+
     except Exception as err:
         anchore_print_err("could not load any images")
         ecode = 1

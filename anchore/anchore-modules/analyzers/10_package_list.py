@@ -53,6 +53,8 @@ if flav == "RHEL":
         rpm.addMacro("_dbpath", unpackdir + "/rootfs/var/lib/rpm")
         ts = rpm.TransactionSet()
         mi = ts.dbMatch()
+        if mi.count() == 0:
+            raise Exception
         for h in mi:
             FH.write(h['name'] + " " + h['version'] + "-" + h['release'] + "\n")
     except:

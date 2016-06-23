@@ -29,6 +29,13 @@ def toolbox(anchore_config, image):
     imagelist = [image]
 
     try:
+        ret = anchore_utils.discover_imageIds(anchore_config, imagelist)
+    except ValueError as err:
+        raise err
+    else:
+        imagelist = ret.keys()
+
+    try:
         nav = navigator.Navigator(anchore_config=config, imagelist=imagelist, allimages=contexts['anchore_allimages'])
     except Exception as err:
         anchore_print_err('operation failed')
@@ -128,23 +135,16 @@ def setup_module_dev(destdir):
             anchore_print("\tImage: " + imageId[0:12])
             anchore_print("\tUnpack Directory: " +result[imageId])
             anchore_print("")
-            #analyzer_string = ' '.join([examples['analyzers'], imageId, config.data['image_data_store'], config.data['image_data_store'] + "/" + imageId, result[imageId]])
             analyzer_string = ' '.join([examples['analyzers'], imageId, tmpdatastore, dstimgdir, result[imageId]])
             anchore_print("\tAnalyzer Command:\n\n\t" +analyzer_string)
             anchore_print("")
 
             anchore_utils.write_plainfile_fromstr(result[imageId] + "/queryimages", imageId+"\n")
 
-#            gate_string = ' '.join([examples['gates'], result[imageId] + "/queryimages", config.data['image_data_store'], config.data['image_data_store'] + "/"+imageId+"/gates_output", "all"])
-#            anchore_print("***Gate***\n")
-#            anchore_print("\tCommand:\n\n\t" + gate_string)
-#            anchore_print("")
-
             queryoutput = '/'.join([result[imageId], "querytmp/"])
             if not os.path.exists(queryoutput):
                 os.makedirs(queryoutput)
 
-            #query_string = ' '.join([examples['queries'], result[imageId] + "/queryimages", config.data['image_data_store'], queryoutput, "passwd"])
             query_string = ' '.join([examples['queries'], result[imageId] + "/queryimages", tmpdatastore, queryoutput, "passwd"])
             anchore_print("Query Command:\n\n\t" + query_string)
             anchore_print("")
@@ -207,8 +207,6 @@ def show_layers():
 
     except:
         anchore_print_err("operation failed")
-        #import traceback
-        #traceback.print_exc()
         ecode = 1
 
     contexts['anchore_allimages'].clear()
@@ -229,8 +227,6 @@ def show_familytree():
 
     except:
         anchore_print_err("operation failed")
-        #import traceback
-        #traceback.print_exc()
         ecode = 1
 
     contexts['anchore_allimages'].clear()    
