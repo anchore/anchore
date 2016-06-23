@@ -7,6 +7,7 @@ import sys
 import re
 import rpm
 import subprocess
+import docker
 from prettytable import PrettyTable
 from textwrap import fill
 from deb_pkg_tools.version import Version

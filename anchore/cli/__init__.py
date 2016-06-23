@@ -13,7 +13,7 @@ import system
 import synchronizer
 import logs
 import toolbox
-import anchore.anchore_image_db
+import anchore.anchore_image_db, anchore.anchore_utils
 
 from anchore.util import contexts
 from .common import init_output_format, anchore_print_err, extended_help_option
@@ -141,7 +141,7 @@ def main_entry(ctx, verbose, debug, quiet, json, plain):
         anchore_print_err("Error running pre-flight checks")
         exit(1)
 
-    if not anchore_common_context_setup(ctx):
+    if not anchore.anchore_utils.anchore_common_context_setup(ctx.obj):
         anchore_print_err("Error setting up common data based on configuration")
         exit(1)
 
@@ -195,24 +195,5 @@ def anchore_pre_flight_check(ctx):
         except Exception as err:
             anchore_print_err("Could not set up connection to Anchore DB")
             return(False)
-
-    return(True)
-
-
-def anchore_common_context_setup(ctx):
-    config = ctx.obj
-
-    if 'docker_cli' not in contexts or not contexts['docker_cli']:
-        try:
-            contexts['docker_cli'] = docker.Client(base_url=config['docker_conn'])
-            testconn = contexts['docker_cli'].images()
-        except Exception as err:
-            contexts['docker_cli']=None
-
-    if 'anchore_allimages' not in contexts or not contexts['anchore_allimages']:
-        contexts['anchore_allimages'] = {}
-
-    if 'anchore_db' not in contexts or not contexts['anchore_db']:
-        contexts['anchore_db'] = anchore.anchore_image_db.AnchoreImageDB(imagerootdir=config['image_data_store'])
 
     return(True)
