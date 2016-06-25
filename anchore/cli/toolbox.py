@@ -7,7 +7,7 @@ import click
 
 from anchore.cli.common import anchore_print, anchore_print_err
 from anchore import visualizer, navigator, anchore_utils
-from anchore.util import contexts
+from anchore.util import contexts, scripting
 
 config = {}
 imagelist = []
@@ -27,6 +27,11 @@ def toolbox(anchore_config, image):
     ecode = 0
 
     imagelist = [image]
+
+    try:
+        s = scripting.ScriptExecutor(path="/tmp/meh", script_name="foobar", path_overrides=['/tmp/user1', '/tmp/user2'])
+    except Exception as err:
+        print str(err)
 
     try:
         ret = anchore_utils.discover_imageIds(anchore_config, imagelist)

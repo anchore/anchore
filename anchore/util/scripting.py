@@ -3,6 +3,42 @@ import subprocess
 import re
 import logging
 
+class ScriptExecutor:
+    _logger = logging.getLogger(__name__)
+
+    def __init__(self, path, script_name, suffix_list=['', '.py', '.sh'], path_overrides=[]):
+        self.path = path
+        self.script_name = script_name
+        self.suffix_list = suffix_list
+        self.path_overrides = path_overrides
+        try:
+            self.check()
+        except Exception as err:
+            raise err
+
+    def check(self):
+        allpaths = self.path_overrides + [self.path]
+
+        for p in allpaths:
+            match=False
+            matchcmd = None
+            for cmd in [ '/'.join([p, self.script_name]) + x for x in self.suffix_list ]:
+                if os.path.exists(cmd) and os.access(cmd, os.R_OK ^ os.X_OK): 
+                    if not match:
+                        match=True
+                        matchcmd = cmd
+                    else:
+                        # ambiguous
+                        raise ValueError("input script is ambiguous: match cmd=" + str(cmd) + " previous match="+str(matchcmd))
+            if matchcmd:
+                break
+                
+        if matchcmd:
+            self.thecmd = matchcmd
+        else:
+            raise ValueError("cannot locate executable input script: " + self.script_name)
+
+        return(True)
 
 class ScriptSetExecutor:
     """
@@ -82,5 +118,4 @@ class ScriptSetExecutor:
                 break
 
         return output
-
 
