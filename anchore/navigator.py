@@ -7,8 +7,7 @@ import logging
 import time
 
 from anchore import anchore_utils
-from anchore.util import contexts
-
+from anchore.util import scripting, contexts
 
 class Navigator(object):
     _logger = logging.getLogger(__name__)
@@ -173,45 +172,36 @@ class Navigator(object):
         return(ret)
 
     def run(self):
-        # navigate images - report, gate, etc
         return(True)
 
     def find_query_command(self, action):
-        querydir = '/'.join([self.config['scripts_dir'], "queries"])
-        qcommand = '/'.join([querydir, action])
-        check_commands = list()
-        check_commands.append(qcommand)
-        check_commands.append(qcommand + ".py")
-        check_commands.append(qcommand + ".sh")
+        cmdobj = None
+        mode = None
+        cmd = None
+        rc = False
+        try:
+            cmdobj = scripting.ScriptExecutor(path='/'.join([self.config['scripts_dir'], 'queries']), script_name=action, path_overrides=['/'.join([self.config['anchore_data_dir'], 'user-scripts', 'queries'])])
+            cmd = cmdobj.thecmd
+            mode = 'query'
+            rc = True
+        except ValueError as err:
+            raise err
+        except Exception as err:
+            errstr = str(err)
+            try:
+                cmdobj = scripting.ScriptExecutor(path='/'.join([self.config['scripts_dir'], 'multi-queries']), script_name=action)
+                cmd = cmdobj.thecmd
+                mode = 'multi-query'
+                rc = True
+            except ValueError as err:
+                raise err
+            except Exception as err:
+                raise err
 
-        qcommand = None
-        for q in check_commands:
-            if os.path.exists(q):
-                qcommand = q
-                command_type = 'query'
-                break
+        ret = (rc, mode, cmdobj)
+        return(ret)
 
-        if not qcommand:
-            mquerydir = '/'.join([self.config['scripts_dir'], "multi-queries"])
-            qcommand = '/'.join([mquerydir, action])
-            check_commands = list()
-            check_commands.append(qcommand)
-            check_commands.append(qcommand + ".py")
-            check_commands.append(qcommand + ".sh")
-            
-            qcommand = None
-            for q in check_commands:
-                if os.path.exists(q):
-                    qcommand = q
-                    command_type = 'multi-query'
-                    break
-
-        if not qcommand:
-            return(False, None, None)
-        
-        return(True, qcommand, command_type)
-
-    def execute_query(self, imglist, qcommand, params):
+    def execute_query(self, imglist, se, params):
         success = True
         datadir = self.config['image_data_store']
         outputdir = '/'.join([self.config['anchore_data_dir'], "querytmp", "query." + str(random.randint(0, 99999999))])
@@ -220,30 +210,22 @@ class Navigator(object):
         imgfile = '/'.join([self.config['anchore_data_dir'], "querytmp", "queryimages." + str(random.randint(0, 99999999))])
         anchore_utils.write_plainfile_fromlist(imgfile, imglist)
 
-        cmd = [qcommand, imgfile, datadir, outputdir] 
+        cmdline = ' '.join([imgfile, datadir, outputdir])
         if params:
-            cmd = cmd +  params
+            cmdline = cmdline + ' ' + ' '.join(params)
 
         meta = {}
 
         try:
-            self._logger.debug("Running query command: " + str(' '.join(cmd)))
-            sout = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
-            self._logger.debug("Query command execution success")
-            if sout:
-                self._logger.debug("\tCommand output:\n" + str(sout))
-        except subprocess.CalledProcessError as err:
-            self._logger.error("Query command ran but execution failed: " )
-            self._logger.error("\tCommand: " + ' '.join(cmd))
-            self._logger.error("\tException: " + str(err))
-            self._logger.error("\tCommand output:\n" + str(err.output))
-            self._logger.error("\tExit code: " + str(err.returncode))
-            success = False
+            (cmd, rc, sout) = se.execute(capture_output=True, cmdline=cmdline)
+            if rc:
+                self._logger.error("Query command ran but execution failed: " )
+                self._logger.error("\tCommand: " + ' '.join([se.thecmd, cmdline]))
+                self._logger.error("\tCommand output:\n" + str(sout))
+                self._logger.error("\tExit code: " + str(rc))
+                raise Exception("Query ran but exited non-zero.")
         except Exception as err:
-            self._logger.error("Query command execution call failed: " )
-            self._logger.error("\tCommand: " + ' '.join(cmd))
-            self._logger.error("\tException: " + str(err))
-            success = False
+            raise Exception("Query execution failed: " + str(err))
         else:
             try:
                 outputs = os.listdir(outputdir)
@@ -293,40 +275,35 @@ class Navigator(object):
         record['result']['header'] = ["Query", "HelpString"]
         record['result']['rows'] = list()
 
-        querydir = '/'.join([self.config['scripts_dir'], "queries"])
-        mquerydir = '/'.join([self.config['scripts_dir'], "multi-queries"])
+        if command:
+            try:
+                (rc, command_type, se) = self.find_query_command(command)
+                if rc:
+                    (cmd, rc, sout) = se.execute(capture_output=True, cmdline='help')
+                    if rc == 0:
+                        record['result']['rows'].append([command, sout])
+            except Exception as err:
+                pass
+                
+        else:
+            querydir = '/'.join([self.config['scripts_dir'], "queries"])
+            mquerydir = '/'.join([self.config['scripts_dir'], "multi-queries"])
+            uquerydir = '/'.join([self.config['anchore_data_dir'], "user-scripts", 'queries'])
+            umquerydir = '/'.join([self.config['anchore_data_dir'], "user-scripts", 'multi-queries'])
 
-        for dd in [querydir, mquerydir]:
-            for d in os.listdir(dd):
-                if re.match(r".*~$|.*#$|.*pyc", d):
+            for dd in [querydir, mquerydir, uquerydir, umquerydir]:
+                if not os.path.exists(dd):
                     continue
-                d = re.sub(r"\.sh$|\.py$", "", d)
-                (rc, qcommand, command_type) = self.find_query_command(d)
-                cmd = [qcommand, 'help']
-                if not command or command == d:
-
+                for d in os.listdir(dd):
+                    command = re.sub("(\.py|\.sh)$", "", d)
                     try:
-                        self._logger.debug("Running query command: " + str(' '.join(cmd)))
-                        sout = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
-                        self._logger.debug("Query command execution success")
-                        if sout:
-                            self._logger.debug("\tCommand output:\n" + str(sout))
-                        else:
-                            sout = "No usage information for query"
-                    except subprocess.CalledProcessError as err:
-                        self._logger.error("Query command ran but execution failed: " )
-                        self._logger.error("\tCommand: " + ' '.join(cmd))
-                        self._logger.error("\tException: " + str(err))
-                        self._logger.error("\tCommand output:\n" + str(err.output))
-                        self._logger.error("\tExit code: " + str(err.returncode))
-                        sout = "Command ran but exited non-zero"
+                        (rc, command_type, se) = self.find_query_command(command)
+                        if rc:
+                            (cmd, rc, sout) = se.execute(capture_output=True, cmdline='help')
+                            if rc == 0:
+                                record['result']['rows'].append([command, sout])
                     except Exception as err:
-                        self._logger.error("Query command execution call failed: " )
-                        self._logger.error("\tCommand: " + ' '.join(cmd))
-                        self._logger.error("\tException: " + str(err))
-                        sout = "Command failed to run"
-
-                    record['result']['rows'].append([d, sout])
+                        pass
 
         result['list_query_commands'] = record
         return(result)
@@ -347,25 +324,29 @@ class Navigator(object):
             self._logger.error("invalid query string (bad characters in string)")
             return(False)
                     
+        try:
+            (rc, command_type, se) = self.find_query_command(action)
+        except Exception as err:
+             raise err
 
-        (rc, qcommand, command_type) = self.find_query_command(action)
         if not rc:
             self._logger.error("cannot find query command in Anchore query directory: " + action + "(.py|.sh)")
             return(False)
 
         if params and params[0] == 'help':
+            print "HERE"
             return(self.list_query_commands(action))
 
         outputdir = None
 
         if command_type == 'query':
             for imageId in self.images:
-                (rc, cmd, outputdir, output) = self.execute_query([imageId], qcommand, params)
+                (rc, cmd, outputdir, output) = self.execute_query([imageId], se, params)
                 if rc:
                     result[imageId] = output
 
         elif command_type == 'multi-query':
-            (rc, cmd, outputdir, output) = self.execute_query(self.images, qcommand, params)
+            (rc, cmd, outputdir, output) = self.execute_query(self.images, se, params)
             if rc:
                 result['multi'] = output
 

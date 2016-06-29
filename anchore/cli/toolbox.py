@@ -29,11 +29,6 @@ def toolbox(anchore_config, image):
     imagelist = [image]
 
     try:
-        s = scripting.ScriptExecutor(path="/tmp/meh", script_name="foobar", path_overrides=['/tmp/user1', '/tmp/user2'])
-    except Exception as err:
-        print str(err)
-
-    try:
         ret = anchore_utils.discover_imageIds(anchore_config, imagelist)
     except ValueError as err:
         raise err

@@ -79,9 +79,7 @@ class Analyzer(object):
         self._logger.debug("finished unpacking image to directory: " + str(imagedir))
 
         self._logger.debug("running all analyzers on image")
-        results = scripting.ScriptSetExecutor(path=analyzerdir).execute(capture_output=True, fail_fast=True,
-                                                                        cmdline=' '.join(
-                                                                            [imagename, self.config['image_data_store'], outputdir, imagedir]))
+        results = scripting.ScriptSetExecutor(path=analyzerdir, path_overrides=['/'.join([self.config['anchore_data_dir'], 'user-scripts', 'analyzers'])]).execute(capture_output=True, fail_fast=True, cmdline=' '.join([imagename, self.config['image_data_store'], outputdir, imagedir]))
         self._logger.debug("analyzers done running" + str(len(results)))
 
         success = True
