@@ -334,7 +334,6 @@ class Navigator(object):
             return(False)
 
         if params and params[0] == 'help':
-            print "HERE"
             return(self.list_query_commands(action))
 
         outputdir = None
