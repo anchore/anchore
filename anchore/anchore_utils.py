@@ -354,6 +354,8 @@ def cve_scanimage(cve_data, image):
                             if ivers != vvers and deb_pkg_tools.version.compare_versions(ivers, '<', vvers):
                                 isvuln = True
                         else:
+                            #print "cve-scan: no fix version available"
+                            #vuln['Severity'] = 'Possible('+vuln['Severity']+')'
                             isvuln = True
 
                     if isvuln:
@@ -618,3 +620,27 @@ def write_kvfile_fromdict(file, indict):
 
 def touch_file(file):
     return(open(file, 'a').close())
+
+def run_command_in_container(image=None, cmd="echo HELLO WORLD"):
+    if not image or not cmd:
+        raise Exception("Invalid input: image="+str(image)+" cmd="+str(cmd))
+
+    try:
+        #pkg = 'nginx curl'
+        #cmd = "apt-get update && apt-cache madison " + pkg
+
+        docker_cli = contexts['docker_cli']
+        container = docker_cli.create_container(image="nginx", command="/bin/bash -c '"+cmd+"'", tty=False)
+        response = docker_cli.start(container=container.get('Id'))
+        output = docker_cli.logs(container=container.get('Id'), stdout=True, stderr=True, stream=True)
+        olines = list()
+        for l in output:
+            olines.append(l)
+    except Exception as err:
+        raise err
+    finally:
+        try:
+            docker_cli.remove_container(container=container.get('Id'), force=True)
+        except:
+            pass
+    return(olines)

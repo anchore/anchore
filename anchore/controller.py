@@ -245,7 +245,7 @@ class Controller(object):
         if len(paramlist) <= 0:
             paramlist.append('all')
 
-        results = scripting.ScriptSetExecutor(path=gatesdir).execute(capture_output=True, fail_fast=True, cmdline=' '.join([imgfile, self.config['image_data_store'], outputdir, ' '.join(paramlist)]))
+        results = scripting.ScriptSetExecutor(path=gatesdir, path_overrides=['/'.join([self.config['anchore_data_dir'], 'user-scripts', 'gates'])]).execute(capture_output=True, fail_fast=True, cmdline=' '.join([imgfile, self.config['image_data_store'], outputdir, ' '.join(paramlist)]))
 
         os.remove(imgfile)
 
