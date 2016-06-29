@@ -1,6 +1,7 @@
 import yaml
 import os
 import shutil
+import filecmp
 from util.tools import load_and_merge
 from pkg_resources import Requirement, resource_filename
 
@@ -24,6 +25,7 @@ class AnchoreConfiguration (object):
         'tmpdir': '/tmp',
         'pkg_dir': DEFAULT_PKG_DIR,
         'scripts_dir': DEFAULT_SCRIPTS_DIR,
+        'user_scripts_dir': 'user-scripts',
         'docker_conn': 'unix://var/run/docker.sock',
         'vulnerabilities': {
             'url': 'https://service-data.anchore.com/vulnerabilities.tar.gz',
@@ -42,11 +44,6 @@ class AnchoreConfiguration (object):
         try:
             self.data = load_and_merge(file_path=self.config_file, defaults=self.DEFAULTS)
 
-            # set up names of CLI common contexts
-            #self.contexts = {}
-            #self.contexts['docker_cli'] = None
-            #self.contexts['anchore_allimages'] = None
-
             self.cliargs = {}
             if cliargs:
                 # store CLI arguments
@@ -59,6 +56,21 @@ class AnchoreConfiguration (object):
             if not os.path.exists(self.data['image_data_store']):
                 os.makedirs(self.data['image_data_store'])
 
+            if not os.path.isabs(self.data['user_scripts_dir']):
+                self.data['user_scripts_dir'] = os.path.join(self.data['anchore_data_dir'], self.data['user_scripts_dir'])
+            
+            if not os.path.exists(self.data['user_scripts_dir']):
+                os.makedirs(self.data['user_scripts_dir'])
+                for d in ['analyzers', 'gates', 'queries', 'multi-queries', 'shell-utils']:
+                    os.makedirs(os.path.join(self.data['user_scripts_dir'], d))
+
+            dc = filecmp.dircmp(os.path.join(self.data['scripts_dir'], 'shell-utils'), os.path.join(self.data['user_scripts_dir'], 'shell-utils'))
+            for f in dc.left_only + dc.diff_files:
+                try:
+                    shutil.copy(os.path.join(self.data['scripts_dir'], 'shell-utils', f), os.path.join(self.data['user_scripts_dir'], 'shell-utils', f))
+                except Exception as err:
+                    raise err
+            
         except Exception as err:
             self.data = None
             import traceback
