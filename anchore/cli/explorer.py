@@ -36,7 +36,7 @@ def explore(anchore_config, image, imagefile, include_allanchore):
         imagelist = imagedict.keys()
 
         try:
-            ret = anchore_utils.discover_imageIds(anchore_config, imagelist)
+            ret = anchore_utils.discover_imageIds(imagelist)
         except ValueError as err:
             raise err
         else:

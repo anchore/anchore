@@ -34,7 +34,7 @@ for fid in config['params']:
             fimageId = image.get_earliest_base()
         else:
             try:
-                fimageId = anchore.anchore_utils.discover_imageId(config['anchore_config'], fid).keys()[0]
+                fimageId = anchore.anchore_utils.discover_imageId(fid).keys()[0]
             except ValueError as err:
                 fimageId = fid
 

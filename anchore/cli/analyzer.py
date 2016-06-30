@@ -82,7 +82,7 @@ def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy
         imagelist = imagedict.keys()
 
         try:
-            ret = anchore_utils.discover_imageIds(anchore_config, imagelist)
+            ret = anchore_utils.discover_imageIds(imagelist)
         except ValueError as err:
             raise err
         else:
@@ -224,7 +224,7 @@ def analyze(anchore_config, force, image, imagefile, include_allanchore, dockerf
         imagelist = imagedict.keys()
 
         try:
-            ret = anchore_utils.discover_imageIds(anchore_config, imagelist)
+            ret = anchore_utils.discover_imageIds(imagelist)
         except ValueError as err:
             raise err
         else:

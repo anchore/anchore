@@ -29,7 +29,7 @@ def toolbox(anchore_config, image):
     imagelist = [image]
 
     try:
-        ret = anchore_utils.discover_imageIds(anchore_config, imagelist)
+        ret = anchore_utils.discover_imageIds(imagelist)
     except ValueError as err:
         raise err
     else:

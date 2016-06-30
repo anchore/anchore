@@ -8,6 +8,9 @@ import re
 import rpm
 import subprocess
 import docker
+import io
+import tarfile
+
 from prettytable import PrettyTable
 from textwrap import fill
 from deb_pkg_tools.version import Version
@@ -131,15 +134,15 @@ def anchore_common_context_setup(config):
     return(True)
 
 
-def discover_imageIds(config, namelist):
+def discover_imageIds(namelist):
     ret = {}
     for name in namelist:
-        result = discover_imageId(config, name)
+        result = discover_imageId(name)
         ret.update(result)
 
     return(ret)
 
-def discover_imageId(config, name):
+def discover_imageId(name):
 
     ret = {}
 
@@ -434,13 +437,15 @@ def diff_images(image, baseimage):
                     adatadict = {}
                     for l in areport[azkey][aokey]:
                         l = l.strip()
-                        (k, v) = l.split()
+                        #(k, v) = l.split()
+                        (k, v) = re.match('(\S*)\s*(.*)', l).group(1, 2)
                         adatadict[k] = v
 
                     bdatadict = {}
                     for l in breport[azkey][aokey]:
                         l = l.strip()
-                        (k, v) = l.split()
+                        #(k, v) = l.split()
+                        (k, v) = re.match('(\S*)\s*(.*)', l).group(1, 2)
                         bdatadict[k] = v
 
                     for dkey in adatadict.keys():
@@ -621,21 +626,54 @@ def write_kvfile_fromdict(file, indict):
 def touch_file(file):
     return(open(file, 'a').close())
 
-def run_command_in_container(image=None, cmd="echo HELLO WORLD"):
+def run_command_in_container(image=None, cmd="echo HELLO WORLD", fileget=None, fileput=None):
     if not image or not cmd:
         raise Exception("Invalid input: image="+str(image)+" cmd="+str(cmd))
 
     try:
-        #pkg = 'nginx curl'
-        #cmd = "apt-get update && apt-cache madison " + pkg
+        imageId = discover_imageId(image)
+    except Exception as err:
+        print str(err)
+        return(list())
 
+    olines = list()
+    fbuf = ""
+
+    try:
         docker_cli = contexts['docker_cli']
-        container = docker_cli.create_container(image="nginx", command="/bin/bash -c '"+cmd+"'", tty=False)
+        
+        container = docker_cli.create_container(image=image, command="/bin/bash -c '"+cmd+"'", tty=False)
+
+        docker_cli.create_container(image=image, command="/bin/bash -c '"+cmd+"'", tty=False)
+        if fileput:
+            try:
+                TFH=open(fileput, 'r')
+                dat = TFH.read()
+                TFH.close()
+                docker_cli.put_archive(container.get('Id'), "/", dat)
+            except Exception as err:
+                import traceback
+                traceback.print_exc()
+                print str(err)
+                pass
         response = docker_cli.start(container=container.get('Id'))
         output = docker_cli.logs(container=container.get('Id'), stdout=True, stderr=True, stream=True)
-        olines = list()
         for l in output:
             olines.append(l)
+
+        if fileget:
+            try:
+                tstream,stat = docker_cli.get_archive(container, fileget)
+                TFH = io.BytesIO(tstream.data)
+                tar=tarfile.open(fileobj=TFH, mode='r', format=tarfile.PAX_FORMAT)
+                for member in tar.getmembers():
+                    fbuf = tar.extractfile(member).read()
+                tar.close()
+                TFH.close()
+            except Exception as err:
+                fbuf = ""
+                pass
+
     except Exception as err:
         raise err
     finally:
@@ -643,4 +681,5 @@ def run_command_in_container(image=None, cmd="echo HELLO WORLD"):
             docker_cli.remove_container(container=container.get('Id'), force=True)
         except:
             pass
-    return(olines)
+
+    return(olines, fbuf)
