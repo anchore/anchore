@@ -2,6 +2,7 @@ import sys
 import os
 import re
 import shutil
+import collections
 from textwrap import fill
 import click
 
@@ -246,6 +247,53 @@ def show_taghistory():
         result = nav.get_taghistory()
         if result:
             anchore_utils.print_result(config, result)
+
+    except:
+        anchore_print_err("operation failed")
+        ecode = 1
+
+    contexts['anchore_allimages'].clear()
+    sys.exit(ecode)
+
+@toolbox.command(name='show')
+def show():
+    """Show image summary information"""
+
+
+    if not nav:
+        sys.exit(1)
+
+    ecode = 0
+    try:
+        image=contexts['anchore_allimages'][imagelist[0]]
+
+        o = collections.OrderedDict()
+
+        o['IMAGEID'] = image.meta['imageId']
+        o['REPOTAGS'] = image.get_alltags_current()
+        o['DISTRO'] = image.get_distro()
+        o['DISTROVERS'] = image.get_distro_vers()
+        o['SHORTID'] = image.meta['shortId']
+        o['PARENTID'] = image.meta['parentId']
+        o['BASEID'] = image.get_earliest_base()
+
+        for k in o.keys():
+            if type(o[k]) is list:
+                s = ' '.join(o[k])
+            else:
+                s = str(o[k])
+            print k+"='"+s+"'"
+
+        #print "IMAGEID='"+image.meta['imageId']+"'"
+        #print "REPOTAGS='"+','.join(image.get_alltags_current())+"'"
+        #print "DISTRO='"+image.get_distro()+"'"
+        #print "DISTROVERS='"+image.get_distro_vers()+"'"
+        #print "BASEID='"+image.get_earliest_base()+"'"
+        #for k in image.meta.keys():
+        #    print k+"='"+image.meta[k]+"'"
+        #        result = nav.get_taghistory()
+        #        if result:
+        #            anchore_utils.print_result(config, result)
 
     except:
         anchore_print_err("operation failed")
