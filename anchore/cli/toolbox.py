@@ -28,13 +28,16 @@ def toolbox(anchore_config, image):
     ecode = 0
 
     imagelist = [image]
-
     try:
-        ret = anchore_utils.discover_imageIds(imagelist)
-    except ValueError as err:
-        raise err
-    else:
-        imagelist = ret.keys()
+        try:
+            ret = anchore_utils.discover_imageIds(imagelist)
+        except ValueError as err:
+            raise err
+        else:
+            imagelist = ret.keys()
+    except Exception as err:
+        anchore_print_err("could not load any images")
+        sys.exit(1)
 
     try:
         nav = navigator.Navigator(anchore_config=config, imagelist=imagelist, allimages=contexts['anchore_allimages'])
