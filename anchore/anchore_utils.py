@@ -136,6 +136,9 @@ def anchore_common_context_setup(config):
 
 def discover_imageIds(namelist):
     ret = {}
+    if 'anchore_db_images' not in contexts:
+        contexts['anchore_db_images'] = contexts['anchore_db'].load_all_images()
+        
     for name in namelist:
         result = discover_imageId(name)
         ret.update(result)
@@ -161,7 +164,11 @@ def discover_imageId(name):
                 pass
 
         if not imageId:
-            images = contexts['anchore_db'].load_all_images()
+            if 'anchore_db_images' not in contexts:
+                contexts['anchore_db_images'] = contexts['anchore_db'].load_all_images()
+            
+            #images = contexts['anchore_db'].load_all_images()
+            images = contexts['anchore_db_images']
             # check if name is an imageId
             if name in images.keys():
                 ret[name] = images[name]['all_tags']
@@ -287,6 +294,103 @@ def print_result(config, result, outputmode=None):
 
 
     return (True)
+
+def dpkg_get_all_packages(unpackdir):
+    actual_packages = {}
+    all_packages = {}
+    other_packages = {}
+    cmd = ["dpkg-query", "--admindir="+unpackdir+"/rootfs/var/lib/dpkg", "-W", "-f="+"${Package} ${Version} ${source:Package} ${source:Version}\\n"]
+    try:
+        sout = subprocess.check_output(cmd)
+        for l in sout.splitlines(True):
+            l = l.strip()
+            (p, v, sp, sv) = re.match('(\S*)\s*(\S*)\s*(\S*)\s*(.*)', l).group(1, 2, 3, 4)
+            if p and v:
+                if p not in actual_packages:
+                    actual_packages[p] = v
+                if p not in all_packages:
+                    all_packages[p] = v
+            if sp and sv:
+                if sp not in all_packages:
+                    all_packages[sp] = sv
+            if p and v and sp and sv:
+                if p == sp and v != sv:
+                    other_packages[p] = [sv]
+
+    except Exception as err:
+        print "Could not run command: " + str(cmd)
+        print "Exception: " + str(err)
+        print "Please ensure the command 'dpkg' is available and try again"
+        raise err
+
+    ret = (all_packages, actual_packages, other_packages)
+    return(ret)
+
+def dpkg_get_all_pkgfiles(unpackdir):
+    allfiles = {}
+
+    try:
+        (allpkgs, actpkgs, othpkgs) = dpkg_get_all_packages(unpackdir)    
+        cmd = ["dpkg-query", "--admindir="+unpackdir+"/rootfs/var/lib/dpkg", "-L"] + actpkgs.keys()
+        sout = subprocess.check_output(cmd)
+        for l in sout.splitlines():
+            l = l.strip()
+            allfiles[l] = True
+            
+    except Exception as err:
+        print "Could not run command: " + str(' '.join(cmd))
+        print "Exception: " + str(err)
+        print "Please ensure the command 'dpkg' is available and try again"
+        raise err
+
+    return(allfiles)
+
+def rpm_get_all_packages(unpackdir):
+    rpms = {}
+    try:
+        rpm.addMacro("_dbpath", unpackdir + "/rootfs/var/lib/rpm")
+        ts = rpm.TransactionSet()
+        mi = ts.dbMatch()
+        if mi.count() == 0:
+            raise Exception
+        for h in mi:
+            rpms[h['name']] = {'version':h['version'], 'release':h['release']}
+    except:
+        try:
+            sout = subprocess.check_output(['chroot', unpackdir + '/rootfs', 'rpm', '--queryformat', '%{NAME} %{VERSION} %{RELEASE}\n', '-qa'])
+            for l in sout.splitlines():
+                l = l.strip()
+                (name, vers, rel) = re.match('(\S*)\s*(\S*)\s*(.*)', l).group(1, 2, 3)
+                rpms[name] = {'version':vers, 'release':rel}
+        except:
+            raise ValueError("could not get package list from RPM database: " + str(err))
+
+    return(rpms)
+
+def rpm_get_all_pkgfiles(unpackdir):
+    rpmfiles = {}
+
+    try:
+        rpm.addMacro("_dbpath", unpackdir + "/rootfs/var/lib/rpm")
+        ts = rpm.TransactionSet()
+        mi = ts.dbMatch()
+        
+        rpmfiles = {}
+        for h in mi:
+            fs = h['FILENAMES']
+            for f in fs:
+                rpmfiles[f] = h['name']
+    except:
+        try:
+            sout = subprocess.check_output(['chroot', unpackdir + '/rootfs', 'rpm', '-qal'])
+            for l in sout.splitlines():
+                l = l.strip()
+                rpmfiles[l] = True
+        except Exception as err:
+            raise ValueError("could not get file list from RPM database: " + str(err))
+
+    return(rpmfiles)
+
 
 def cve_load_data(cvedatadir, image):
     cve_data = None

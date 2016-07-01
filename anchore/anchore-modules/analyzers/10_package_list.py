@@ -23,12 +23,6 @@ imgname = config['imgid']
 outputdir = config['dirs']['outputdir']
 unpackdir = config['dirs']['unpackdir']
 
-#imgname = sys.argv[1]
-#datadir = sys.argv[2]
-#imgdatadir = sys.argv[3]
-#unpackdir = sys.argv[4]
-#outputdir = imgdatadir + "/analyzer_output/" + analyzer_name
-
 if not os.path.exists(outputdir):
     os.makedirs(outputdir)
 
@@ -46,67 +40,54 @@ else:
     flav = "UNK"
 
 FH=open(outputdir + "/pkgs.all", 'w')
+FFH=open(outputdir + "/pkgfiles.all", 'w')
 CFH=open(outputdir + "/pkgs_plus_source.all", 'w')
 
 if flav == "RHEL":
     try:
-        rpm.addMacro("_dbpath", unpackdir + "/rootfs/var/lib/rpm")
-        ts = rpm.TransactionSet()
-        mi = ts.dbMatch()
-        if mi.count() == 0:
-            raise Exception
-        for h in mi:
-            FH.write(h['name'] + " " + h['version'] + "-" + h['release'] + "\n")
-    except:
-        try:
-            sout = subprocess.check_output(['chroot', unpackdir + '/rootfs', 'rpm', '--queryformat', '%{NAME} %{VERSION}-%{RELEASE}\n', '-qa'])
-            for l in sout.splitlines():
-                l = l.strip()
-                FH.write(l + "\n")
-        except:
-            pass
-elif flav == "DEB":
-    actual_packages = {}
-    all_packages = {}
-    other_packages = {}
-    cmd = ["dpkg-query", "--admindir="+unpackdir+"/rootfs/var/lib/dpkg", "-W", "-f="+"${Package} ${Version} ${source:Package} ${source:Version}\\n"]
+        rpms = anchore.anchore_utils.rpm_get_all_packages(unpackdir)
+        for pkg in rpms.keys():
+            FH.write(pkg + " " + rpms[pkg]['version'] + "-" + rpms[pkg]['release'] + "\n")
+    except Exception as err:
+        print "WARN: failed to generate RPM package list: " + str(err)
+
     try:
-        sout = subprocess.check_output(cmd)
-        for l in sout.splitlines(True):
-            l = l.strip()
-            (p, v, sp, sv) = re.match('(\S*)\s*(\S*)\s*(\S*)\s*(.*)', l).group(1, 2, 3, 4)
-            if p and v:
-                if p not in actual_packages:
-                    actual_packages[p] = v
-                if p not in all_packages:
-                    all_packages[p] = v
-            if sp and sv:
-                if sp not in all_packages:
-                    all_packages[sp] = sv
-            if p and v and sp and sv:
-                if p == sp and v != sv:
-                    other_packages[p] = [sv]
+        rpmfiles = anchore.anchore_utils.rpm_get_all_pkgfiles(unpackdir)
+        for pkgfile in rpmfiles.keys():
+            FFH.write(pkgfile + " RPMFILE\n")
+    except Exception as err:
+        print "WARN: failed to get file list from RPMs: " + str(err)
+
+elif flav == "DEB":
+    try:
+        (all_packages, actual_packages, other_packages) = anchore.anchore_utils.dpkg_get_all_packages(unpackdir)
+    
+        for p in actual_packages.keys():
+            FH.write(' '.join([p, actual_packages[p], '\n']))
+
+        for p in all_packages.keys():
+            CFH.write(' '.join([p, all_packages[p], '\n']))
+
+        if len(other_packages) > 0:
+            for p in other_packages.keys():
+                for v in other_packages[p]:
+                    CFH.write(' '.join([p, v, '\n']))
+    except Exception as err:
+        print "WARN: failed to get package list from DPKG: " + str(err)
+
+    try:
+        dpkgfiles = anchore.anchore_utils.dpkg_get_all_pkgfiles(unpackdir)
+        for pkgfile in dpkgfiles.keys():
+            FFH.write(pkgfile + " DPKGFILE\n")
 
     except Exception as err:
-        print "Could not run command: " + str(cmd)
-        print "Exception: " + str(err)
-        print "Please ensure the command 'dpkg' is available and try again"
-        raise err
-
-    for p in actual_packages.keys():
-        FH.write(' '.join([p, actual_packages[p], '\n']))
-        
-    for p in all_packages.keys():
-        CFH.write(' '.join([p, all_packages[p], '\n']))
-
-    if len(other_packages) > 0:
-        for p in other_packages.keys():
-            for v in other_packages[p]:
-                CFH.write(' '.join([p, v, '\n']))
+        print "WARN: failed to get file list from DPKGs: " + str(err)
 
 elif flav == "BUSYB":
     FH.write("BusyBox " + meta['DISTROVERS'] + "\n")
 else:
     FH.write("Unknown 0\n")
+
 FH.close()
+FFH.close()
 CFH.close()

@@ -287,17 +287,6 @@ def show():
                 s = str(o[k])
             print k+"='"+s+"'"
 
-        #print "IMAGEID='"+image.meta['imageId']+"'"
-        #print "REPOTAGS='"+','.join(image.get_alltags_current())+"'"
-        #print "DISTRO='"+image.get_distro()+"'"
-        #print "DISTROVERS='"+image.get_distro_vers()+"'"
-        #print "BASEID='"+image.get_earliest_base()+"'"
-        #for k in image.meta.keys():
-        #    print k+"='"+image.meta[k]+"'"
-        #        result = nav.get_taghistory()
-        #        if result:
-        #            anchore_utils.print_result(config, result)
-
     except:
         anchore_print_err("operation failed")
         ecode = 1
