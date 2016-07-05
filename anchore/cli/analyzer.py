@@ -58,10 +58,11 @@ Edit the gate policy for 'nginx:latest':
 @click.option('--imagefile', help='Process image IDs listed in specified file. Cannot be combined with --image', type=click.Path(exists=True), metavar='<file>')
 @click.option('--include-allanchore', help='Include all images known by anchore', is_flag=True)
 @click.option('--editpolicy', is_flag=True, help='Edit the gate policies for specified image(s).')
+@click.option('--policy', help='Use the specified policy file instead of the default.', type=click.Path(exists=True), metavar='<file>')
 @click.option('--whitelist', is_flag=True, help='Edit evaluated gate triggers and optionally whitelist them.')
 @click.pass_obj
 @extended_help_option(extended_help=gate_extended_help)
-def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy, whitelist,):
+def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy, policy, whitelist):
     """
     Runs gate checks on the specified image(s) or edits the image's gate policy.
     The --editpolicy option is only valid for a single image.
@@ -76,6 +77,9 @@ def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy
 
     if image and imagefile:
         raise click.BadOptionUsage('Can only use one of --image, --imagefile')
+
+    if policy and (editpolicy or whitelist):
+        raise click.BadOptionUsage('Cannot use --editpolicy or --whitelist when --policy <file> is specified')
 
     try:
         imagedict = build_image_list(anchore_config, image, imagefile, not (image or imagefile), include_allanchore)
@@ -107,7 +111,7 @@ def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy
         else:
             try:
                 # run the gates
-                result = con.run_gates()
+                result = con.run_gates(policy=policy)
                 if result:
                     anchore_utils.print_result(anchore_config, result)
                     success = True

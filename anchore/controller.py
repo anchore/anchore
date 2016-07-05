@@ -35,6 +35,8 @@ class Controller(object):
 
         self.anchoreDB = contexts['anchore_db']
 
+        self.policy_override = None
+
     def read_policyfile(self, policyfile):
         FH=open(policyfile, 'r')
         policies = {}
@@ -170,7 +172,10 @@ class Controller(object):
 
         policies_whitelist = self.load_whitelist(image)
 
-        policies = self.get_image_policies(image)
+        if self.policy_override:
+            policies = self.read_policyfile(self.policy_override)
+        else:
+            policies = self.get_image_policies(image)
         for m in policies.keys():
             opath = image.anchore_imagedir + "/gates_output/" + m
             if os.path.exists(opath):
@@ -236,7 +241,10 @@ class Controller(object):
         imgfile = '/'.join([workingdir, "queryimages." + str(random.randint(0, 99999999))])
         anchore_utils.write_plainfile_fromstr(imgfile, image.meta['imageId'])
 
-        policies = self.get_image_policies(image)
+        if self.policy_override:
+            policies = self.read_policyfile(self.policy_override)
+        else:
+            policies = self.get_image_policies(image)
         paramlist = list()
         for p in policies.keys():
             for t in policies[p].keys():
@@ -303,9 +311,13 @@ class Controller(object):
             
         return(highest_action)
 
-    def run_gates(self, refresh=True):
+    def run_gates(self, policy=None, refresh=True):
         # actually run the gates
         ret = {}
+
+        if policy:
+            self.policy_override = policy
+
         for imageId in self.images:
             image = self.allimages[imageId]
 
