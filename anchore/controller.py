@@ -253,7 +253,10 @@ class Controller(object):
         if len(paramlist) <= 0:
             paramlist.append('all')
 
-        results = scripting.ScriptSetExecutor(path=gatesdir, path_overrides=['/'.join([self.config['anchore_data_dir'], 'user-scripts', 'gates'])]).execute(capture_output=True, fail_fast=True, cmdline=' '.join([imgfile, self.config['image_data_store'], outputdir, ' '.join(paramlist)]))
+        path_overrides = ['/'.join([self.config['user_scripts_dir'], 'gates'])]
+        if self.config['extra_scripts_dir']:
+            path_overrides = path_overrides + ['/'.join([self.config['extra_scripts_dir'], 'gates'])]
+        results = scripting.ScriptSetExecutor(path=gatesdir, path_overrides=path_overrides).execute(capture_output=True, fail_fast=True, cmdline=' '.join([imgfile, self.config['image_data_store'], outputdir, ' '.join(paramlist)]))
 
         os.remove(imgfile)
 

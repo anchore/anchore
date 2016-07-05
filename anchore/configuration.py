@@ -18,6 +18,10 @@ class AnchoreConfiguration (object):
     EXAMPLE_CONFIG_FILE = resource_filename("anchore", "conf/config.yaml")
     DEFAULT_PKG_DIR = resource_filename("anchore", "")
     DEFAULT_SCRIPTS_DIR = resource_filename("anchore", "anchore-modules")
+    try:
+        DEFAULT_EXTRASCRIPTS_DIR = resource_filename("anchore-modules", "/")
+    except:
+        DEFAULT_EXTRASCRIPTS_DIR = None
 
     DEFAULTS = {
         'anchore_data_dir': DEFAULT_ANCHORE_DATA_DIR,
@@ -26,6 +30,7 @@ class AnchoreConfiguration (object):
         'pkg_dir': DEFAULT_PKG_DIR,
         'scripts_dir': DEFAULT_SCRIPTS_DIR,
         'user_scripts_dir': 'user-scripts',
+        'extra_scripts_dir': DEFAULT_EXTRASCRIPTS_DIR,
         'docker_conn': 'unix://var/run/docker.sock',
         'vulnerabilities': {
             'url': 'https://service-data.anchore.com/vulnerabilities.tar.gz',

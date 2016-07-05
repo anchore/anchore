@@ -180,7 +180,10 @@ class Navigator(object):
         cmd = None
         rc = False
         try:
-            cmdobj = scripting.ScriptExecutor(path='/'.join([self.config['scripts_dir'], 'queries']), script_name=action, path_overrides=['/'.join([self.config['anchore_data_dir'], 'user-scripts', 'queries'])])
+            path_overrides = ['/'.join([self.config['user_scripts_dir'], 'queries'])]
+            if self.config['extra_scripts_dir']:
+                path_overrides = path_overrides + ['/'.join([self.config['extra_scripts_dir'], 'queries'])]
+            cmdobj = scripting.ScriptExecutor(path='/'.join([self.config['scripts_dir'], 'queries']), script_name=action, path_overrides=path_overrides)
             cmd = cmdobj.thecmd
             mode = 'query'
             rc = True
@@ -189,7 +192,10 @@ class Navigator(object):
         except Exception as err:
             errstr = str(err)
             try:
-                cmdobj = scripting.ScriptExecutor(path='/'.join([self.config['scripts_dir'], 'multi-queries']), script_name=action)
+                path_overrides = ['/'.join([self.config['user_scripts_dir'], 'multi-queries'])]
+                if self.config['extra_scripts_dir']:
+                    path_overrides = path_overrides + ['/'.join([self.config['extra_scripts_dir'], 'multi-queries'])]
+                cmdobj = scripting.ScriptExecutor(path='/'.join([self.config['scripts_dir'], 'multi-queries']), script_name=action, path_overrides=path_overrides)
                 cmd = cmdobj.thecmd
                 mode = 'multi-query'
                 rc = True
