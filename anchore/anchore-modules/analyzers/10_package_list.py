@@ -63,15 +63,15 @@ elif flav == "DEB":
         (all_packages, actual_packages, other_packages) = anchore.anchore_utils.dpkg_get_all_packages(unpackdir)
     
         for p in actual_packages.keys():
-            FH.write(' '.join([p, actual_packages[p], '\n']))
+            FH.write(' '.join([p, actual_packages[p]['version'], '\n']))
 
         for p in all_packages.keys():
-            CFH.write(' '.join([p, all_packages[p], '\n']))
+            CFH.write(' '.join([p, all_packages[p]['version'], '\n']))
 
         if len(other_packages) > 0:
             for p in other_packages.keys():
                 for v in other_packages[p]:
-                    CFH.write(' '.join([p, v, '\n']))
+                    CFH.write(' '.join([p, v['version'], '\n']))
     except Exception as err:
         print "WARN: failed to get package list from DPKG: " + str(err)
 

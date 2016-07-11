@@ -299,23 +299,23 @@ def dpkg_get_all_packages(unpackdir):
     actual_packages = {}
     all_packages = {}
     other_packages = {}
-    cmd = ["dpkg-query", "--admindir="+unpackdir+"/rootfs/var/lib/dpkg", "-W", "-f="+"${Package} ${Version} ${source:Package} ${source:Version}\\n"]
+    cmd = ["dpkg-query", "--admindir="+unpackdir+"/rootfs/var/lib/dpkg", "-W", "-f="+"${Package} ${Version} ${source:Package} ${source:Version} ${Architecture}\\n"]
     try:
         sout = subprocess.check_output(cmd)
         for l in sout.splitlines(True):
             l = l.strip()
-            (p, v, sp, sv) = re.match('(\S*)\s*(\S*)\s*(\S*)\s*(.*)', l).group(1, 2, 3, 4)
+            (p, v, sp, sv, arch) = re.match('(\S*)\s*(\S*)\s*(\S*)\s*(\S*)\s*(.*)', l).group(1, 2, 3, 4, 5)
             if p and v:
                 if p not in actual_packages:
-                    actual_packages[p] = v
+                    actual_packages[p] = {'version':v, 'arch':arch}
                 if p not in all_packages:
-                    all_packages[p] = v
+                    all_packages[p] = {'version':v, 'arch':arch}
             if sp and sv:
                 if sp not in all_packages:
-                    all_packages[sp] = sv
+                    all_packages[sp] = {'version':sv, 'arch':arch}
             if p and v and sp and sv:
                 if p == sp and v != sv:
-                    other_packages[p] = [sv]
+                    other_packages[p] = [{'version':sv, 'arch':arch}]
 
     except Exception as err:
         print "Could not run command: " + str(cmd)
@@ -354,14 +354,14 @@ def rpm_get_all_packages(unpackdir):
         if mi.count() == 0:
             raise Exception
         for h in mi:
-            rpms[h['name']] = {'version':h['version'], 'release':h['release']}
+            rpms[h['name']] = {'version':h['version'], 'release':h['release'], 'arch':h['arch']}
     except:
         try:
-            sout = subprocess.check_output(['chroot', unpackdir + '/rootfs', 'rpm', '--queryformat', '%{NAME} %{VERSION} %{RELEASE}\n', '-qa'])
+            sout = subprocess.check_output(['chroot', unpackdir + '/rootfs', 'rpm', '--queryformat', '%{NAME} %{VERSION} %{RELEASE} %{ARCH}\n', '-qa'])
             for l in sout.splitlines():
                 l = l.strip()
-                (name, vers, rel) = re.match('(\S*)\s*(\S*)\s*(.*)', l).group(1, 2, 3)
-                rpms[name] = {'version':vers, 'release':rel}
+                (name, vers, rel, arch) = re.match('(\S*)\s*(\S*)\s*(\S*)\s*(.*)', l).group(1, 2, 3, 4)
+                rpms[name] = {'version':vers, 'release':rel, 'arch':arch}
         except:
             raise ValueError("could not get package list from RPM database: " + str(err))
 
