@@ -127,7 +127,6 @@ class ScriptSetExecutor:
         """
 
         scripts = self.get_scripts()
-        #scripts = [os.path.join(self.inputdir, x) for x in scripts]
         output = []
 
         for script in scripts:
@@ -144,9 +143,14 @@ class ScriptSetExecutor:
 
             if capture_output:
                 try:
-                    output.append((' '.join(cmd), 0, subprocess.check_output(cmd, stderr=subprocess.STDOUT, **kwargs)))
+                    outstr = subprocess.check_output(cmd, stderr=subprocess.STDOUT, **kwargs)
+                    outstr = outstr.decode('utf8')
+                    #outstr = rawstr.encode('utf8')
+                    output.append((' '.join(cmd), 0, outstr))
                 except subprocess.CalledProcessError as e:
-                    output.append((' '.join(cmd), e.returncode, e.output))
+                    outstr = e.output.decode('utf8')
+                    #outstr = rawstr.encode('utf8')
+                    output.append((' '.join(cmd), e.returncode, outstr))
             else:
                 output.append((' '.join(cmd), subprocess.call(cmd, **kwargs), None))
 
