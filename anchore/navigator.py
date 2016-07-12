@@ -183,6 +183,7 @@ class Navigator(object):
             path_overrides = ['/'.join([self.config['user_scripts_dir'], 'queries'])]
             if self.config['extra_scripts_dir']:
                 path_overrides = path_overrides + ['/'.join([self.config['extra_scripts_dir'], 'queries'])]
+
             cmdobj = scripting.ScriptExecutor(path='/'.join([self.config['scripts_dir'], 'queries']), script_name=action, path_overrides=path_overrides)
             cmd = cmdobj.thecmd
             mode = 'query'
@@ -292,12 +293,16 @@ class Navigator(object):
                 pass
                 
         else:
-            querydir = '/'.join([self.config['scripts_dir'], "queries"])
-            mquerydir = '/'.join([self.config['scripts_dir'], "multi-queries"])
-            uquerydir = '/'.join([self.config['anchore_data_dir'], "user-scripts", 'queries'])
-            umquerydir = '/'.join([self.config['anchore_data_dir'], "user-scripts", 'multi-queries'])
+            paths = list()
+            paths.append('/'.join([self.config['scripts_dir'], "queries"]))
+            paths.append('/'.join([self.config['scripts_dir'], "multi-queries"]))
+            paths.append('/'.join([self.config['anchore_data_dir'], "user-scripts", 'queries']))
+            paths.append('/'.join([self.config['anchore_data_dir'], "user-scripts", 'multi-queries']))
+            if self.config['extra_scripts_dir']:
+                paths.append('/'.join([self.config['extra_scripts_dir'], 'queries']))
+                paths.append('/'.join([self.config['extra_scripts_dir'], 'multi-queries']))
 
-            for dd in [querydir, mquerydir, uquerydir, umquerydir]:
+            for dd in paths:
                 if not os.path.exists(dd):
                     continue
                 for d in os.listdir(dd):
