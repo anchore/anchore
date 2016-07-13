@@ -443,8 +443,10 @@ def cve_load_data(cvedatadir, image):
     distrovers = distrodict['version']
     likedistro = distrodict['likedistro']
     likeversion = distrodict['likeversion']
-
-    for f in [(distro,distrovers), (likedistro, likeversion)]:
+    fulldistro = distrodict['distro']
+    fullversion = distrodict['fullversion']
+    
+    for f in [(distro,distrovers), (likedistro, likeversion), (fulldistro, fullversion)]:
         cvejsonfile = '/'.join([cvedatadir, f[0]+":"+f[1], "cve.json"])
         if os.path.exists(cvejsonfile):
             FH = open(cvejsonfile, 'r')
@@ -462,9 +464,11 @@ def cve_scanimage(cve_data, image):
     analysis_report = image.get_analysis_report().copy()
     idistro = image.get_distro()
     idistrovers = image.get_distro_vers()
+
     distrodict = get_distro_flavor(idistro, idistrovers)
-    distro = distrodict['flavor']
-    distrovers = distrodict['version']
+
+    flavor = distrodict['flavor']
+
 
     thelist = []
     if 'package_list' in analysis_report and 'pkgs.all' in analysis_report['package_list']:
@@ -498,8 +502,8 @@ def cve_scanimage(cve_data, image):
                     ivers = all_packages[fixes['Name']]
                     vvers = re.sub(r'^[0-9]*:', '', fixes['Version'])
                     print "cve-scan: " + vpkg + "\n\tfixed vulnerability package version: " + vvers + "\n\timage package version: " + ivers
-                    #if image.get_distro() == "centos" or image.get_distro() == "rhel":
-                    if distro == 'RHEL':
+
+                    if flavor == 'RHEL':
                         if vvers != 'None':
                             fixfile = vpkg + "-" + vvers + ".rpm"
                             imagefile = vpkg + "-" + ivers + ".rpm"
@@ -510,8 +514,7 @@ def cve_scanimage(cve_data, image):
                         else:
                             isvuln = True
 
-                            #elif image.get_distro() == "ubuntu" or image.get_distro() == "debian":
-                    elif distro == 'DEB':
+                    elif flavor == 'DEB':
                         if vvers != 'None':                            
                             if ivers != vvers and deb_pkg_tools.version.compare_versions(ivers, '<', vvers):
                                 isvuln = True
