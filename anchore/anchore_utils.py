@@ -120,8 +120,8 @@ def init_query_cmdline(argv, paramhelp):
 def anchore_common_context_setup(config):
     if 'docker_cli' not in contexts or not contexts['docker_cli']:
         try:
-            contexts['docker_cli'] = docker.Client(base_url=config['docker_conn'])
-            testconn = contexts['docker_cli'].images()
+            contexts['docker_cli'] = docker.Client(base_url=config['docker_conn'], timeout=int(config['docker_conn_timeout']))
+            testconn = contexts['docker_cli'].version()
         except Exception as err:
             contexts['docker_cli']=None
 
@@ -391,18 +391,66 @@ def rpm_get_all_pkgfiles(unpackdir):
 
     return(rpmfiles)
 
+def get_distro_flavor(distro, version, likedistro=None):
+    ret = {
+        'flavor':'Unknown',
+        'version':'0',
+        'fullversion':version,
+        'distro':distro,
+        'likedistro':distro,
+        'likeversion':version
+    }
+
+    if distro in ['centos']:
+        ret['flavor'] = "RHEL"
+    elif distro in ['debian', 'ubuntu']:
+        ret['flavor'] = "DEB"
+    elif distro in ['busybox']:
+        ret['flavor'] = "BUSYB"
+    elif distro in ['alpine']:
+        ret['flavor'] = "ALPINE"
+
+    if ret['flavor'] == 'Unknown' and likedistro:
+        for distro in likedistro:
+            if distro in ['centos']:
+                ret['flavor'] = "RHEL"
+            elif distro in ['debian', 'ubuntu']:
+                ret['flavor'] = "DEB"
+            elif distro in ['busybox']:
+                ret['flavor'] = "BUSYB"
+            elif distro in ['alpine']:
+                ret['flavor'] = "ALPINE"
+
+            if ret['flavor'] != 'Unknown':
+                break
+
+    (vmaj, vmin) = re.match("(\d*)\.*(\d*)", version).group(1,2)
+    if vmaj:
+        ret['version'] = vmaj
+        ret['likeversion'] = vmaj
+
+    return(ret)
 
 def cve_load_data(cvedatadir, image):
     cve_data = None
 
-    distro = image.get_distro()
-    distrovers = image.get_distro_vers()
+    idistro = image.get_distro()
+    idistrovers = image.get_distro_vers()
 
-    cvejsonfile = '/'.join([cvedatadir, distro+":"+distrovers, "cve.json"])
-    if os.path.exists(cvejsonfile):
-        FH = open(cvejsonfile, 'r')
-        cve_data = json.loads(FH.read())
-        FH.close()
+    distrodict = get_distro_flavor(idistro, idistrovers)
+
+    distro = distrodict['distro']
+    distrovers = distrodict['version']
+    likedistro = distrodict['likedistro']
+    likeversion = distrodict['likeversion']
+
+    for f in [(distro,distrovers), (likedistro, likeversion)]:
+        cvejsonfile = '/'.join([cvedatadir, f[0]+":"+f[1], "cve.json"])
+        if os.path.exists(cvejsonfile):
+            FH = open(cvejsonfile, 'r')
+            cve_data = json.loads(FH.read())
+            FH.close()
+            break
     return (cve_data)
 
 
@@ -412,6 +460,11 @@ def cve_scanimage(cve_data, image):
 
     all_packages = {}
     analysis_report = image.get_analysis_report().copy()
+    idistro = image.get_distro()
+    idistrovers = image.get_distro_vers()
+    distrodict = get_distro_flavor(idistro, idistrovers)
+    distro = distrodict['flavor']
+    distrovers = distrodict['version']
 
     thelist = []
     if 'package_list' in analysis_report and 'pkgs.all' in analysis_report['package_list']:
@@ -445,7 +498,8 @@ def cve_scanimage(cve_data, image):
                     ivers = all_packages[fixes['Name']]
                     vvers = re.sub(r'^[0-9]*:', '', fixes['Version'])
                     print "cve-scan: " + vpkg + "\n\tfixed vulnerability package version: " + vvers + "\n\timage package version: " + ivers
-                    if image.get_distro() == "centos" or image.get_distro() == "rhel":
+                    #if image.get_distro() == "centos" or image.get_distro() == "rhel":
+                    if distro == 'RHEL':
                         if vvers != 'None':
                             fixfile = vpkg + "-" + vvers + ".rpm"
                             imagefile = vpkg + "-" + ivers + ".rpm"
@@ -456,7 +510,8 @@ def cve_scanimage(cve_data, image):
                         else:
                             isvuln = True
 
-                    elif image.get_distro() == "ubuntu" or image.get_distro() == "debian":
+                            #elif image.get_distro() == "ubuntu" or image.get_distro() == "debian":
+                    elif distro == 'DEB':
                         if vvers != 'None':                            
                             if ivers != vvers and deb_pkg_tools.version.compare_versions(ivers, '<', vvers):
                                 isvuln = True

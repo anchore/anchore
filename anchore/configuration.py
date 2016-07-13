@@ -32,6 +32,7 @@ class AnchoreConfiguration (object):
         'user_scripts_dir': 'user-scripts',
         'extra_scripts_dir': DEFAULT_EXTRASCRIPTS_DIR,
         'docker_conn': 'unix://var/run/docker.sock',
+        'docker_conn_timeout':'60',
         'vulnerabilities': {
             'url': 'https://service-data.anchore.com/vulnerabilities.tar.gz',
         },

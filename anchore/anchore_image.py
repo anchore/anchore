@@ -92,7 +92,7 @@ class AnchoreImage(object):
         if docker_cli:
             self.docker_cli = docker_cli
         else:
-            self.docker_cli = docker.Client(base_url='unix://var/run/docker.sock')
+            self.docker_cli = docker.Client(base_url='unix://var/run/docker.sock', timeout=300)
 
         self.anchore_image_datadir = anchore_image_datadir
         if not os.path.exists(self.anchore_image_datadir):
@@ -727,7 +727,8 @@ class AnchoreImage(object):
 
         if not os.path.exists(imagetar):
             FH = open(imagetar, 'w')
-            FH.write(self.docker_cli.get_image(shortid).data)
+            dimage = self.docker_cli.get_image(shortid)
+            FH.write(dimage.data)
             FH.close()
             sout = subprocess.check_output(["tar", "-C", imagedir, "-x", "-f", imagetar], stderr=DEVNULL)
 

@@ -27,23 +27,15 @@ if not os.path.exists(outputdir):
     os.makedirs(outputdir)
 
 metafile = unpackdir + "/analyzer_meta"
-meta = {"DISTRO":"Unknown", "DISTROVERS":"0", "LIKEDISTRO":"Unknown"}
+meta = {"DISTRO":"Unknown", "DISTROVERS":"0", "LIKEDISTRO":["Unknown"]}
 meta.update(anchore.anchore_utils.read_kvfile_todict(metafile))
-
-if meta['DISTRO'] in ['centos', 'rhel'] or meta['LIKEDISTRO'] in ['centos', 'rhel']:
-    flav = "RHEL"
-elif meta['DISTRO'] in ['ubuntu', 'debian'] or meta['LIKEDISTRO'] in ['ubuntu','debian']:
-    flav = "DEB"
-elif meta['DISTRO'] in ['busybox'] or meta['LIKEDISTRO'] in ['busybox']:
-    flav = 'BUSYB'
-else:
-    flav = "UNK"
+distrodict = anchore.anchore_utils.get_distro_flavor(meta['DISTRO'], meta['DISTROVERS'], meta['LIKEDISTRO'])
 
 FH=open(outputdir + "/pkgs.all", 'w')
 FFH=open(outputdir + "/pkgfiles.all", 'w')
 CFH=open(outputdir + "/pkgs_plus_source.all", 'w')
 
-if flav == "RHEL":
+if distrodict['flavor'] == "RHEL":
     try:
         rpms = anchore.anchore_utils.rpm_get_all_packages(unpackdir)
         for pkg in rpms.keys():
@@ -58,7 +50,7 @@ if flav == "RHEL":
     except Exception as err:
         print "WARN: failed to get file list from RPMs: " + str(err)
 
-elif flav == "DEB":
+elif distrodict['flavor'] == "DEB":
     try:
         (all_packages, actual_packages, other_packages) = anchore.anchore_utils.dpkg_get_all_packages(unpackdir)
     
@@ -83,8 +75,8 @@ elif flav == "DEB":
     except Exception as err:
         print "WARN: failed to get file list from DPKGs: " + str(err)
 
-elif flav == "BUSYB":
-    FH.write("BusyBox " + meta['DISTROVERS'] + "\n")
+elif distrodict['flavor'] == "BUSYB":
+    FH.write("BusyBox " + distrodict['fullversion'] + "\n")
 else:
     FH.write("Unknown 0\n")
 

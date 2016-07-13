@@ -12,13 +12,13 @@ from anchore.util import scripting, contexts
 class Navigator(object):
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, anchore_config, imagelist, allimages, docker_cli=None):
+    def __init__(self, anchore_config, imagelist, allimages):
         self.config = anchore_config
         self.allimages = allimages
         self.anchore_datadir = self.config['image_data_store']
         self.images = list()
 
-        self.images = anchore_utils.image_context_add(imagelist, allimages, docker_cli=docker_cli, anchore_datadir=self.anchore_datadir, tmproot=self.config['tmpdir'], anchore_db=contexts['anchore_db'], must_be_analyzed=True, must_load_all=True)
+        self.images = anchore_utils.image_context_add(imagelist, allimages, docker_cli=contexts['docker_cli'], anchore_datadir=self.anchore_datadir, tmproot=self.config['tmpdir'], anchore_db=contexts['anchore_db'], must_be_analyzed=True, must_load_all=True)
 
     def add_images(self, imagelist):
         newimages = anchore_utils.image_context_add(imagelist, self.allimages, docker_cli=contexts['docker_cli'], anchore_datadir=self.anchore_datadir, tmproot=self.config['tmpdir'], anchore_db=contexts['anchore_db'], must_be_analyzed=True, must_load_all=True)
@@ -212,7 +212,8 @@ class Navigator(object):
         success = True
         datadir = self.config['image_data_store']
         outputdir = '/'.join([self.config['anchore_data_dir'], "querytmp", "query." + str(random.randint(0, 99999999))])
-        os.makedirs(outputdir)
+        if not os.path.exists(outputdir):
+            os.makedirs(outputdir)
 
         imgfile = '/'.join([self.config['anchore_data_dir'], "querytmp", "queryimages." + str(random.randint(0, 99999999))])
         anchore_utils.write_plainfile_fromlist(imgfile, imglist)

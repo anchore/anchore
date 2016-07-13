@@ -175,6 +175,7 @@ Analyze all image on the local host except a list (perhaps local tools used in t
 @click.option('--image', help='Process specified image ID', metavar='<imageid>')
 @click.option('--imagefile', help='Process image IDs listed in specified file.', type=click.Path(exists=True), metavar='<file>')
 @click.option('--include-allanchore', help='Include all images known by anchore, as found in host-local db', is_flag=True)
+#@click.option('--imagetar', help='Use with --image if you have a tar of the image instead of having anchore save from docker', type=click.Path(exists=True), metavar='<file>')
 @click.option('--dockerfile', help='Dockerfile of the image to analyze.', type=click.Path(exists=True), metavar='<file>')
 @click.option('--imagetype', help='Specify the type of image that is being analyzed (use "none" if unknown).', metavar='<typetext>')
 @click.option('--skipgates', is_flag=True, help='Do not run gates as part of analysis.')
@@ -254,7 +255,7 @@ def analyze(anchore_config, force, image, imagefile, include_allanchore, dockerf
             inlist = [imageId]
             try:
                 anchore_print("Analyzing image: " + imageId)
-                success = analyzer.Analyzer(anchore_config=anchore_config, imagelist=inlist, allimages=allimages,force=force, args=args).run()
+                success = analyzer.Analyzer(anchore_config=anchore_config, imagelist=inlist, allimages=allimages, force=force, args=args).run()
             except:
                 anchore_print_err('failed to run analyzer')
                 allimages.clear()

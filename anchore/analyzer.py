@@ -7,11 +7,10 @@ from anchore import anchore_utils
 from anchore.util import scripting
 from anchore.util import contexts
 
-
 class Analyzer(object):
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, anchore_config, imagelist, allimages, force, args=None, docker_cli=None):
+    def __init__(self, anchore_config, imagelist, allimages, force, args=None):
         self._logger.debug("analyzer initialization: begin")
 
         self.config = anchore_config
@@ -43,7 +42,7 @@ class Analyzer(object):
 
         self._logger.debug("init input processed, loading input images: " + str(imagelist))
         
-        self.images = anchore_utils.image_context_add(imagelist, allimages, docker_cli=docker_cli, dockerfile=self.dockerfile, anchore_datadir=self.anchore_datadir, tmproot=self.config['tmpdir'], anchore_db=contexts['anchore_db'], usertype=usertype, must_load_all=True)
+        self.images = anchore_utils.image_context_add(imagelist, allimages, docker_cli=contexts['docker_cli'], dockerfile=self.dockerfile, anchore_datadir=self.anchore_datadir, tmproot=self.config['tmpdir'], anchore_db=contexts['anchore_db'], usertype=usertype, must_load_all=True)
 
         self._logger.debug("loaded input images, checking that all input images have been loaded " + str(self.images))
 
