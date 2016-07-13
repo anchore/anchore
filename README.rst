@@ -56,6 +56,8 @@ Next, on either distro:
 
 ``anchore explore query cve-scan all``
 
+``anchore toolbox --image nginx show``
+
 For more information, to learn about how to analyze your own
 application containers, and how to customize/extend Anchore, please
 visit our github page wiki at https://github.com/anchore
