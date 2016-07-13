@@ -6,7 +6,7 @@ import docker
 import os
 
 from anchore.configuration import AnchoreConfiguration
-from anchore.util import fs_util, scripting
+from anchore.util import fs_util, scripting, contexts
 from anchore.util.resources import ResourceCache
 
 module_logger = logging.getLogger(__name__)
@@ -212,9 +212,13 @@ class ImageManager(object):
     _logger = logging.getLogger(__name__)
     _default_tag = 'latest'
 
-    def __init__(self, docker_url):
+    def __init__(self, docker_url, docker_conn_timeout):
         assert docker_url is not None
         self._docker_url = docker_url
+
+        assert docker_conn_timeout is not None
+        self._docker_conn_timeout = docker_conn_timeout
+
 
     def initialize(self):
         return True
@@ -225,7 +229,7 @@ class ImageManager(object):
         :return:
         """
 
-        client = docker.Client(base_url=self._docker_url)
+        client = docker.Client(base_url=self._docker_url, timeout=self._docker_conn_timeout)
         for img in image_list:
             self._logger.info('Pulling image: %s' % str(img))
             if ':' in img and '@' not in img:
@@ -245,7 +249,7 @@ class ImageManager(object):
 
     def check(self):
         try:
-            with docker.Client(base_url=self._docker_url) as client:
+            with docker.Client(base_url=self._docker_url, timeout=self._docker_conn_timeout) as client:
                 info = client.info()
         except:
             return {'status': 'fail', 'docker_url': self._docker_url, 'detail': 'could not get info from docker at url'}
@@ -377,7 +381,7 @@ class AnchoreCatalog(object):
                                                     remote_sync_url=self._config['vulnerabilities']['url'],
                                                     resource_cache=self.resource_cache)
 
-        self.images = ImageManager(docker_url=self._config['images']['docker_conn'])
+        self.images = ImageManager(docker_url=self._config['images']['docker_conn'], docker_conn_timeout=self._config['docker_conn_timeout'])
 
         self.subscription = RepoSubscription(path=os.path.join(self._config['anchore_data_dir'], self._subscription_filename))
 
