@@ -727,8 +727,7 @@ class AnchoreImage(object):
 
         if not os.path.exists(imagetar):
             FH = open(imagetar, 'w')
-            dimage = self.docker_cli.get_image(shortid)
-            FH.write(dimage.data)
+            FH.write(self.docker_cli.get_image(shortid).data)
             FH.close()
             sout = subprocess.check_output(["tar", "-C", imagedir, "-x", "-f", imagetar], stderr=DEVNULL)
 
