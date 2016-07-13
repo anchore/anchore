@@ -136,9 +136,7 @@ def anchore_common_context_setup(config):
 
 def discover_imageIds(namelist):
     ret = {}
-    if 'anchore_db_images' not in contexts:
-        contexts['anchore_db_images'] = contexts['anchore_db'].load_all_images()
-        
+    
     for name in namelist:
         result = discover_imageId(name)
         ret.update(result)
@@ -146,6 +144,76 @@ def discover_imageIds(namelist):
     return(ret)
 
 def discover_imageId(name):
+
+    ret = {}
+
+    imageId = None
+    try:
+        docker_cli = contexts['docker_cli']
+        if docker_cli:
+            try:
+                docker_data = docker_cli.inspect_image(name)
+                imageId = re.sub("sha256:", "", docker_data['Id'])
+                repos = []
+                for r in docker_data['RepoTags']:
+                    repos.append(r)
+                ret[imageId] = repos
+            except Exception as err:
+                pass
+
+        if not imageId:
+            match = False
+
+            for result in contexts['anchore_db'].load_all_images_iter():
+                imageId = result[0]
+                image = result[1]
+                #print "in: " + name + " next: " + imageId + " dat: " + str(image['all_tags'])
+                if name == imageId:
+                    match = True
+                    matchId = imageId
+                    ret[name] = image['all_tags']
+                else:
+                    alltags = image['all_tags']
+                    currtags = image['current_tags']
+                    if re.match("^"+name, imageId):
+                        if not match:
+                            match=True
+                            matchId = imageId
+                            ret[imageId] = alltags
+                            continue
+                        else:
+                            raise ValueError("Input image name (ID) '"+str(name)+"' is ambiguous in anchore:\n\tprevious match=" + str(matchId) + "("+str(ret[matchId])+")\n\tconflicting match=" + str(imageId)+"("+str(alltags)+")")
+
+                    if name in currtags or name+":latest" in currtags:
+                        if not match:
+                            match = True
+                            matchId = imageId
+                            ret[imageId] = alltags
+                            continue
+                        else:
+                            raise ValueError("Input image name (CURRTAGS) '"+str(name)+"' is ambiguous in anchore:\n\tprevious match=" + str(matchId) + "("+str(ret[matchId])+")\n\tconflicting match=" + str(imageId)+"("+str(alltags)+")")
+
+                    if name in alltags or name+":latest" in alltags:
+                        if not match:
+                            match = True
+                            matchId = imageId
+                            ret[imageId] = alltags
+                            continue
+                        else:
+                            raise ValueError("Input image name (ALLTAGS) '"+str(name)+"' is ambiguous in anchore:\n\tprevious match=" + str(matchId) + "("+str(ret[matchId])+")\n\tconflicting match=" + str(imageId)+"("+str(alltags)+")")
+                    
+    except ValueError as err:
+        raise err
+
+    except Exception as err:
+        raise err
+
+    if len(ret.keys()) <= 0:
+        raise ValueError("Input image name '"+str(name)+"' not found in local dockerhost or anchore DB.")
+
+    return(ret)
+
+def _discover_imageId(name):
 
     ret = {}
 

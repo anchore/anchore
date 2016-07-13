@@ -95,6 +95,15 @@ class AnchoreImageDB(object):
             
         return(ret)
 
+    def load_all_images_iter(self):
+        for d in os.listdir(self.imagerootdir):
+            try:
+                result = self.load_image(d)
+                r = (result['meta']['imageId'], result)
+                yield r
+            except Exception as err:
+                pass
+
     def load_image(self, imageId):
         # populate all anchore data into image
         imagedir = self.imagerootdir + "/" + imageId
