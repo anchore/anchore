@@ -11,6 +11,7 @@ import docker
 import io
 import tarfile
 
+from stat import *
 from prettytable import PrettyTable
 from textwrap import fill
 from deb_pkg_tools.version import Version
@@ -61,7 +62,6 @@ def init_query_cmdline(argv, paramhelp):
     ret = {}
 
     if len(argv) == 2 and re.match(".*help.*", argv[1]):
-        # print argv[0].split('/')[-1]
         print paramhelp
         return (False)
 
@@ -167,7 +167,7 @@ def discover_imageId(name):
             for result in contexts['anchore_db'].load_all_images_iter():
                 imageId = result[0]
                 image = result[1]
-                #print "in: " + name + " next: " + imageId + " dat: " + str(image['all_tags'])
+
                 if name == imageId:
                     match = True
                     matchId = imageId
@@ -205,84 +205,6 @@ def discover_imageId(name):
     except ValueError as err:
         raise err
 
-    except Exception as err:
-        raise err
-
-    if len(ret.keys()) <= 0:
-        raise ValueError("Input image name '"+str(name)+"' not found in local dockerhost or anchore DB.")
-
-    return(ret)
-
-def _discover_imageId(name):
-
-    ret = {}
-
-    imageId = None
-    try:
-        docker_cli = contexts['docker_cli']
-        if docker_cli:
-            try:
-                docker_data = docker_cli.inspect_image(name)
-                imageId = re.sub("sha256:", "", docker_data['Id'])
-                repos = []
-                for r in docker_data['RepoTags']:
-                    repos.append(r)
-                ret[imageId] = repos
-            except Exception as err:
-                pass
-
-        if not imageId:
-            if 'anchore_db_images' not in contexts:
-                contexts['anchore_db_images'] = contexts['anchore_db'].load_all_images()
-            
-            #images = contexts['anchore_db'].load_all_images()
-            images = contexts['anchore_db_images']
-            # check if name is an imageId
-            if name in images.keys():
-                ret[name] = images[name]['all_tags']
-            else:
-                # search for input name as an Id (prefix) or repo/tag match
-                match = False
-                for imageId in images.keys():
-                    image = images[imageId]
-                    alltags = image['all_tags']
-                    currtags = image['current_tags']
-                    if re.match("^"+name, imageId):
-                        if not match:
-                            match=True
-                            matchId = imageId
-                            ret[imageId] = alltags
-                        else:
-                            raise ValueError("Input image name (ID) '"+str(name)+"' is ambiguous in anchore:\n\tprevious match=" + str(matchId) + "("+str(ret[matchId])+")\n\tconflicting match=" + str(imageId)+"("+str(alltags)+")")
-
-                if not match:
-                    for imageId in images.keys():
-                        image = images[imageId]
-                        alltags = image['all_tags']
-                        currtags = image['current_tags']
-                        if name in currtags or name+":latest" in currtags:
-                            if not match:
-                                match = True
-                                matchId = imageId
-                                ret[imageId] = alltags
-                            else:
-                                raise ValueError("Input image name (CURRTAGS) '"+str(name)+"' is ambiguous in anchore:\n\tprevious match=" + str(matchId) + "("+str(ret[matchId])+")\n\tconflicting match=" + str(imageId)+"("+str(alltags)+")")
-
-                if not match:
-                    for imageId in images.keys():
-                        image = images[imageId]
-                        alltags = image['all_tags']
-                        currtags = image['current_tags']
-                        if name in alltags or name+":latest" in alltags:
-                            if not match:
-                                match = True
-                                matchId = imageId
-                                ret[imageId] = alltags
-                            else:
-                                raise ValueError("Input image name (ALLTAGS) '"+str(name)+"' is ambiguous in anchore:\n\tprevious match=" + str(matchId) + "("+str(ret[matchId])+")\n\tconflicting match=" + str(imageId)+"("+str(alltags)+")")
-                    
-    except ValueError as err:
-        raise err
     except Exception as err:
         raise err
 
@@ -459,6 +381,62 @@ def rpm_get_all_pkgfiles(unpackdir):
 
     return(rpmfiles)
 
+def get_distro_from_path(inpath):
+
+    meta = {
+        'DISTRO':None,
+        'DISTROVERS':None,
+        'LIKEDISTRO':None
+    }
+
+    osfile = '/'.join([inpath,"/etc/os-release"])
+    if os.path.exists(osfile):
+        FH=open(osfile, 'r')
+        for l in FH.readlines():
+            l = l.strip()
+            try:
+                (key, val) = l.split("=")
+                val = re.sub(r'"', '', val)
+                if key == "ID":
+                    meta['DISTRO'] = val
+                elif key == "VERSION_ID":
+                    meta['DISTROVERS'] = val
+                elif key == "ID_LIKE":
+                    meta['LIKEDISTRO'] = ','.join(val.split())
+            except:
+                a=1
+        FH.close()
+    elif os.path.exists('/'.join([inpath, "/etc/system-release-cpe"])):
+        FH=open(unpackdir +"/rootfs/etc/system-release-cpe", 'r')
+        for l in FH.readlines():
+            l = l.strip()
+            try:
+                distro = l.split(':')[2]
+                vers = l.split(':')[4]
+                meta['DISTRO'] = distro
+                meta['DISTROVERS'] = vers
+            except:
+                pass
+        FH.close()
+    elif os.path.exists('/'.join([inpath, "/bin/busybox"])):
+        meta['DISTRO'] = "busybox"
+        try:
+            sout = subprocess.check_output(['/'.join([inpath, "/bin/busybox"])])
+            fline = sout.splitlines(True)[0]
+            slist = fline.split()
+            meta['DISTROVERS'] = slist[1]
+        except:
+            meta['DISTROVERS'] = "0"
+
+    if not meta['DISTRO']:
+        meta['DISTRO'] = "Unknown"
+    if not meta['DISTROVERS']:
+        meta['DISTROVERS'] = "0"
+    if not meta['LIKEDISTRO']:
+        meta['LIKEDISTRO'] = meta['DISTRO']
+
+    return(meta)
+
 def get_distro_flavor(distro, version, likedistro=None):
     ret = {
         'flavor':'Unknown',
@@ -587,8 +565,6 @@ def cve_scanimage(cve_data, image):
                             if ivers != vvers and deb_pkg_tools.version.compare_versions(ivers, '<', vvers):
                                 isvuln = True
                         else:
-                            #print "cve-scan: no fix version available"
-                            #vuln['Severity'] = 'Possible('+vuln['Severity']+')'
                             isvuln = True
 
                     if isvuln:
@@ -667,14 +643,12 @@ def diff_images(image, baseimage):
                     adatadict = {}
                     for l in areport[azkey][aokey]:
                         l = l.strip()
-                        #(k, v) = l.split()
                         (k, v) = re.match('(\S*)\s*(.*)', l).group(1, 2)
                         adatadict[k] = v
 
                     bdatadict = {}
                     for l in breport[azkey][aokey]:
                         l = l.strip()
-                        #(k, v) = l.split()
                         (k, v) = re.match('(\S*)\s*(.*)', l).group(1, 2)
                         bdatadict[k] = v
 
@@ -699,28 +673,14 @@ def update_file_list(listbuf, outfile, backup=False):
     src = listbuf
     if not os.path.exists(outfile):
         write_plainfile_fromlist(outfile, src)
-        #FH = open(outfile, 'w')
-        #for l in src:
-        #    FH.write(l + "\n")
-        #FH.close()
     else:
         dst = read_plainfile_tolist(outfile)
-        #FH = open(outfile, 'r')
-        #dst = list()
-        #for l in FH.readlines():
-        #    l = l.strip()
-        #    dst.append(l)
-        #FH.close()
         if src != dst:
             if backup:
                 hfile = outfile + "." + str(int(time.time()))
                 os.rename(outfile, hfile)
 
             write_plainfile_fromlist(outfile, src)
-            #FH = open(outfile, 'w')
-            #for l in src:
-            #    FH.write(l + "\n")
-            #FH.close()
 
     return (True)
 
@@ -913,3 +873,142 @@ def run_command_in_container(image=None, cmd="echo HELLO WORLD", fileget=None, f
             pass
 
     return(olines, fbuf)
+
+def get_files_from_tarfile(intarfile):
+    allfiles = {}
+
+    try:
+        tar = tarfile.open(intarfile)
+        for member in tar.getmembers():
+            finfo = {}
+            finfo['name'] = re.sub("^\./", "/", member.name.decode('utf8'))
+            finfo['fullpath'] = os.path.normpath(finfo['name'])
+            finfo['size'] = member.size
+            finfo['mode'] = member.mode
+
+            finfo['linkdst'] = None
+            if member.isfile():
+                finfo['type'] = 'file'
+            elif member.isdir():
+                finfo['type'] = 'dir'
+            elif member.issym():
+                finfo['type'] = 'slink'
+                finfo['linkdst'] = re.sub("^\./", "/", member.linkname.decode('utf8'))
+            elif member.islnk():
+                finfo['type'] = 'hlink'
+                finfo['linkdst'] = re.sub("^\./", "/", member.linkname.decode('utf8'))
+            elif member.isdev():
+                finfo['type'] = 'dev'
+            else:
+                finfo['type'] = 'UNKNOWN'
+
+            if finfo['type'] == 'slink' or finfo['type'] == 'hlink':
+                if re.match("^/", finfo['linkdst']):
+                    fullpath = finfo['linkdst']
+                else:
+                    dstlist = finfo['linkdst'].split('/')
+                    srclist = finfo['name'].split('/')
+                    srcpath = srclist[0:-1]
+                    fullpath = '/'.join(srcpath + dstlist)
+                    fullpath = os.path.normpath('/'.join(srcpath + dstlist))
+                finfo['fullpath'] = fullpath
+
+            if finfo['name'] in allfiles:
+                allfiles[finfo['name']] = allfiles[finfo['name']] + [finfo]
+            else:
+                allfiles[finfo['name']] = [finfo]
+
+        tar.close()
+    except:
+        pass
+
+    return(allfiles)
+
+def get_files_from_path(inpath):
+    filemap = {}
+    allfiles = {}
+    real_root = os.open('/', os.O_RDONLY)
+
+    try:
+        os.chroot(inpath)
+        #for root, dirs, files in os.walk('/', followlinks=True):
+        for root, dirs, files in os.walk('/', followlinks=False):
+            for name in dirs + files:
+                filename = os.path.join(root, name).decode('utf8')
+                fstat = os.lstat(filename)
+
+                finfo = {}
+                finfo['name'] = filename
+                finfo['fullpath'] = os.path.normpath(finfo['name'])
+                finfo['size'] = fstat.st_size
+                finfo['mode'] = fstat.st_mode
+                
+                mode = finfo['mode']
+                finfo['linkdst'] = None
+                finfo['linkdst_fullpath'] = None
+                if S_ISREG(mode):
+                    finfo['type'] = 'file'
+                elif S_ISDIR(mode):
+                    finfo['type'] = 'dir'
+                elif S_ISLNK(mode):
+                    finfo['type'] = 'slink'
+                    finfo['linkdst'] = os.readlink(finfo['name'].encode('utf8')).decode('utf8')
+                elif S_ISCHR(mode) or S_ISBLK(mode):
+                    finfo['type'] = 'dev'
+                else:
+                    finfo['type'] = 'UNKNOWN'
+
+                if finfo['type'] == 'slink' or finfo['type'] == 'hlink':
+                    if re.match("^/", finfo['linkdst']):
+                        fullpath = finfo['linkdst']
+                    else:
+                        dstlist = finfo['linkdst'].split('/')
+                        srclist = finfo['name'].split('/')
+                        srcpath = srclist[0:-1]
+                        fullpath = '/'.join(srcpath + dstlist)
+                        fullpath = os.path.normpath('/'.join(srcpath + dstlist))
+                    finfo['linkdst_fullpath'] = fullpath
+
+                fullpath = os.path.realpath(filename)
+
+                finfo['othernames'] = {}
+                for f in [fullpath, finfo['linkdst_fullpath'], finfo['linkdst'], finfo['name']]:
+                    if f:
+                        finfo['othernames'][f] = True
+
+                allfiles[finfo['name']] = finfo
+
+        # first pass, set up the basic file map
+        for name in allfiles.keys():
+            finfo = allfiles[name]
+            finfo['othernames'][name] = True
+
+            filemap[name] = finfo['othernames']
+            for oname in finfo['othernames']:
+                filemap[oname] = finfo['othernames']
+
+        # second pass, include second order
+        newfmap = {}
+        count = 0
+        while newfmap != filemap or count > 5:
+            count += 1
+            filemap.update(newfmap)
+            newfmap.update(filemap)
+            for mname in newfmap.keys():
+                for oname in newfmap[mname].keys():
+                    newfmap[oname].update(newfmap[mname])
+
+    except Exception as err:
+        import traceback
+        traceback.print_exc()
+        print str(err)
+        pass
+
+    os.fchdir(real_root)
+    os.chroot('.')
+
+    return(filemap, allfiles)
+
+def grouper(inlist, chunksize):
+    return (inlist[pos:pos + chunksize] for pos in xrange(0, len(inlist), chunksize))
+

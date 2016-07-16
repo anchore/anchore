@@ -93,8 +93,6 @@ class ScriptSetExecutor:
         :param init_if_missing: create the path if not found
         :return: true if exists false if not
         """
-
-        
         for d in self.path_overrides + [self.inputdir]:            
             if os.path.exists(d):
                 self.allpaths.append(d)
