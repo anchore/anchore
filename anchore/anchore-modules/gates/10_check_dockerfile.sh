@@ -48,6 +48,8 @@ fi
 FLINE=`cat $DFILE | grep -e '^FROM' | head -n 1`
 if ( ! echo $FLINE | grep FROM  >/dev/null 2>&1 ); then
     echo "NOFROM No 'FROM' directive in Dockerfile" >> $OUTPUTFILE
+elif ( ! echo $FLINE | grep FROM | awk '{print $2}' | grep -v scratch >/dev/null 2>&1); then
+    echo "FROMSCRATCH 'FROM' container is 'scratch' - $FLINE" >> $OUTPUTFILE
 elif ( ! echo $FLINE | grep FROM | grep ':' | grep -v latest >/dev/null 2>&1); then
     echo "NOTAG 'FROM' container does not specify a non-latest container tag - $FLINE" >> $OUTPUTFILE
 fi
