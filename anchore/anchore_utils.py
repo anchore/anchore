@@ -672,9 +672,6 @@ def diff_images(image, baseimage):
                     retdata[azkey][aokey] = outputdict
     return (retdata)
 
-
-
-
 def update_file_list(listbuf, outfile, backup=False):
     src = listbuf
     if not os.path.exists(outfile):

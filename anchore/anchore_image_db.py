@@ -120,7 +120,9 @@ class AnchoreImageDB(object):
         report = self.load_analysis_report(imageId)
 
         if 'file_checksums' in report:
-            filelist = report['file_checksums'].pop('files.md5sums', None)
+            filelist = report['file_checksums'].pop('files.sha256sums', None)
+            if not filelist:
+                filelist = report['file_checksums'].pop('files.md5sums', None)
             for line in filelist:
                 line = line.strip()
                 (k, v) = line.split()

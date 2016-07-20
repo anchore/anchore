@@ -43,8 +43,12 @@ for fid in config['params']:
         image_report = anchore.anchore_utils.diff_images(image, fimage)
         fpkgs = fimage.get_allfiles()
 
-        for pkg in image_report['file_checksums']['files.md5sums'].keys():
-            status = image_report['file_checksums']['files.md5sums'][pkg]
+        csumkey = 'files.md5sums'
+        if 'files.sha256sums' in image_report['file_checksums']:
+            csumkey = 'files.sha256sums'
+        
+        for pkg in image_report['file_checksums'][csumkey].keys():
+            status = image_report['file_checksums'][csumkey][pkg]
             ivers = ipkgs.pop(pkg, "NA")
             if status == 'VERSION_DIFF':
                 pvers = fpkgs.pop(pkg, "NA")
