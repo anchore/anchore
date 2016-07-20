@@ -447,7 +447,7 @@ def get_distro_flavor(distro, version, likedistro=None):
         'likeversion':version
     }
 
-    if distro in ['centos']:
+    if distro in ['centos', 'rhel']:
         ret['flavor'] = "RHEL"
     elif distro in ['debian', 'ubuntu']:
         ret['flavor'] = "DEB"
@@ -455,10 +455,13 @@ def get_distro_flavor(distro, version, likedistro=None):
         ret['flavor'] = "BUSYB"
     elif distro in ['alpine']:
         ret['flavor'] = "ALPINE"
+    elif distro in ['ol']:
+        ret['flavor'] = "RHEL"
+        ret['likedistro'] = 'rhel'
 
     if ret['flavor'] == 'Unknown' and likedistro:
         for distro in likedistro:
-            if distro in ['centos']:
+            if distro in ['centos', 'rhel']:
                 ret['flavor'] = "RHEL"
             elif distro in ['debian', 'ubuntu']:
                 ret['flavor'] = "DEB"
@@ -466,6 +469,9 @@ def get_distro_flavor(distro, version, likedistro=None):
                 ret['flavor'] = "BUSYB"
             elif distro in ['alpine']:
                 ret['flavor'] = "ALPINE"
+            elif distro in ['ol']:
+                ret['flavor'] = "RHEL"
+                ret['likedistro'] = 'rhel'
 
             if ret['flavor'] != 'Unknown':
                 break
