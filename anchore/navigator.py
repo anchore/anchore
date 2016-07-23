@@ -227,24 +227,32 @@ class Navigator(object):
         try:
             (cmd, rc, sout) = se.execute(capture_output=True, cmdline=cmdline)
             if rc:
-                self._logger.error("Query command ran but execution failed: " )
-                self._logger.error("\tCommand: " + ' '.join([se.thecmd, cmdline]))
-                self._logger.error("\tCommand output:\n" + str(sout))
-                self._logger.error("\tExit code: " + str(rc))
+                self._logger.error("Query command ran but execution failed" )
+                self._logger.error("Query command: (" + ' '.join([se.thecmd, cmdline])+")")
+                self._logger.error("Query output: (" + str(sout) + ")")
+                self._logger.error("Exit code: (" + str(rc)+")")
                 raise Exception("Query ran but exited non-zero.")
         except Exception as err:
             raise Exception("Query execution failed: " + str(err))
         else:
             try:
-                outputs = os.listdir(outputdir)
-                if len(outputs) <= 0:
+                #outputs = os.listdir(outputdir)
+                warnfile = False
+                found = False
+                for f in os.listdir(outputdir):
+                    if re.match(".*\.WARNS", f):
+                        warnfile = '/'.join([outputdir, f])
+                    else:
+                        ofile = '/'.join([outputdir, f])
+                        found=True
+
+                if not found:
                     raise Exception("No output files found after executing query command\n\tCommand Output:\n"+sout+"\n\tInfo: Query command should have produced an output file in: " + outputdir)
 
                 orows = list()
-                ofile = outputs[0]
 
                 try:
-                    frows = anchore_utils.read_kvfile_tolist('/'.join([outputdir, ofile]))
+                    frows = anchore_utils.read_kvfile_tolist(ofile)
                     header = frows[0]
                     rowlen = len(header)
                     for row in frows[1:]:
@@ -253,6 +261,12 @@ class Navigator(object):
                         orows.append(row)
                 except Exception as err:
                     raise err 
+
+                if warnfile:
+                    try:
+                        meta['warns'] = anchore_utils.read_plainfile_tolist(warnfile)
+                    except:
+                        pass
 
                 meta['queryparams'] = ','.join(params)
                 meta['querycommand'] = cmd

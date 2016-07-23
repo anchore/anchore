@@ -19,6 +19,7 @@ if not config:
 if len(config['params']) <= 0:
     print "Query requires input: <packageA> <packageB> ..."
 
+warns = list()
 outlist = list()
 outlist.append(["ImageID", "Repo/Tag", "QueryParam", "Package", "Version"])
 
@@ -27,6 +28,9 @@ try:
     FH=open(pkgfile, 'r')
 
     pkgs = anchore.anchore_utils.read_kvfile_todict(pkgfile)
+    
+    if len(pkgs) <= 0 or (len(pkgs) == 1 and 'Unknown' in pkgs):
+        warns.append(config['meta']['shortId'] + "(" + config['meta']['humanname'] + ") Image has been analyzed but package data is empty - nothing to search")
 
     for p in pkgs.keys():
         pkgs[p + "-" + pkgs[p]] = pkgs[p]
@@ -44,10 +48,13 @@ except:
     #outlist.append(["NOMATCH", "NOMATCH", "NOMATCH"])
     pass
 
-if len(outlist) < 1:
+if len(outlist) < 2:
     #outlist.append(["NOMATCH", "NOMATCH", "NOMATCH"])
     pass
 
 anchore.anchore_utils.write_kvfile_fromlist(config['output'], outlist)
+
+if len(warns) > 0:
+    anchore.anchore_utils.write_plainfile_fromlist(config['output_warns'], warns)
 
 sys.exit(0)
