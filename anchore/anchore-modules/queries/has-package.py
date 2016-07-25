@@ -54,7 +54,8 @@ if len(outlist) < 2:
 
 anchore.anchore_utils.write_kvfile_fromlist(config['output'], outlist)
 
-if len(warns) > 0:
-    anchore.anchore_utils.write_plainfile_fromlist(config['output_warns'], warns)
+# disable for now
+#if len(warns) > 0:
+#    anchore.anchore_utils.write_plainfile_fromlist(config['output_warns'], warns)
 
 sys.exit(0)
