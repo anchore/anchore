@@ -334,6 +334,12 @@ class Navigator(object):
         result['list_query_commands'] = record
         return(result)
 
+    def check_for_warnings(self, result):
+        for k in result.keys():
+            if 'warns' in result[k]:
+                return(True)
+        return(False)
+
     def run_query(self, query):
         result = {}
 
