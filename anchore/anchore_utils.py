@@ -114,6 +114,7 @@ def init_query_cmdline(argv, paramhelp):
     ret['meta'] = read_kvfile_todict(metafile)
     ret['imgtags'] = ret['meta']['humanname']
     ret['output'] = '/'.join([ret['dirs']['outputdir'], ret['name']])
+    ret['output_warns'] = '/'.join([ret['dirs']['outputdir'], ret['name']+".WARNS"])
 
     return (ret)
 
@@ -282,6 +283,19 @@ def print_result(config, result, outputmode=None):
                         print output[i][j]
                         print 
 
+        for k in result.keys():
+            if 'warns' in result[k]:
+                if outputmode == 'table':
+                    t = PrettyTable(['WarningOutput'])
+                    for warn in result[k]['warns']:
+                        t.add_row([warn])
+                    print t
+                if outputmode == 'plaintext':
+                    print "\nWarning Output\n"
+                    for warn in result[k]['warns']:
+                        print str(warn)
+                if outputmode == 'raw':
+                    pass
 
     return (True)
 
@@ -498,13 +512,19 @@ def cve_load_data(cvedatadir, image):
     fulldistro = distrodict['distro']
     fullversion = distrodict['fullversion']
     
+    searchpaths = list()
     for f in [(distro,distrovers), (likedistro, likeversion), (fulldistro, fullversion)]:
         cvejsonfile = '/'.join([cvedatadir, f[0]+":"+f[1], "cve.json"])
+        searchpaths.append(cvejsonfile)
         if os.path.exists(cvejsonfile):
             FH = open(cvejsonfile, 'r')
             cve_data = json.loads(FH.read())
             FH.close()
             break
+
+    if not cve_data:
+        raise ValueError("could not find CVE data associated with the input container distro: ("+', '.join(searchpaths)+")")
+
     return (cve_data)
 
 

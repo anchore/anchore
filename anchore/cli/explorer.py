@@ -109,6 +109,9 @@ def query(module):
         if result:
             anchore_utils.print_result(config, result)
 
+        if nav.check_for_warnings(result):
+            ecode = 2
+
     except:
         anchore_print_err("query operation failed")
         ecode = 1
