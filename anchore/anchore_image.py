@@ -9,6 +9,7 @@ import sys
 import os
 import re
 from prettytable import PrettyTable
+import time
 
 import logging
 
@@ -142,8 +143,8 @@ class AnchoreImage(object):
             self.dockerfile_contents = self.discover_dockerfile_contents()
             self.dockerfile_mode = 'Guessed'
 
-    """ Image loading, discovering and saving """
 
+    """ Image loading, discovering and saving """
     def load_image(self):
         if os.path.exists('/'.join([self.anchore_image_datadir,self.meta['imagename']])):
             self.meta['imageId'] = self.meta['imagename']
