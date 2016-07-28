@@ -403,9 +403,8 @@ def get_distro_from_path(inpath):
         'LIKEDISTRO':None
     }
 
-    osfile = '/'.join([inpath,"/etc/os-release"])
-    if os.path.exists(osfile):
-        FH=open(osfile, 'r')
+    if os.path.exists('/'.join([inpath,"/etc/os-release"])):
+        FH=open('/'.join([inpath,"/etc/os-release"]), 'r')
         for l in FH.readlines():
             l = l.strip()
             try:
@@ -421,7 +420,7 @@ def get_distro_from_path(inpath):
                 a=1
         FH.close()
     elif os.path.exists('/'.join([inpath, "/etc/system-release-cpe"])):
-        FH=open(unpackdir +"/rootfs/etc/system-release-cpe", 'r')
+        FH=open('/'.join([inpath, "/etc/system-release-cpe"]), 'r')
         for l in FH.readlines():
             l = l.strip()
             try:
