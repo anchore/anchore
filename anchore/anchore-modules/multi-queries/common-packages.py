@@ -26,8 +26,8 @@ except:
 if not config:
     sys.exit(0)
 
-OFH=open(config['output'], 'w')
-OFH.write("BaseId Package *ChildImagesWithPackage\n")
+outlist = list()
+outlist.append(["BaseId", "Package", "*ChildImagesWithPackage"])
 
 allimages = {}
 tups = list()
@@ -44,7 +44,7 @@ pkgout = {}
 for t in tups:
     s = t[0]
     d = t[1]
-    thedir = '/'.join([config['dirs']['datadir'], s, 'compare_output', d])
+
     image = allimages[s]
     base = image.get_earliest_base()
     bimage = allimages[d]
@@ -66,8 +66,9 @@ for t in tups:
 for k in pkgout.keys():
     for p in pkgout[k].keys():
         if 'all' in config['params'] or k in config['params'] or k[0:12] in config['params']:
-            OFH.write(k[0:12] + " " + p + " " + str(pkgout[k][p]) + "\n")
+            outlist.append([k[0:12], p, str(pkgout[k][p])])
 
-OFH.close()
+anchore.anchore_utils.write_kvfile_fromlist(config['output'], outlist)
+
 allimages.clear()
 sys.exit(0)
