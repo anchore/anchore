@@ -24,10 +24,7 @@ outlist = list()
 outlist.append(["ImageID", "Repo/Tag", "QueryParam", "Package", "Version"])
 
 try:
-    pkgfile = '/'.join([config['dirs']['analyzerdir'], 'package_list', 'pkgs.all'])
-    FH=open(pkgfile, 'r')
-
-    pkgs = anchore.anchore_utils.read_kvfile_todict(pkgfile)
+    pkgs = anchore.anchore_utils.load_analysis_output(config['meta']['imageId'], 'package_list', 'pkgs.all')
     
     if len(pkgs) <= 0 or (len(pkgs) == 1 and 'Unknown' in pkgs):
         warns.append(config['meta']['shortId'] + "(" + config['meta']['humanname'] + ") Image has been analyzed but package data is empty - nothing to search")
@@ -44,9 +41,10 @@ try:
             #outlist.append([pkg, "NOMATCH", "NOMATCH"])
             pass
 
-except:
-    #outlist.append(["NOMATCH", "NOMATCH", "NOMATCH"])
-    pass
+except Exception as err:
+    import traceback
+    traceback.print_exc()
+    print "ERROR: " + str(err)
 
 if len(outlist) < 2:
     #outlist.append(["NOMATCH", "NOMATCH", "NOMATCH"])

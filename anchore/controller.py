@@ -1,10 +1,12 @@
 import copy
 import subprocess
 
+import sys
 import os
 import re
 import json 
 import random 
+import shutil
 
 from anchore import anchore_utils
 import logging
@@ -213,6 +215,38 @@ class Controller(object):
         self.anchoreDB.save_gates_eval_report(image.meta['imageId'], ret)
         return(ret)
 
+    def discover_gates(self):
+        ret = {}
+
+        dirmap = {
+            '/'.join([self.config["scripts_dir"], "gates"]):'base',
+            '/'.join([self.config['user_scripts_dir'], 'gates']):'user'
+        }
+
+        if self.config['extra_scripts_dir']:
+            dirmap['/'.join([self.config['extra_scripts_dir'], 'gates'])] = 'xtra'
+         
+        for gdir in dirmap.keys():
+            gtype = dirmap[gdir]
+            gatesdir = gdir
+            for f in os.listdir(gatesdir):
+                thegate = '/'.join([gatesdir, f])
+                if os.access(thegate, os.R_OK ^ os.X_OK): 
+                    tmpdir = anchore_utils.make_anchoretmpdir(self.config['tmpdir'])
+                    namedir = '/'.join([tmpdir, 'namedir'])
+                    os.makedirs(namedir)
+                    imgfile = '/'.join([tmpdir, 'images'])
+                    anchore_utils.write_plainfile_fromlist(imgfile, self.images)
+                    cmdobj = scripting.ScriptExecutor(path=gatesdir, script_name=f)
+                    out = cmdobj.execute(capture_output=True, cmdline=' '.join([imgfile,self.config['image_data_store'], namedir, 'anchore_getname']))
+                    for ff in os.listdir(namedir):
+                        if gtype not in ret:
+                            ret[gtype] = {}
+                        ret[gtype][f] = ff
+
+                    shutil.rmtree(tmpdir)
+        return(ret)
+
     def execute_gates(self, image, refresh=True):
         self._logger.debug("gate policy evaluation for image "+str(image.meta['imagename'])+": begin")
         success = True
@@ -245,6 +279,7 @@ class Controller(object):
             policies = self.read_policyfile(self.policy_override)
         else:
             policies = self.get_image_policies(image)
+
         paramlist = list()
         for p in policies.keys():
             for t in policies[p].keys():
@@ -256,6 +291,7 @@ class Controller(object):
         path_overrides = ['/'.join([self.config['user_scripts_dir'], 'gates'])]
         if self.config['extra_scripts_dir']:
             path_overrides = path_overrides + ['/'.join([self.config['extra_scripts_dir'], 'gates'])]
+
         results = scripting.ScriptSetExecutor(path=gatesdir, path_overrides=path_overrides).execute(capture_output=True, fail_fast=True, cmdline=' '.join([imgfile, self.config['image_data_store'], outputdir, ' '.join(paramlist)]))
 
         os.remove(imgfile)

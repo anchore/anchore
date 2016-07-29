@@ -11,8 +11,10 @@ from deb_pkg_tools.version import Version
 from anchore import anchore_image
 import anchore.anchore_utils
 
+gate_name = "ANCHORESEC"
+
 try:
-    config = anchore.anchore_utils.init_gate_cmdline(sys.argv, "CVE Checking Gate")
+    config = anchore.anchore_utils.init_gate_cmdline(sys.argv, gate_name)
 except Exception as err:
     print str(err)
     sys.exit(1)
@@ -42,7 +44,7 @@ except Exception as err:
     print "ERROR: could not scan image for CVEs: " + str(err)
     exit(1)
 
-output = '/'.join([outputdir, 'ANCHORESEC'])
+output = '/'.join([outputdir, gate_name])
 OFH=open(output, 'w')
 for k in report.keys():
     vuln = report[k]

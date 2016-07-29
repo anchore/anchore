@@ -5,8 +5,10 @@ import os
 import re
 import anchore.anchore_utils
 
+gate_name = "PKGDIFF"
+
 try:
-    config = anchore.anchore_utils.init_gate_cmdline(sys.argv, "CVE Checking Gate")
+    config = anchore.anchore_utils.init_gate_cmdline(sys.argv, gate_name)
 except Exception as err:
     print str(err)
     sys.exit(1)
@@ -40,7 +42,7 @@ FH.close()
 if meta['usertype'] != "user":
     sys.exit(0)
 
-output = '/'.join([outputdir, 'PKGDIFF'])
+output = '/'.join([outputdir, gate_name])
 OFH=open(output, 'w')
 
 pkgfile = '/'.join([comparedir, 'base', 'package_list', 'pkgs.all'])

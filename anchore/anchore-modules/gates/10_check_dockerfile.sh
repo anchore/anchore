@@ -17,11 +17,14 @@ if [ "$?" != "0" ]; then
     # input didn't parse correctly
     exit 1
 fi
-PARAMS=($ANCHOREPARAMS)
-for p in $PARAMS
+
+for p in $ANCHOREPARAMS
 do
     if ( echo $p | grep ALLOWEDPORTS >/dev/null 2>&1 ); then
-	NETARG=$p
+	NETARG_ALLOW=$p
+    fi
+    if ( echo $p | grep DENIEDPORTS >/dev/null 2>&1 ); then
+	NETARG_DENY=$p
     fi
 done
 
@@ -45,6 +48,12 @@ if [ ! -d "$IMGDIR" -o ! -f "$DFILE" ]; then
     exit 0
 fi
 
+if [ ! -z "$NETARG_ALLOW" -a ! -z "$NETARG_DENY" ]; then
+    echo "EXPOSE Both 'ALLOWEDPORTS' and 'DENIEDPORTS' are specified in the parameter list for this image's policy - please specify only one or the other" >> $OUTPUTFILE
+    unset NETARG_ALLOW
+    unset NETARG_DENY
+fi
+
 FLINE=`cat $DFILE | grep -e '^FROM' | head -n 1`
 if ( ! echo $FLINE | grep FROM  >/dev/null 2>&1 ); then
     echo "NOFROM No 'FROM' directive in Dockerfile" >> $OUTPUTFILE
@@ -58,8 +67,8 @@ if ( grep "sudo" $DFILE >/dev/null 2>&1 ); then
     echo "SUDO Dockerfile contains a 'sudo' command" >> $OUTPUTFILE
 fi
 
-if [ ! -z "$NETARG" ]; then
-    NPORTS=`echo $NETARG | sed "s/ALLOWEDPORTS=//g"`
+if [ ! -z "$NETARG_ALLOW" ]; then
+    NPORTS=`echo $NETARG_ALLOW | sed "s/ALLOWEDPORTS=//g"`
     if ( grep "EXPOSE" $DFILE >/dev/null 2>&1 ); then
 	if [ "$NPORTS" = "NONE" ]; then
 	    echo "EXPOSE Dockerfile exposes network ports that policy file restricts." >> $OUTPUTFILE
@@ -76,6 +85,29 @@ if [ ! -z "$NETARG" ]; then
 		done
 		if [ "$ALLOW" = "NO" ]; then
 		    echo "EXPOSE Dockerfile exposes port $e which is not in policy file ALLOWEDPORTS list" >> $OUTPUTFILE
+		fi
+	    done
+	fi
+    fi
+fi
+if [ ! -z "$NETARG_DENY" ]; then
+    NPORTS=`echo $NETARG_DENY | sed "s/DENIEDPORTS=//g"`
+    if ( grep "EXPOSE" $DFILE >/dev/null 2>&1 ); then
+	if [ "$NPORTS" = "ALL" ]; then
+	    echo "EXPOSE Dockerfile exposes network ports that policy file restricts." >> $OUTPUTFILE
+	else
+	    NPORTSLIST=`echo $NPORTS | sed "s/,/ /g"`
+	    for e in `grep EXPOSE $DFILE | head -n 1 | sed "s/EXPOSE//g"`
+	    do
+		ALLOW="YES"
+		for n in $NPORTSLIST
+		do
+		    if [ "$e" = "$n" ]; then
+			ALLOW="NO"
+		    fi
+		done
+		if [ "$ALLOW" = "NO" ]; then
+		    echo "EXPOSE Dockerfile exposes port $e which is in policy file DENIEDPORTS list" >> $OUTPUTFILE
 		fi
 	    done
 	fi

@@ -117,32 +117,11 @@ class AnchoreImageDB(object):
             # image has not been analyzed
             return(False)
 
-        report = self.load_analysis_report(imageId)
+        allfiles = self.load_analysis_output(imageId, 'file_checksums', 'files.sha256sums')
 
-        if 'file_checksums' in report:
-            filelist = report['file_checksums'].pop('files.sha256sums', None)
-            if not filelist:
-                filelist = report['file_checksums'].pop('files.md5sums', None)
-            for line in filelist:
-                line = line.strip()
-                (k, v) = line.split()
-                allfiles[k] = v
+        allpkgs = self.load_analysis_output(imageId, 'package_list', 'pkgs.all')
 
-            
-        if 'package_list' in report:
-            pkglist = report['package_list'].pop('pkgs.all', None)
-            for line in pkglist:
-                line = line.strip()
-                (k, v) = line.split()
-                allpkgs[k] = v
-
-        if 'analyzer_meta' in report:
-            ameta = report['analyzer_meta'].pop('analyzer_meta', None)
-            analyzer_meta = {}
-            for line in ameta:
-                line = line.strip()
-                (key, val) = line.split()
-                analyzer_meta[key] = val
+        analyzer_meta = self.load_analysis_output(imageId, 'analyzer_meta', 'analyzer_meta')
 
         report = self.load_image_report(imageId)
 
@@ -182,6 +161,27 @@ class AnchoreImageDB(object):
             os.makedirs(thedir)
         thefile = thedir + "/analysis_report.json"
         anchore_utils.update_file_jsonstr(json.dumps(report), thefile, False)
+
+    def list_analysis_outputs(self, imageId):
+        ret = {}
+        thedir = '/'.join([self.imagerootdir, imageId, "analyzer_output"])
+        if os.path.exists(thedir):
+            for f in os.listdir(thedir):
+                if os.path.isdir('/'.join([thedir, f])):
+                    if f not in ret:
+                        ret[f] = {}
+                    for ff in os.listdir('/'.join([thedir, f])):
+                        if os.path.isfile('/'.join([thedir, f, ff])):
+                            ret[f][ff] = True
+        return(ret)
+
+    def load_analysis_output(self, imageId, module_name, module_value):
+        ret = {}
+        thefile = '/'.join([self.imagerootdir, imageId, "analyzer_output", module_name, module_value])
+        if os.path.exists(thefile):
+            ret = anchore_utils.read_kvfile_todict(thefile)
+
+        return(ret)
 
     def load_compare_report(self, imageId):
         thefile = self.imagerootdir + "/" + imageId + "/reports/compare_report.json"

@@ -56,7 +56,13 @@ def init_analyzer_cmdline(argv, name):
     return(ret)
 
 def init_gate_cmdline(argv, paramhelp):
-    return(init_query_cmdline(argv, paramhelp))
+    ret = init_query_cmdline(argv, paramhelp)
+    if ret['params'] and ret['params'][0] == 'anchore_getname':
+        FH=open('/'.join([ret['dirs']['outputdir'], paramhelp]), 'w')
+        FH.write("\n")
+        FH.close()
+        sys.exit(0)
+    return(ret)
 
 def init_query_cmdline(argv, paramhelp):
     ret = {}
@@ -73,7 +79,6 @@ def init_query_cmdline(argv, paramhelp):
     anchore_common_context_setup(anchore_conf)
 
     ret['anchore_config'] = anchore_conf.data
-
 
     ret['name'] = argv[0].split('/')[-1]
     ret['imgfile'] = argv[1]
@@ -134,6 +139,20 @@ def anchore_common_context_setup(config):
 
     return(True)
 
+def load_analysis_output(imageId, module_name, module_value):
+    return(contexts['anchore_db'].load_analysis_output(imageId, module_name, module_value))
+
+def list_analysis_outputs(imageId):
+    return(contexts['anchore_db'].list_analysis_outputs(imageId))
+
+def make_anchoretmpdir(tmproot):
+    import random
+    tmpdir = '/'.join([tmproot, str(random.randint(0, 9999999)) + ".anchoretmp"])
+    try:
+        os.makedirs(tmpdir)
+        return(tmpdir)
+    except:
+        return(False)
 
 def discover_imageIds(namelist):
     ret = {}
