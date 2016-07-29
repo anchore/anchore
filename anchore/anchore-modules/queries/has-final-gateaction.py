@@ -30,7 +30,7 @@ for ge in report:
         action = ge['action']
         trigger = ge['trigger']
         gate = ge['check']
-        if action == 'all' or action in config['params']:
+        if gate == 'FINAL' and (action == 'all' or action in config['params']):
             outlist.append([config['meta']['shortId'], config['meta']['humanname'], gate, trigger, action])
     except Exception as err:
         # bad record

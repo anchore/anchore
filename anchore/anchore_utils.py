@@ -145,6 +145,9 @@ def load_analysis_output(imageId, module_name, module_value):
 def list_analysis_outputs(imageId):
     return(contexts['anchore_db'].list_analysis_outputs(imageId))
 
+def load_gates_eval_report(imageId):
+    return(contexts['anchore_db'].load_gates_eval_report(imageId))
+
 def make_anchoretmpdir(tmproot):
     import random
     tmpdir = '/'.join([tmproot, str(random.randint(0, 9999999)) + ".anchoretmp"])
