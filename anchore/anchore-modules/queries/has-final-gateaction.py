@@ -22,7 +22,6 @@ if 'all' in config['params']:
 outlist = list()
 outlist.append(["ImageID", "Repo/Tag", "Gate", "Trigger", "Action"])
 
-
 report = anchore.anchore_utils.load_gates_eval_report(config['meta']['imageId'])
 action = ""
 for ge in report:

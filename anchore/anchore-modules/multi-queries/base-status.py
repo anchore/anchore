@@ -29,6 +29,7 @@ config['params'] = newparams
 print config['params']
 
 outlist = list()
+warns = list()
 outlist.append(["InputImageId", "InputRepo/Tag", "CurrentBaseId", "CurrentBaseRepo/Tag", "Status", "LatestBaseId", "LatestBaseRepo/Tag"])
 
 allimages = {}
@@ -39,7 +40,10 @@ for imageId in config['images']:
 
         bimageId = image.get_earliest_anchore_base()
         if bimageId:
-            bimage = anchore.anchore_image.AnchoreImage(bimageId, config['anchore_config']['image_data_store'], allimages)
+            try:
+                bimage = anchore.anchore_image.AnchoreImage(bimageId, config['anchore_config']['image_data_store'], allimages)
+            except:
+                warns.append("Cannot lookup imageId specified as input parameter: " + str(bimageId))
         else:
             bimage = image
 
@@ -67,6 +71,9 @@ for imageId in config['images']:
         pass
 
 anchore.anchore_utils.write_kvfile_fromlist(config['output'], outlist)
+
+if len(warns) > 0:
+    anchore.anchore_utils.write_plainfile_fromlist(config['output_warns'], warns)
 
 allimages.clear()
 sys.exit(0)
