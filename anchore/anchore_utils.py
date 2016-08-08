@@ -492,7 +492,7 @@ def get_distro_flavor(distro, version, likedistro=None):
         ret['flavor'] = "ALPINE"
     elif distro in ['ol']:
         ret['flavor'] = "RHEL"
-        ret['likedistro'] = 'rhel'
+        ret['likedistro'] = 'centos'
 
     if ret['flavor'] == 'Unknown' and likedistro:
         for distro in likedistro:
@@ -506,7 +506,7 @@ def get_distro_flavor(distro, version, likedistro=None):
                 ret['flavor'] = "ALPINE"
             elif distro in ['ol']:
                 ret['flavor'] = "RHEL"
-                ret['likedistro'] = 'rhel'
+                ret['likedistro'] = 'centos'
 
             if ret['flavor'] != 'Unknown':
                 break

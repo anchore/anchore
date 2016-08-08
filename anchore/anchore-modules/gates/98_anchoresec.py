@@ -42,7 +42,11 @@ try:
     report = anchore.anchore_utils.cve_scanimage(cve_data, image)
 except Exception as err:
     print "ERROR: could not scan image for CVEs: " + str(err)
-    exit(1)
+    output = '/'.join([outputdir, gate_name])
+    OFH=open(output, 'w')
+    OFH.write("UNSUPPORTEDDISTRO Image distro unsupported by CVE scanner\n")
+    OFH.close()
+    sys.exit(0)
 
 output = '/'.join([outputdir, gate_name])
 OFH=open(output, 'w')

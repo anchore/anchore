@@ -70,8 +70,8 @@ class AnchoreImage(object):
         self.anchore_all_tags = []
         self.anchore_tag_history = []
 
-        self.anchore_analyzer_meta_json = None
-        self.anchore_analyzer_meta = None
+        #self.anchore_analyzer_meta_json = {}
+        self.anchore_analyzer_meta = {}
 
         self.anchore_analysis_report = None
         self.anchore_compare_report = None
@@ -183,6 +183,7 @@ class AnchoreImage(object):
 
         #self.anchore_allfiles = anchore_data.pop('allfiles', {})
         #self.anchore_allpkgs = anchore_data.pop('allpkgs', {})
+        #self.anchore_analyzer_meta = anchore_data.pop('analyzer_meta', {})
 
         val = anchore_data.pop('familytree', [])
         if len(val) > 0:
@@ -195,8 +196,6 @@ class AnchoreImage(object):
         val = anchore_data.pop('tag_history', [])
         if len(val) > 0:
             self.anchore_tag_history = val
-
-        self.anchore_analyzer_meta = anchore_data.pop('analyzer_meta', {})
 
         self.anchore_other = {}
         if (len(anchore_data.keys()) > 0):
@@ -513,12 +512,18 @@ class AnchoreImage(object):
         return self.anchore_gates_eval_report
 
     def get_distro(self):
+        if not self.anchore_analyzer_meta:
+            self.anchore_analyzer_meta = self.anchore_db.load_analysis_output(self.meta['imageId'], 'analyzer_meta', 'analyzer_meta')
+
         if not 'DISTRO' in self.anchore_analyzer_meta:
             return ("UNKNOWN")
 
         return (self.anchore_analyzer_meta['DISTRO'])
 
     def get_distro_vers(self):
+        if not self.anchore_analyzer_meta:
+            self.anchore_analyzer_meta = self.anchore_db.load_analysis_output(self.meta['imageId'], 'analyzer_meta', 'analyzer_meta')
+
         if not 'DISTROVERS' in self.anchore_analyzer_meta:
             return ("")
 
@@ -551,14 +556,12 @@ class AnchoreImage(object):
 
     def get_allfiles(self):
         if not self.anchore_allfiles:
-            #self.load_image_from_anchore()
             self.anchore_allfiles = self.anchore_db.load_analysis_output(self.meta['imageId'], 'file_checksums', 'files.sha256sums')
 
         return (self.anchore_allfiles)
 
     def get_allpkgs(self):
         if not self.anchore_allpkgs:
-            #self.load_image_from_anchore()
             self.anchore_allpkgs = self.anchore_db.load_analysis_output(self.meta['imageId'], 'package_list', 'pkgs.all')
 
         return (self.anchore_allpkgs)

@@ -31,6 +31,9 @@ meta = {"DISTRO":"Unknown", "DISTROVERS":"0", "LIKEDISTRO":["Unknown"]}
 meta.update(anchore.anchore_utils.read_kvfile_todict(metafile))
 distrodict = anchore.anchore_utils.get_distro_flavor(meta['DISTRO'], meta['DISTROVERS'], meta['LIKEDISTRO'])
 
+if distrodict['flavor'] not in ['RHEL', 'DEB', 'BUSYB']:
+    sys.exit(0)
+
 FH=open(outputdir + "/pkgs.all", 'w')
 FFH=open(outputdir + "/pkgfiles.all", 'w')
 CFH=open(outputdir + "/pkgs_plus_source.all", 'w')
