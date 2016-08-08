@@ -181,9 +181,8 @@ class AnchoreImage(object):
                 if v not in self.anchore_all_tags:
                     self.anchore_all_tags.append(v)
 
-        self.anchore_allfiles = anchore_data.pop('allfiles', {})
-
-        self.anchore_allpkgs = anchore_data.pop('allpkgs', {})
+        #self.anchore_allfiles = anchore_data.pop('allfiles', {})
+        #self.anchore_allpkgs = anchore_data.pop('allpkgs', {})
 
         val = anchore_data.pop('familytree', [])
         if len(val) > 0:
@@ -552,13 +551,15 @@ class AnchoreImage(object):
 
     def get_allfiles(self):
         if not self.anchore_allfiles:
-            self.load_image_from_anchore()
+            #self.load_image_from_anchore()
+            self.anchore_allfiles = self.anchore_db.load_analysis_output(self.meta['imageId'], 'file_checksums', 'files.sha256sums')
 
         return (self.anchore_allfiles)
 
     def get_allpkgs(self):
         if not self.anchore_allpkgs:
-            self.load_image_from_anchore()
+            #self.load_image_from_anchore()
+            self.anchore_allpkgs = self.anchore_db.load_analysis_output(self.meta['imageId'], 'package_list', 'pkgs.all')
 
         return (self.anchore_allpkgs)
 

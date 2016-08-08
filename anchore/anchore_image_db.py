@@ -117,12 +117,12 @@ class AnchoreImageDB(object):
             # image has not been analyzed
             return(False)
 
-        allfiles = self.load_analysis_output(imageId, 'file_checksums', 'files.sha256sums')
+        timer = time.time()
 
-        allpkgs = self.load_analysis_output(imageId, 'package_list', 'pkgs.all')
+        #allfiles = None #self.load_analysis_output(imageId, 'file_checksums', 'files.sha256sums')
+        #allpkgs = None #self.load_analysis_output(imageId, 'package_list', 'pkgs.all')
 
         analyzer_meta = self.load_analysis_output(imageId, 'analyzer_meta', 'analyzer_meta')
-
         report = self.load_image_report(imageId)
 
         familytree = report.pop('familytree', list())        
@@ -134,8 +134,10 @@ class AnchoreImageDB(object):
 
         ret = {}
         ret['meta'] = meta
-        ret['allfiles'] = allfiles
-        ret['allpkgs'] = allpkgs
+
+        #ret['allfiles'] = allfiles
+        #ret['allpkgs'] = allpkgs
+
         ret['familytree'] = familytree
         ret['layers'] = layers
         ret['analyzer_meta'] = analyzer_meta
