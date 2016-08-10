@@ -38,11 +38,22 @@ def init_analyzer_cmdline(argv, name):
     ret['anchore_config'] = anchore_conf.data
 
     ret['name'] = name
+    import hashlib
+    FH=open(argv[0], 'r')
+    ret['selfcsum'] = hashlib.md5(FH.read()).hexdigest()
+    FH.close()
     ret['imgid'] = argv[1]
+
+    fullid = discover_imageId(argv[1])
+    if len(fullid.keys()) > 0:
+        ret['imgid_full'] = fullid.keys()[0]
+    else:
+        ret['imgid_full'] = ret['imgid']
 
     ret['dirs'] = {}
     ret['dirs']['datadir'] = argv[2]
     ret['dirs']['outputdir'] = '/'.join([argv[3], "analyzer_output", name])
+    ret['dirs']['inputdir'] = '/'.join([argv[3], "analyzer_input"])
     ret['dirs']['unpackdir'] = argv[4]
 
     for d in ret['dirs'].keys():
@@ -141,6 +152,9 @@ def anchore_common_context_setup(config):
 
 def load_analysis_output(imageId, module_name, module_value):
     return(contexts['anchore_db'].load_analysis_output(imageId, module_name, module_value))
+
+def save_analysis_output(imageId, module_name, module_value, data):
+    return(contexts['anchore_db'].save_analysis_output(imageId, module_name, module_value, data))
 
 def list_analysis_outputs(imageId):
     return(contexts['anchore_db'].list_analysis_outputs(imageId))

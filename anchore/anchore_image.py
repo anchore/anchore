@@ -10,6 +10,8 @@ import os
 import re
 from prettytable import PrettyTable
 import time
+import tarfile
+
 
 import logging
 
@@ -623,6 +625,126 @@ class AnchoreImage(object):
     """ Utilities and report generators """
 
     def squash(self, imagedir=None):
+        return(self.squash_tarcmd_reverse(imagedir))
+        #return(self.squash_tarfile_reverse(imagedir))
+
+    def squash_tarfile_reverse(self, imagedir=None):
+        if not imagedir:
+            imagedir = self.tmpdir
+
+        rootfsdir = imagedir + "/rootfs"
+
+        if os.path.exists(imagedir + "/squashed.tar"):
+            return (True)
+
+        if not self.anchore_layers:
+            return (False)
+
+        if not os.path.exists(rootfsdir):
+            os.makedirs(rootfsdir)
+
+        revlayer = list(self.anchore_layers)
+        revlayer.reverse()
+
+        squashtarfile = tarfile.open(imagedir + '/squashed_tmp.tar', mode='w', format=tarfile.PAX_FORMAT)
+
+        allfiles = list()
+        lastexcludes = list()
+        excludes = list()
+        hlinks = {}
+        hfiles = {}
+        layerfiles = {}
+        thetfile = {}
+
+        for l in revlayer:
+            layertar = imagedir + "/" + l + "/layer.tar"
+            layerfiles[l] = {}
+
+            self._logger.debug("layer to squash: " + layertar)
+            layertarfile = tarfile.open(layertar, mode='r', format=tarfile.PAX_FORMAT)
+            for member in layertarfile.getmembers():
+                layerfiles[l][member.name] = True
+
+                if re.match(".*\.wh\..*", member.name):
+                    fsub = re.sub(r"\.wh\.", "", member.name)
+                    if fsub not in allfiles:
+                        if member.name not in excludes:
+                            excludes.append(member.name)
+                        if fsub not in excludes:
+                            excludes.append(fsub)
+
+                if member.islnk():
+                    if member.linkname not in hlinks:
+                        hlinks[member.linkname] = list()
+                    hlinks[member.linkname].append(member.name)
+
+                skip = False
+                if member.name in allfiles:
+                    skip = True
+                else:
+                    for p in excludes:
+                        if re.match("^"+re.escape(p), member.name):
+                            skip = True
+                            break
+
+                if not skip:
+                    allfiles.append(member.name)
+                    if member.isfile():
+                        squashtarfile.addfile(member, layertarfile.extractfile(member))
+                    else:
+                        try:
+                            squashtarfile.addfile(member, layertarfile.extractfile(member))
+                        except:
+                            squashtarfile.addfile(member)
+
+            layertarfile.close()
+            
+        squashtarfile.close()
+
+        newhlinkmap = {}
+        if True:
+            self.squashtar = imagedir + "/squashed.tar"
+            squashtarfile = tarfile.open(imagedir + '/squashed_tmp.tar', mode='r', format=tarfile.PAX_FORMAT)
+            finalsquashtarfile = tarfile.open(self.squashtar, mode='w', format=tarfile.PAX_FORMAT)
+
+            for member in squashtarfile.getmembers():
+                if member.islnk():
+                    try:
+                        testfile = squashtarfile.getmember(member.linkname)
+                        finalsquashtarfile.addfile(member)
+                    except:
+                        if member.linkname in newhlinkmap:
+                            member.linkname = newhlinkmap[member.linkname]
+                            finalsquashtarfile.addfile(member)
+                        else:
+                            for l in revlayer:
+                                if member.linkname in layerfiles[l]:
+                                    layertar = imagedir + "/" + l + "/layer.tar"
+                                    layertarfile = tarfile.open(layertar, mode='r', format=tarfile.PAX_FORMAT)
+                                    try:
+                                        testfile = layertarfile.getmember(member.linkname)
+                                        testfile.name = hlinks[member.linkname][0]
+                                        newhlinkmap[member.linkname] = testfile.name
+                                        thefile = layertarfile.extractfile(testfile)
+                                        finalsquashtarfile.addfile(testfile, thefile)
+                                        break
+                                    except:
+                                        pass
+                                    layertarfile.close()
+                else:
+                    try:
+                        finalsquashtarfile.addfile(member, squashtarfile.extractfile(member.name))
+                    except:
+                        finalsquashtarfile.addfile(member)
+
+            finalsquashtarfile.close()
+            squashtarfile.close()
+
+        self.squashtar = imagedir + "/squashed.tar"
+        subprocess.check_output(["tar", "-C", rootfsdir, "-x", "-f", self.squashtar])
+        return (True)
+
+    def squash_tarcmd_reverse(self, imagedir=None):
         if not imagedir:
             imagedir = self.tmpdir
 
@@ -647,10 +769,11 @@ class AnchoreImage(object):
             layertar = imagedir + "/" + l + "/layer.tar"
             self._logger.debug("layer to squash: " + layertar)
 
+            # washere
             tarcmd = ["tar", "-C", rootfsdir, "-t", "-f", layertar]
             self._logger.debug("cmd: " + ' '.join(tarcmd))
-
             allfiles = subprocess.check_output(tarcmd)
+
             OFH=open(excludesfile, 'a')
             for f in allfiles.splitlines():
                 if re.match('.*\.wh\..*', f):
@@ -674,11 +797,15 @@ class AnchoreImage(object):
                 OFH.write(f + "\n")
             OFH.close()
 
+            newfile = excludesfile + "." + l
+            shutil.copy(excludesfile, newfile)
+            self._logger.debug("EXCLUDES: " + newfile)
+
         self.squashtar = imagedir + "/squashed.tar"
         self.squashed_allfiles = subprocess.check_output(["tar", "-C", rootfsdir, "-c", "-v", "-f", self.squashtar, "."])
         return (True)
 
-    def squash_orig(self, imagedir=None):
+    def squash_orig_march(self, imagedir=None):
         if not imagedir:
             imagedir = self.tmpdir
 

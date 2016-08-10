@@ -61,11 +61,27 @@ class Analyzer(object):
         shortid = image.meta['shortId']
         analyzerdir = '/'.join([self.config["scripts_dir"], "analyzers"])
 
-        if not self.force and os.path.exists(outputdir + "/analyzers.done"):
-            self._logger.debug("image already analyzed and --force was not specified, nothing to do")
+        path_overrides = ['/'.join([self.config['user_scripts_dir'], 'analyzers'])]
+        if self.config['extra_scripts_dir']:
+            path_overrides = path_overrides + ['/'.join([self.config['extra_scripts_dir'], 'analyzers'])]
+        se = scripting.ScriptSetExecutor(path=analyzerdir, path_overrides=path_overrides)
+        
+        doexec = False
+        lastcsums = None
+        csums = se.csums()
+        if self.force:
+            doexec = True
+        else:
+            if os.path.exists(outputdir + "/analyzers.done"):
+                lastcsums = anchore_utils.read_kvfile_todict(outputdir + "/analyzers.done")
+                if csums != lastcsums:
+                    doexec = True
+            else:
+                doexec = True
+        
+        if not doexec:
             self._logger.info(image.meta['shortId'] + ": analyzed.")
-
-            return (True)
+            return(True)
 
         self._logger.info(image.meta['shortId'] + ": analyzing ...")
 
@@ -77,13 +93,11 @@ class Analyzer(object):
         imagedir = image.unpack()
         self._logger.debug("finished unpacking image to directory: " + str(imagedir))
 
-        self._logger.debug("running all analyzers on image")
-        path_overrides = ['/'.join([self.config['user_scripts_dir'], 'analyzers'])]
-        if self.config['extra_scripts_dir']:
-            path_overrides = path_overrides + ['/'.join([self.config['extra_scripts_dir'], 'analyzers'])]
+        self._logger.debug("running all analyzers")
 
-        results = scripting.ScriptSetExecutor(path=analyzerdir, path_overrides=path_overrides).execute(capture_output=True, fail_fast=True, cmdline=' '.join([imagename, self.config['image_data_store'], outputdir, imagedir]))
-        self._logger.debug("analyzers done running" + str(len(results)))
+        results = se.execute(capture_output=True, fail_fast=True, cmdline=' '.join([imagename, self.config['image_data_store'], outputdir, imagedir]), lastcsums=lastcsums)
+
+        self._logger.debug("analyzers done running: " + str(len(results)))
 
         success = True
         for r in results:
@@ -111,7 +125,8 @@ class Analyzer(object):
             self._logger.debug("saving image information with updated analysis data")
             image.save_image()
 
-            anchore_utils.touch_file(outputdir + "/analyzers.done")
+            #anchore_utils.touch_file(outputdir + "/analyzers.done")
+            anchore_utils.write_kvfile_fromdict(outputdir + "/analyzers.done", csums)
 
             self._logger.info(image.meta['shortId'] + ": analyzed.")
 

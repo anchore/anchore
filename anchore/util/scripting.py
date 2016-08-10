@@ -116,7 +116,21 @@ class ScriptSetExecutor:
 
         return(ret)
 
-    def execute(self, capture_output=False, fail_fast=False, cmdline=None, **kwargs):
+    def csums(self):
+        ret = {}
+        scripts = self.get_scripts()
+        for script in scripts:
+            try:
+                import hashlib
+                FH=open(script, 'r')
+                csum = hashlib.md5(FH.read()).hexdigest()
+                FH.close()
+            except:
+                csum = "NA"
+            ret[script] = csum
+        return(ret)
+
+    def execute(self, capture_output=False, fail_fast=False, cmdline=None, lastcsums=None, **kwargs):
         """
         Pass in the kwargs as --<name> <value> pairs.
         :param capture_output: if True then return output of script in return dict. If False, only return code
@@ -124,6 +138,8 @@ class ScriptSetExecutor:
         :returns list of (script, returncode, stdout) tuples in order of execution
         """
 
+        currcsums = self.csums()
+        
         scripts = self.get_scripts()
         output = []
 
@@ -132,7 +148,18 @@ class ScriptSetExecutor:
                 # Skip any that are not executable (e.g. README or txt files)
                 continue
 
+            if lastcsums:
+                if (script in currcsums and script in lastcsums) and currcsums[script] == lastcsums[script]:
+                    # skip if the analyzer has not changed since the last time it was run
+                    self._logger.debug("Skipping analyzer %s since this analyzer version has already executed in the past" % script)
+                    continue
+
             self._logger.debug('Executing script: %s' % script)
+
+            try:
+                csum = currcsums[script]
+            except:
+                csum = "NA"
 
             if cmdline:
                 cmd = [script] + cmdline.split()

@@ -185,6 +185,10 @@ class AnchoreImageDB(object):
 
         return(ret)
 
+    def save_analysis_output(self, imageId, module_name, module_value, data):
+        thefile = '/'.join([self.imagerootdir, imageId, "analyzer_output", module_name, module_value])
+        return(anchore_utils.write_kvfile_fromdict(thefile, data))
+
     def load_compare_report(self, imageId):
         thefile = self.imagerootdir + "/" + imageId + "/reports/compare_report.json"
         if not os.path.exists(thefile):
