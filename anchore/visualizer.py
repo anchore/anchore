@@ -1,4 +1,4 @@
-import graphviz
+import gv
 import os
 import logging
 

@@ -7,7 +7,8 @@ from textwrap import fill
 import click
 
 from anchore.cli.common import anchore_print, anchore_print_err
-from anchore import visualizer, navigator, anchore_utils
+#from anchore import visualizer, navigator, anchore_utils
+from anchore import navigator, anchore_utils
 from anchore.util import contexts, scripting
 
 config = {}
