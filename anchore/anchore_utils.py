@@ -1,7 +1,6 @@
 import json
 import time
 
-import deb_pkg_tools
 import os
 import sys
 import re
@@ -14,7 +13,6 @@ import tarfile
 from stat import *
 from prettytable import PrettyTable
 from textwrap import fill
-from deb_pkg_tools.version import Version
 from rpmUtils.miscutils import splitFilename
 
 import logging
@@ -335,6 +333,10 @@ def print_result(config, result, outputmode=None):
 
     return (True)
 
+def dpkg_compare_versions(v1, op, v2):
+    cmd = ['dpkg', '--compare-versions', v1, op, v2]
+    return(subprocess.call(cmd))
+
 def dpkg_get_all_packages(unpackdir):
     actual_packages = {}
     all_packages = {}
@@ -622,9 +624,11 @@ def cve_scanimage(cve_data, image):
                             isvuln = True
 
                     elif flavor == 'DEB':
-                        if vvers != 'None':                            
-                            if ivers != vvers and deb_pkg_tools.version.compare_versions(ivers, '<', vvers):
-                                isvuln = True
+                        if vvers != 'None':
+                            if ivers != vvers:
+                                comp_rc = dpkg_compare_versions(ivers, 'lt', vvers)
+                                if comp_rc == 0:
+                                    isvuln = True
                         else:
                             isvuln = True
 

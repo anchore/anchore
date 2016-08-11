@@ -165,7 +165,6 @@ def anchore_pre_flight_check(ctx):
 
         # check for some shellouts for analyzers
         try:
-            from deb_pkg_tools.version import Version
             cmd = ['dpkg-query', '--version']
             sout = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
         except Exception as err:
@@ -180,13 +179,13 @@ def anchore_pre_flight_check(ctx):
             anchore_print_err("Anchore requires yum/rpm libs and commands")
             return(False)
 
-        try:
-            import graphviz  
-            cmd = ['dot', '-V']
-            sout = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
-        except Exception as err:
-            anchore_print_err("Anchore requires graphviz libs and commands")
-            return(False)
+#        try:
+#            import graphviz  
+#            cmd = ['dot', '-V']
+#            sout = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+#        except Exception as err:
+#            anchore_print_err("Anchore requires graphviz libs and commands")
+#            return(False)
             
     if subcommand in ['explore', 'gate', 'analyze', 'toolbox']:
         # check DB readiness

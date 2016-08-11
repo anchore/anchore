@@ -1,6 +1,4 @@
 docker-py
-deb-pkg-tools
-graphviz
 prettytable
 click
 requests

@@ -6,8 +6,6 @@ import json
 import re
 import rpm
 from rpmUtils.miscutils import splitFilename
-import deb_pkg_tools
-from deb_pkg_tools.version import Version
 from anchore import anchore_image
 import anchore.anchore_utils
 
