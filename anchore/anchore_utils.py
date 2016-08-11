@@ -811,8 +811,9 @@ def read_kvfile_tolist(file):
     FH=open(file, 'r')
     for l in FH.readlines():
         l = l.strip().decode('utf8')
-        row = l.split()
-        ret.append(row)
+        if l:
+            row = l.split()
+            ret.append(row)
     FH.close()
 
     return (ret)
@@ -825,7 +826,8 @@ def read_plainfile_tolist(file):
     FH=open(file, 'r')
     for l in FH.readlines():
         l = l.strip().decode('utf8')
-        ret.append(l)
+        if l:
+            ret.append(l)
     FH.close()
 
     return (ret)
@@ -838,8 +840,9 @@ def read_kvfile_todict(file):
     FH = open(file, 'r')
     for l in FH.readlines():
         l = l.strip().decode('utf8')
-        (k, v) = re.match('(\S*)\s*(.*)', l).group(1, 2)
-        ret[k] = v
+        if l:
+            (k, v) = re.match('(\S*)\s*(.*)', l).group(1, 2)
+            ret[k] = v
     FH.close()
 
     return (ret)
