@@ -2,14 +2,12 @@ import sys
 import click
 
 from anchore.cli.common import build_image_list, anchore_print, anchore_print_err, extended_help_option
-#from anchore import visualizer, navigator, anchore_image_db, anchore_utils
 from anchore import navigator, anchore_image_db, anchore_utils
 from anchore.util import contexts
 
 config = {}
 imagelist = []
 nav = None
-vis = None
 
 @click.group(short_help='Search, report and query specified image IDs.')
 @click.option('--image', help='Process specified image ID', metavar='<imageid>')
@@ -19,12 +17,12 @@ vis = None
 @extended_help_option()
 def explore(anchore_config, image, imagefile, include_allanchore):
     """
-    Explore image content via queries, visualizations and reports for the selected image(s).
+    Explore image content via queries and reports for the selected image(s).
 
     Image IDs can be specified as hash ids, repo names (e.g. centos), or tags (e.g. centos:latest).
 
     """
-    global config, imagelist, nav, vis
+    global config, imagelist, nav
     ecode = 0
     success = True
     config = anchore_config
@@ -47,15 +45,13 @@ def explore(anchore_config, image, imagefile, include_allanchore):
         anchore_print_err("could not load input images")
         sys.exit(1)
 
-def init_nav_vis_contexts():
+def init_nav_contexts():
     try:
         # use the obj from the current click context. This is a bit hacky, but works as long as this method is
         # invoked in an execution context of click
         anchore_config = click.get_current_context().obj
         nav = navigator.Navigator(anchore_config=anchore_config, imagelist=imagelist, allimages=contexts['anchore_allimages'])
-        #vis = visualizer.Visualizer(config=anchore_config, imagelist=imagelist, allimages=contexts['anchore_allimages'])
-        vis = None
-        return nav, vis
+        return nav
     except Exception as err:
         anchore_print_err("explore operation failed")
         success = False
@@ -64,29 +60,6 @@ def init_nav_vis_contexts():
     if not success:
         contexts['anchore_allimages'].clear()
         sys.exit(ecode)
-
-@explore.command(short_help='Generate relationship graph of images.')
-@extended_help_option()
-def visualize():
-    """
-    Visualization provides a graphical representation of the relationship between images.
-
-    Output is a set of image files in the tmp dir specified in the anchore config.yaml file or /tmp by default.
-
-    """
-    ecode = 0
-    args={}
-    try:
-        nav, vis = init_nav_vis_contexts()
-        vis.run()
-    except:
-        anchore_print_err("visualize operation failed")
-        ecode = 1
-
-    contexts['anchore_allimages'].clear()
-
-    sys.exit(ecode)
-
 
 @explore.command(short_help='Run specified query (leave blank to show list).')
 @click.argument('module', nargs=-1, metavar='<modulename>')
@@ -105,7 +78,7 @@ def query(module):
     """
     ecode = 0
     try:
-        nav, vis = init_nav_vis_contexts()
+        nav = init_nav_contexts()
 
         result = nav.run_query(list(module))
         if result:
@@ -150,7 +123,7 @@ def report():
     ecode = 0
 
     try:
-        nav, vis = init_nav_vis_contexts()
+        nav = init_nav_contexts()
 
         result = nav.generate_reports()
         if result:
