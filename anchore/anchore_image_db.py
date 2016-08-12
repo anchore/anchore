@@ -1,6 +1,7 @@
 import json
 
 import os
+import shutil
 import time
 import anchore_utils
 
@@ -103,6 +104,12 @@ class AnchoreImageDB(object):
                 yield r
             except Exception as err:
                 pass
+
+    def delete_image(self, imageId):
+        imagedir = '/'.join([self.imagerootdir, imageId])
+        if os.path.exists(imagedir):
+            shutil.rmtree(imagedir)
+            
 
     def load_image(self, imageId):
         # populate all anchore data into image

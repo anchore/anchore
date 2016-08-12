@@ -46,8 +46,40 @@ def toolbox(anchore_config, image):
         nav = None
         ecode = 1
 
+@toolbox.command(name='delete', short_help="Delete input image(s) from the Anchore DB")
+@click.option('--dontask', help='Will delete the image from Anchore DB without asking for coinfirmation', is_flag=True)
+def purge(dontask):
+    ecode = 0
 
-@toolbox.command(name='unpack')
+    if not nav:
+        sys.exit(1)
+
+    try:
+        for i in nav.get_images():
+            dodelete = False
+            if dontask:
+                dodelete = True
+            else:
+                try:
+                    answer = raw_input("Really delete image '"+str(i)+"'? (y/N)")
+                except:
+                    answer = "n"
+                if 'y' == answer.lower():
+                    dodelete = True
+                else:
+                    anchore_print("Skipping delete.")
+            if dodelete:
+                try:
+                    anchore_print("Deleting image '"+str(i)+"'")
+                    contexts['anchore_db'].delete_image(i)
+                except Exception as err:
+                    raise err
+    except Exception as err:
+        anchore_print_err('operation failed')
+        ecode = 1
+    sys.exit(ecode)
+
+@toolbox.command(name='unpack', short_help="Unpack the specified image into a temp location")
 @click.option('--destdir', help='Destination directory for unpacked container image', metavar='<path>')
 def unpack(destdir):
     """Unpack and Squash image to local filesystem"""
