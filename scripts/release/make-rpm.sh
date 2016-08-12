@@ -5,5 +5,12 @@ if [ ! -f 'setup.py' -o ! -d 'anchore' ]; then
     exit 1
 fi
 
-python setup.py bdist_rpm --requires="python-setuptools python2-clint PyYAML python-requests python-click python-prettytable python-docker-py dpkg rpm-python"
+REL=$1
+
+if [ -z "$REL" ]; then
+    echo "Need to pass a release number as parameter to this script"
+    exit 1
+fi
+
+python setup.py bdist_rpm --requires="python python-setuptools python2-clint PyYAML python-requests python-click python-prettytable python-docker-py dpkg rpm-python" --build-requires="python python-setuptools" --release="$REL"
 python setup.py clean --all
