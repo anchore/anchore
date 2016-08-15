@@ -16,7 +16,7 @@ To get started on CentOS 7 as root:
 
 ``yum install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm``
 
-``yum install python-pip graphviz rpm-python dpkg``
+``yum install python-pip rpm-python dpkg``
 
 To get started on Ubuntu 15.10/16.04 as root:
 
@@ -26,7 +26,7 @@ To get started on Ubuntu 15.10/16.04 as root:
 
 2) install some packages that full functionality of anchore will require
 
-``apt-get install python-pip graphviz python-rpm yum``
+``apt-get install python-pip python-rpm yum``
 
 Next, on either distro:
 
