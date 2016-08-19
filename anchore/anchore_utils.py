@@ -363,6 +363,7 @@ def dpkg_get_all_packages(unpackdir):
         sout = subprocess.check_output(cmd)
         for l in sout.splitlines(True):
             l = l.strip()
+            l = l.decode('utf8')
             (p, v, sp, sv, arch) = re.match('(\S*)\s*(\S*)\s*(\S*)\s*(\S*)\s*(.*)', l).group(1, 2, 3, 4, 5)
             if p and v:
                 if p not in actual_packages:
@@ -394,6 +395,7 @@ def dpkg_get_all_pkgfiles(unpackdir):
         sout = subprocess.check_output(cmd)
         for l in sout.splitlines():
             l = l.strip()
+            l = l.decode('utf8')
             allfiles[l] = True
             
     except Exception as err:
@@ -419,6 +421,7 @@ def rpm_get_all_packages(unpackdir):
             sout = subprocess.check_output(['chroot', unpackdir + '/rootfs', 'rpm', '--queryformat', '%{NAME} %{VERSION} %{RELEASE} %{ARCH}\n', '-qa'])
             for l in sout.splitlines():
                 l = l.strip()
+                l = l.decode('utf8')
                 (name, vers, rel, arch) = re.match('(\S*)\s*(\S*)\s*(\S*)\s*(.*)', l).group(1, 2, 3, 4)
                 rpms[name] = {'version':vers, 'release':rel, 'arch':arch}
         except:
@@ -444,6 +447,7 @@ def rpm_get_all_pkgfiles(unpackdir):
             sout = subprocess.check_output(['chroot', unpackdir + '/rootfs', 'rpm', '-qal'])
             for l in sout.splitlines():
                 l = l.strip()
+                l = l.decode('utf8')
                 rpmfiles[l] = True
         except Exception as err:
             raise ValueError("could not get file list from RPM database: " + str(err))
@@ -462,6 +466,7 @@ def get_distro_from_path(inpath):
         FH=open('/'.join([inpath,"/etc/os-release"]), 'r')
         for l in FH.readlines():
             l = l.strip()
+            l = l.decode('utf8')
             try:
                 (key, val) = l.split("=")
                 val = re.sub(r'"', '', val)
@@ -478,6 +483,7 @@ def get_distro_from_path(inpath):
         FH=open('/'.join([inpath, "/etc/system-release-cpe"]), 'r')
         for l in FH.readlines():
             l = l.strip()
+            l = l.decode('utf8')
             try:
                 distro = l.split(':')[2]
                 vers = l.split(':')[4]
@@ -601,6 +607,7 @@ def cve_scanimage(cve_data, image):
         thelist = analysis_report['package_list']['pkgs.all']
     for l in thelist:
         l = l.strip()
+        l = l.decode('utf8')
         (p, v) = l.split()
         if p not in all_packages:
             all_packages[p] = v
@@ -610,6 +617,7 @@ def cve_scanimage(cve_data, image):
         thelist = analysis_report['package_list']['pkgs_plus_source.all']
     for l in thelist:
         l = l.strip()
+        l = l.decode('utf8')
         (p, v) = l.split()
         if p not in all_packages:
             all_packages[p] = v
@@ -725,12 +733,14 @@ def diff_images(image, baseimage):
                     adatadict = {}
                     for l in areport[azkey][aokey]:
                         l = l.strip()
+                        l = l.decode('utf8')
                         (k, v) = re.match('(\S*)\s*(.*)', l).group(1, 2)
                         adatadict[k] = v
 
                     bdatadict = {}
                     for l in breport[azkey][aokey]:
                         l = l.strip()
+                        l = l.decode('utf8')
                         (k, v) = re.match('(\S*)\s*(.*)', l).group(1, 2)
                         bdatadict[k] = v
 

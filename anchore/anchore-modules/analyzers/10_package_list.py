@@ -85,10 +85,16 @@ else:
     pkgsall["Unknown"] = "0"
 
 if pkgsall:
-    anchore.anchore_utils.save_analysis_output(imgid, 'package_list', 'pkgs.all', pkgsall)
+    ofile = os.path.join(outputdir, 'pkgs.all')
+    anchore.anchore_utils.write_kvfile_fromdict(ofile, pkgsall)
+    #anchore.anchore_utils.save_analysis_output(imgid, 'package_list', 'pkgs.all', pkgsall)
 if pkgfilesall:
-    anchore.anchore_utils.save_analysis_output(imgid, 'package_list', 'pkgfiles.all', pkgfilesall)
+    ofile = os.path.join(outputdir, 'pkgfiles.all')
+    anchore.anchore_utils.write_kvfile_fromdict(ofile, pkgfilesall)
+    #anchore.anchore_utils.save_analysis_output(imgid, 'package_list', 'pkgfiles.all', pkgfilesall)
 if pkgsplussource:
-    anchore.anchore_utils.save_analysis_output(imgid, 'package_list', 'pkgs_plus_source.all', pkgsplussource)
+    ofile = os.path.join(outputdir, 'pkgs_plus_source.all')
+    anchore.anchore_utils.write_kvfile_fromdict(ofile, pkgsplussource)
+    #anchore.anchore_utils.save_analysis_output(imgid, 'package_list', 'pkgs_plus_source.all', pkgsplussource)
 
 sys.exit(0)

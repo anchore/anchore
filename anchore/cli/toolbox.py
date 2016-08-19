@@ -3,6 +3,7 @@ import os
 import re
 import shutil
 import collections
+import datetime
 from textwrap import fill
 import click
 
@@ -283,6 +284,33 @@ def show_taghistory():
         if result:
             anchore_utils.print_result(config, result)
 
+    except:
+        anchore_print_err("operation failed")
+        ecode = 1
+
+    contexts['anchore_allimages'].clear()
+    sys.exit(ecode)
+
+
+@toolbox.command(name='show-analyzer-status')
+def show_analyzer_status():
+    """Show analyzer status for specified image"""
+
+    ecode = 0
+    try:
+        image=contexts['anchore_allimages'][imagelist[0]]
+        analyzer_status = contexts['anchore_db'].load_analyzer_manifest(image.meta['imageId'])
+        result = {image.meta['imageId']:{'result':{'header':['Analyzer', 'Status', '*Type', 'LastExec', 'Exitcode', 'Checksum'], 'rows':[]}}}
+        for script in analyzer_status.keys():
+            adata = analyzer_status[script]
+            nicetime = datetime.datetime.fromtimestamp(adata['timestamp']).strftime('%Y-%m-%d %H:%M:%S')
+            try:
+                row = [script.split('/')[-1], adata['status'], adata['atype'], nicetime, str(adata['returncode']), adata['csum']]
+                result[image.meta['imageId']]['result']['rows'].append(row)        
+            except:
+                pass
+        if result:
+            anchore_utils.print_result(config, result)
     except:
         anchore_print_err("operation failed")
         ecode = 1
