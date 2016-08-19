@@ -1,0 +1,10 @@
+# Anchore analyzer config file
+#
+# Options for any analyzer module(s) that takes customizable input
+#
+
+#retrieve_files:
+#  file_list:
+#    - '/etc/passwd'
+#    - '/etc/services'
+#    - '/etc/sudoers'
