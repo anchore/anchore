@@ -55,15 +55,20 @@ class ScriptExecutor:
 
         if capture_output:
             try:
-                output.append((' '.join(cmd), 0, subprocess.check_output(cmd, stderr=subprocess.STDOUT, **kwargs)))
+                output = (' '.join(cmd), 0, subprocess.check_output(cmd, stderr=subprocess.STDOUT, **kwargs))
             except subprocess.CalledProcessError as e:
-                output.append((' '.join(cmd), e.returncode, e.output))
+                output = (' '.join(cmd), e.returncode, e.output)
         else:
-            output.append((' '.join(cmd), subprocess.call(cmd, **kwargs), None))
+            output = (' '.join(cmd), subprocess.call(cmd, **kwargs), None)
 
-        self._logger.debug('%s return code %d, output: %s' % output[-1])
+        self._logger.debug('%s return code %d' % (output[0], output[1]))
+        if output[2]:
+            self._logger.debug('%s output:' % (script))
+            for l in output[2].splitlines():
+                l = l.strip()
+                self._logger.debug('%s | %s' % (script, l))
 
-        return(output[0])
+        return(output)
 
 class ScriptSetExecutor:
     """
@@ -179,7 +184,12 @@ class ScriptSetExecutor:
             else:
                 output.append((' '.join(cmd), subprocess.call(cmd, **kwargs), None))
 
-            self._logger.debug('%s return code %d, output: %s' % output[-1])
+            self._logger.debug('%s return code %d' % (output[-1][0], output[-1][1]))
+            if output[-1][2]:
+                self._logger.debug('%s output:' % (script))
+                for l in output[-1][2].splitlines():
+                    l = l.strip()
+                    self._logger.debug('%s | %s' % (script, l))
 
             if fail_fast and output[-1][1]:
                 break

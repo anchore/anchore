@@ -7,7 +7,6 @@ import anchore_utils
 
 DEVNULL = open(os.devnull, 'wb')
 
-
 class AnchoreImageDB(object):
     _db_metadata_filename = 'anchore_db_meta.json'
 
@@ -126,9 +125,6 @@ class AnchoreImageDB(object):
 
         timer = time.time()
 
-        #allfiles = None #self.load_analysis_output(imageId, 'file_checksums', 'files.sha256sums')
-        #allpkgs = None #self.load_analysis_output(imageId, 'package_list', 'pkgs.all')
-
         analyzer_meta = self.load_analysis_output(imageId, 'analyzer_meta', 'analyzer_meta')
         report = self.load_image_report(imageId)
 
@@ -141,9 +137,6 @@ class AnchoreImageDB(object):
 
         ret = {}
         ret['meta'] = meta
-
-        #ret['allfiles'] = allfiles
-        #ret['allpkgs'] = allpkgs
 
         ret['familytree'] = familytree
         ret['layers'] = layers
@@ -189,11 +182,19 @@ class AnchoreImageDB(object):
         thefile = '/'.join([self.imagerootdir, imageId, "analyzer_output", module_name, module_value])
         if os.path.exists(thefile):
             ret = anchore_utils.read_kvfile_todict(thefile)
-
         return(ret)
 
-    def save_analysis_output(self, imageId, module_name, module_value, data):
-        thefile = '/'.join([self.imagerootdir, imageId, "analyzer_output", module_name, module_value])
+    def save_analysis_output(self, imageId, module_name, module_value, data, module_type=None):
+        
+        if not module_type:
+            odir = '/'.join([self.imagerootdir, imageId, "analyzer_output", module_name])
+        else:
+            odir = '/'.join([self.imagerootdir, imageId, "analyzer_output_"+module_type, module_name])
+
+        thefile = '/'.join([odir, module_value])
+        if not os.path.exists(odir):
+            os.makedirs(odir)
+
         return(anchore_utils.write_kvfile_fromdict(thefile, data))
 
     def load_compare_report(self, imageId):

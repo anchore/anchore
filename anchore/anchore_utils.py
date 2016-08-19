@@ -1,4 +1,5 @@
 import json
+import yaml
 import time
 
 import os
@@ -33,6 +34,16 @@ def init_analyzer_cmdline(argv, name):
     anchore_conf = AnchoreConfiguration()
     anchore_common_context_setup(anchore_conf)
 
+
+    ret['analyzer_config'] = None
+    anchore_analyzer_configfile = '/'.join([anchore_conf.config_dir, 'analyzer_config.yaml'])
+    if os.path.exists(anchore_analyzer_configfile):
+        with open(anchore_analyzer_configfile, 'r') as FH:
+            anchore_analyzer_config = yaml.safe_load(FH.read())
+
+        if anchore_analyzer_config and name in anchore_analyzer_config:
+            ret['analyzer_config'] = anchore_analyzer_config[name]
+
     ret['anchore_config'] = anchore_conf.data
 
     ret['name'] = name
@@ -51,7 +62,7 @@ def init_analyzer_cmdline(argv, name):
     ret['dirs'] = {}
     ret['dirs']['datadir'] = argv[2]
     ret['dirs']['outputdir'] = '/'.join([argv[3], "analyzer_output", name])
-    ret['dirs']['inputdir'] = '/'.join([argv[3], "analyzer_input"])
+    #ret['dirs']['inputdir'] = '/'.join([argv[3], "analyzer_input"])
     ret['dirs']['unpackdir'] = argv[4]
 
     for d in ret['dirs'].keys():
@@ -151,8 +162,8 @@ def anchore_common_context_setup(config):
 def load_analysis_output(imageId, module_name, module_value):
     return(contexts['anchore_db'].load_analysis_output(imageId, module_name, module_value))
 
-def save_analysis_output(imageId, module_name, module_value, data):
-    return(contexts['anchore_db'].save_analysis_output(imageId, module_name, module_value, data))
+def save_analysis_output(imageId, module_name, module_value, data, module_type=None):
+    return(contexts['anchore_db'].save_analysis_output(imageId, module_name, module_value, data, module_type=module_type))
 
 def list_analysis_outputs(imageId):
     return(contexts['anchore_db'].list_analysis_outputs(imageId))

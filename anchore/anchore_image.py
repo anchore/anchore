@@ -229,6 +229,10 @@ class AnchoreImage(object):
             self.meta['imageId'] = self.docker_data['Id'].replace("sha256:", "", 1)
             self.meta['shortId'] = self.meta['imageId'][0:12]
             self.meta['parentId'] = self.docker_data['Parent'].replace("sha256:", "", 1)
+#            if self.docker_data['Parent']:
+#                self.meta['parentId'] = self.docker_data['Parent'].replace("sha256:", "", 1)
+#            elif self.docker_data['Config']['Image']:
+#                self.meta['parentId'] = self.docker_data['Config']['Image'].replace("sha256:", "", 1)
             self.meta['shortparentId'] = self.meta['parentId'][0:12]
 
         self.meta['humanname'] = self.get_human_name()
@@ -625,8 +629,45 @@ class AnchoreImage(object):
     """ Utilities and report generators """
 
     def squash(self, imagedir=None):
+        #return(self.squash_docker_export(imagedir))
         return(self.squash_tarcmd_reverse(imagedir))
         #return(self.squash_tarfile_reverse(imagedir))
+
+    def squash_docker_export(self, imagedir=None):
+        if not imagedir:
+            imagedir = self.tmpdir
+
+        rootfsdir = imagedir + "/rootfs"
+
+        if os.path.exists(imagedir + "/squashed.tar"):
+            return (True)
+
+        #if not self.anchore_layers:
+        #    return (False)
+
+        if not os.path.exists(rootfsdir):
+            os.makedirs(rootfsdir)
+
+        try:
+            container = self.docker_cli.create_container(self.meta['imageId'], 'true')
+        except Exception as err:
+            self._logger.error("unable to run create container: " + self.meta['imageId'] + ": error: " + str(err))
+            return(False)
+        else:
+            FH=open(imagedir + "/squashed.tar", 'w')
+            tar = self.docker_cli.export(container.get('Id'))
+            while not tar.closed:
+                FH.write(tar.read(4096*16))
+            FH.close()
+
+        try:
+            self.docker_cli.remove_container(container=container.get('Id'), force=True)
+        except:
+            pass
+
+        self.squashtar = imagedir + "/squashed.tar"
+        subprocess.check_output(["tar", "-C", rootfsdir, "-x", "-f", self.squashtar])
+        return (True)
 
     def squash_tarfile_reverse(self, imagedir=None):
         if not imagedir:
@@ -864,6 +905,7 @@ class AnchoreImage(object):
             sout = subprocess.check_output(["tar", "-C", imagedir, "-x", "-f", imagetar], stderr=DEVNULL)
 
         self.squash(imagedir)
+
         return (imagedir)
 
     def generate_image_report(self):
