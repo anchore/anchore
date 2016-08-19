@@ -160,7 +160,13 @@ def anchore_common_context_setup(config):
     return(True)
 
 def load_analysis_output(imageId, module_name, module_value):
-    return(contexts['anchore_db'].load_analysis_output(imageId, module_name, module_value))
+    ret = contexts['anchore_db'].load_analysis_output(imageId, module_name, module_value, module_type='user')
+    if ret: return(ret)
+    ret = contexts['anchore_db'].load_analysis_output(imageId, module_name, module_value, module_type='extra')
+    if ret: return(ret)
+    ret = contexts['anchore_db'].load_analysis_output(imageId, module_name, module_value)
+    if ret: return(ret)
+    #return(contexts['anchore_db'].load_analysis_output(imageId, module_name, module_value))
 
 def save_analysis_output(imageId, module_name, module_value, data, module_type=None):
     return(contexts['anchore_db'].save_analysis_output(imageId, module_name, module_value, data, module_type=module_type))

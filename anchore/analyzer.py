@@ -1,4 +1,11 @@
+import re
 import os
+import sys
+import subprocess
+import shutil
+import tempfile
+import hashlib
+import time
 import logging
 
 import anchore_image_db
@@ -53,7 +60,185 @@ class Analyzer(object):
     def get_images(self):
         return(self.images)
 
+    def script_is_runnable(self, script):
+        suffix_list = ['.py', '.sh']
+        match = False
+        for s in suffix_list:
+            if re.match(".*"+re.escape(s)+"$", script):
+                match = True
+                break
+        if match and os.access(script, os.R_OK ^ os.X_OK):
+            return(True)
+        return(False)
+
+    def list_analyzers(self):
+        analyzerdir = '/'.join([self.config["scripts_dir"], "analyzers"])
+        overrides = ['extra_scripts_dir', 'user_scripts_dir']
+
+        scripts = {'base':list()}
+        for override in overrides:
+            scripts[override] = list()
+
+        if not os.path.exists(analyzerdir):
+            raise Exception("No base analyzers found - please check anchore insallation for completeness")
+        else:
+            for f in os.listdir(analyzerdir):
+                script = os.path.join(analyzerdir, f)
+                # check the script to make sure its ready to run
+                if self.script_is_runnable(script):
+                    scripts['base'].append(script)
+
+        for override in overrides:
+            if self.config[override]:
+                opath = os.path.join(self.config[override], 'analyzers')
+                if os.path.exists(opath):
+                    for f in os.listdir(opath):
+                        script = os.path.join(opath, f)
+                        if self.script_is_runnable(script):
+                            scripts[override].append(script)
+        return(scripts)
+
     def run_analyzers(self, image):
+        success = True
+        analyzers = self.list_analyzers()
+
+        imagename = image.meta['imagename']
+        outputdir = image.anchore_imagedir
+        shortid = image.meta['shortId']
+        imagedir = None
+
+        analyzer_status = self.anchoreDB.load_analyzer_manifest(image.meta['imageId'])
+
+        results = {}
+        outputdirs = {}
+        torun = list()
+        skip = False
+        for atype in ['user_scripts_dir', 'extra_scripts_dir', 'base']:
+            for script in analyzers[atype]:
+                try:
+                    with open(script, 'r') as FH:
+                        csum = hashlib.md5(FH.read()).hexdigest()
+                except:
+                    csum = "NA"
+
+                # decide whether or not to run the analyzer
+                dorun = True
+                if self.force:
+                    dorun = True
+                elif script in analyzer_status:
+                    if csum == analyzer_status[script]['csum'] and analyzer_status[script]['returncode'] == 0:
+                        dorun = False
+
+                outputdir = cmdstr = outstr = ""
+                if dorun:
+                    if not skip:
+                        if not imagedir:
+                            self._logger.info(image.meta['shortId'] + ": analyzing ...")                            
+                            imagedir = image.unpack()
+
+                        outputdir = tempfile.mkdtemp(dir=imagedir)
+                        cmdline = ' '.join([imagename, self.config['image_data_store'], outputdir, imagedir])
+                        cmdstr = script + " " + cmdline
+                        cmd = cmdstr.split()
+                        try:
+                            self._logger.debug("running analyzer: " + cmdstr)
+                            outstr = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+                            rc = 0
+                            self._logger.debug("analyzer status: success")
+                            self._logger.debug("analyzer exitcode: " + str(rc))
+                            self._logger.debug("analyzer output: " + outstr)
+                        except subprocess.CalledProcessError as err:
+                            rc = err.returncode
+                            outstr = err.output
+                        outstr = outstr.decode('utf8')
+                        if rc:
+                            status = 'FAILED'
+                            skip = True
+                            success = False
+                            self._logger.error("analyzer status: failed")
+                            self._logger.error("analyzer exitcode: " + str(rc))
+                            self._logger.error("analyzer output: " + outstr)
+                        else:
+                            status = 'SUCCESS'
+                    else:
+                        # this means that a prior analyzer failed, so we skip the rest
+                        self._logger.debug("skipping analyzer (due to prior analyzer failure): " + script)
+                        outstr = ""
+                        rc = 1
+                        status = 'SKIPPED'
+
+                    mtype = "base"
+                    if atype == 'user_scripts_dir':
+                        mtype = 'user'
+                    elif atype == 'extra_scripts_dir':
+                        mtype = 'extra'
+
+                    results[script] = {}
+                    results[script]['command'] = cmdstr
+                    results[script]['returncode'] = rc
+                    results[script]['output'] = outstr
+                    results[script]['outputdir'] = outputdir
+                    results[script]['atype'] = atype
+                    results[script]['csum'] = csum
+                    results[script]['timestamp'] = time.time()
+                    results[script]['status'] = status
+
+                    if os.path.exists(os.path.join(outputdir, 'analyzer_output')):
+                        for d in os.listdir(os.path.join(outputdir, 'analyzer_output')):
+                            if os.path.exists(os.path.join(outputdir, 'analyzer_output', d)):
+                                for dd in os.listdir(os.path.join(outputdir, 'analyzer_output', d)):
+                                    module_name = d
+                                    module_value = dd
+                                    if 'analyzer_outputs' not in results[script]:
+                                        results[script]['analyzer_outputs'] = {}
+                                    results[script]['analyzer_outputs']['module_name'] = module_name
+                                    results[script]['analyzer_outputs']['module_value'] = module_value
+                                    results[script]['analyzer_outputs']['module_type'] = mtype
+
+
+                    analyzer_status[script] = {}
+                    analyzer_status[script].update(results[script])
+                else:
+                    self._logger.debug("skipping analyzer (no change in analyzer/config and prior run succeeded): " + script)
+
+        # process and store analyzer outputs
+        for script in results.keys():
+            result = results[script]
+            if result['status'] == 'SUCCESS':
+                mtype = None
+                if result['atype'] == 'user_scripts_dir':
+                    mtype = 'user'
+                elif result['atype'] == 'extra_scripts_dir':
+                    mtype = 'extra'
+
+                if os.path.exists(os.path.join(result['outputdir'], 'analyzer_output')):
+                    for d in os.listdir(os.path.join(result['outputdir'], 'analyzer_output')):
+                        if os.path.exists(os.path.join(result['outputdir'], 'analyzer_output', d)):
+                            for dd in os.listdir(os.path.join(result['outputdir'], 'analyzer_output', d)):
+                                dfile = os.path.join(result['outputdir'], 'analyzer_output', d, dd)
+                                module_name = d
+                                module_value = dd
+                                adata = anchore_utils.read_kvfile_todict(dfile)
+                                self.anchoreDB.save_analysis_output(image.meta['imageId'], module_name, module_value, adata, module_type=mtype)
+
+        if success:
+            self._logger.debug("analyzer commands all finished with successful exit codes")
+
+            self._logger.debug("generating analysis report from analyzer outputs and saving")
+            report = self.generate_analysis_report(image)
+            self.anchoreDB.save_analysis_report(image.meta['imageId'], report)
+
+            self._logger.debug("saving image information with updated analysis data")
+            image.save_image()
+
+            self._logger.info(image.meta['shortId'] + ": analyzed.")
+
+        self.anchoreDB.save_analyzer_manifest(image.meta['imageId'], analyzer_status)
+        self._logger.debug("running analyzers on image: " + str(image.meta['imagename']) + ": end")
+
+        return(success)
+
+    def run_analyzers_orig(self, image):
         self._logger.debug("running analyzers on image: " + str(image.meta['imagename']) + ": begin")
 
         imagename = image.meta['imagename']

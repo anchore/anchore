@@ -125,7 +125,8 @@ class AnchoreImageDB(object):
 
         timer = time.time()
 
-        analyzer_meta = self.load_analysis_output(imageId, 'analyzer_meta', 'analyzer_meta')
+        #analyzer_meta = self.load_analysis_output(imageId, 'analyzer_meta', 'analyzer_meta')
+        analyzer_meta = anchore_utils.load_analysis_output(imageId, 'analyzer_meta', 'analyzer_meta')
         report = self.load_image_report(imageId)
 
         familytree = report.pop('familytree', list())        
@@ -177,16 +178,39 @@ class AnchoreImageDB(object):
                             ret[f][ff] = True
         return(ret)
 
-    def load_analysis_output(self, imageId, module_name, module_value):
+    def load_analyzer_manifest(self, imageId):
         ret = {}
-        thefile = '/'.join([self.imagerootdir, imageId, "analyzer_output", module_name, module_value])
+        thefile = os.path.join(self.imagerootdir, imageId, 'analyzers.done')
+        if os.path.exists(thefile):
+            with open(thefile, 'r') as FH:
+                try:
+                    ret = json.loads(FH.read())
+                except:
+                    ret = {}
+        return(ret)
+
+    def save_analyzer_manifest(self, imageId, data):
+        thefile = os.path.join(self.imagerootdir, imageId, 'analyzers.done')
+        if data:
+            with open(thefile, 'w') as FH:
+                FH.write(json.dumps(data))
+
+    def load_analysis_output(self, imageId, module_name, module_value, module_type=None):
+        ret = {}
+
+        if not module_type or module_type == 'base':
+            thefile = '/'.join([self.imagerootdir, imageId, "analyzer_output", module_name, module_value])
+        else:
+            thefile = '/'.join([self.imagerootdir, imageId, "analyzer_output_"+module_type, module_name, module_value])
+
         if os.path.exists(thefile):
             ret = anchore_utils.read_kvfile_todict(thefile)
+
         return(ret)
 
     def save_analysis_output(self, imageId, module_name, module_value, data, module_type=None):
         
-        if not module_type:
+        if not module_type or module_type == 'base':
             odir = '/'.join([self.imagerootdir, imageId, "analyzer_output", module_name])
         else:
             odir = '/'.join([self.imagerootdir, imageId, "analyzer_output_"+module_type, module_name])

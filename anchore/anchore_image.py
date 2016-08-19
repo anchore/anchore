@@ -519,7 +519,8 @@ class AnchoreImage(object):
 
     def get_distro(self):
         if not self.anchore_analyzer_meta:
-            self.anchore_analyzer_meta = self.anchore_db.load_analysis_output(self.meta['imageId'], 'analyzer_meta', 'analyzer_meta')
+            #self.anchore_analyzer_meta = self.anchore_db.load_analysis_output(self.meta['imageId'], 'analyzer_meta', 'analyzer_meta')
+            self.anchore_analyzer_meta = anchore_utils.load_analysis_output(self.meta['imageId'], 'analyzer_meta', 'analyzer_meta')
 
         if not 'DISTRO' in self.anchore_analyzer_meta:
             return ("UNKNOWN")
@@ -528,7 +529,8 @@ class AnchoreImage(object):
 
     def get_distro_vers(self):
         if not self.anchore_analyzer_meta:
-            self.anchore_analyzer_meta = self.anchore_db.load_analysis_output(self.meta['imageId'], 'analyzer_meta', 'analyzer_meta')
+            #self.anchore_analyzer_meta = self.anchore_db.load_analysis_output(self.meta['imageId'], 'analyzer_meta', 'analyzer_meta')
+            self.anchore_analyzer_meta = anchore_utils.load_analysis_output(self.meta['imageId'], 'analyzer_meta', 'analyzer_meta')
 
         if not 'DISTROVERS' in self.anchore_analyzer_meta:
             return ("")
@@ -562,13 +564,14 @@ class AnchoreImage(object):
 
     def get_allfiles(self):
         if not self.anchore_allfiles:
-            self.anchore_allfiles = self.anchore_db.load_analysis_output(self.meta['imageId'], 'file_checksums', 'files.sha256sums')
+            #self.anchore_allfiles = self.anchore_db.load_analysis_output(self.meta['imageId'], 'file_checksums', 'files.sha256sums')
+            self.anchore_allfiles = anchore_utils.load_analysis_output(self.meta['imageId'], 'file_checksums', 'files.sha256sums')
 
         return (self.anchore_allfiles)
 
     def get_allpkgs(self):
         if not self.anchore_allpkgs:
-            self.anchore_allpkgs = self.anchore_db.load_analysis_output(self.meta['imageId'], 'package_list', 'pkgs.all')
+            self.anchore_allpkgs = anchore_utils.load_analysis_output(self.meta['imageId'], 'package_list', 'pkgs.all')
 
         return (self.anchore_allpkgs)
 
