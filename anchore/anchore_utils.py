@@ -745,14 +745,14 @@ def diff_images(image, baseimage):
                     adatadict = {}
                     for l in areport[azkey][aokey]:
                         l = l.strip()
-                        l = l.decode('utf8')
+                        #l = l.decode('utf8')
                         (k, v) = re.match('(\S*)\s*(.*)', l).group(1, 2)
                         adatadict[k] = v
 
                     bdatadict = {}
                     for l in breport[azkey][aokey]:
                         l = l.strip()
-                        l = l.decode('utf8')
+                        #l = l.decode('utf8')
                         (k, v) = re.match('(\S*)\s*(.*)', l).group(1, 2)
                         bdatadict[k] = v
 

@@ -911,6 +911,7 @@ class AnchoreImage(object):
             sout = subprocess.check_output(["tar", "-C", imagedir, "-x", "-f", imagetar], stderr=DEVNULL)
 
         self.meta['sizebytes'] = str(os.path.getsize(imagetar))
+        os.remove(imagetar)
 
         self.squash(imagedir)
 

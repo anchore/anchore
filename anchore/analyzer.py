@@ -377,8 +377,7 @@ class Analyzer(object):
 
         outputdir = image.anchore_imagedir
 
-        if not self.force and os.path.exists(
-                                        outputdir + "/compare_output/" + baseimage.meta['imageId'] + "/differs.done"):
+        if not self.force and os.path.exists(outputdir + "/compare_output/" + baseimage.meta['imageId'] + "/differs.done"):
             self._logger.debug("images already compared and --force not specified, nothing to do")
             self._logger.info(shortida + " to " + shortidb + ": compared.")
             return (True)
@@ -452,6 +451,9 @@ class Analyzer(object):
             if not success:
                 self._logger.error("analyzer failed to run on image " + str(image.meta['imagename']) + ", skipping the rest")
                 break
+
+            if os.path.exists(image.tmpdir):
+                shutil.rmtree(image.tmpdir)
 
         if not success:
             self._logger.error("analyzers failed to run on one or more images.")
