@@ -305,8 +305,10 @@ class Navigator(object):
                 success = False
         finally:
             os.remove(imgfile)
+            if outputdir:
+                shutil.rmtree(outputdir)
 
-        ret = [success, cmd, outputdir, meta]
+        ret = [success, cmd, meta]
         return(ret)
 
     def list_query_commands(self, command=None):
@@ -391,17 +393,14 @@ class Navigator(object):
 
         if command_type == 'query':
             for imageId in self.images:
-                (rc, cmd, outputdir, output) = self.execute_query([imageId], se, params)
+                (rc, cmd, output) = self.execute_query([imageId], se, params)
                 if rc:
                     result[imageId] = output
 
         elif command_type == 'multi-query':
-            (rc, cmd, outputdir, output) = self.execute_query(self.images, se, params)
+            (rc, cmd, output) = self.execute_query(self.images, se, params)
             if rc:
                 result['multi'] = output
-
-        if outputdir:
-            shutil.rmtree(outputdir)
 
         return(result)
 

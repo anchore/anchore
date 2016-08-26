@@ -204,7 +204,24 @@ class AnchoreImageDB(object):
             thefile = '/'.join([self.imagerootdir, imageId, "analyzer_output_"+module_type, module_name, module_value])
 
         if os.path.exists(thefile):
-            ret = anchore_utils.read_kvfile_todict(thefile)
+            if os.path.isfile(thefile):
+                ret = anchore_utils.read_kvfile_todict(thefile)
+            elif os.path.isdir(thefile):
+                ret = thefile
+                import tarfile, io
+                try:
+                    TFH = io.BytesIO()
+                    tar = tarfile.open(fileobj=TFH, mode='w:gz', format=tarfile.PAX_FORMAT)
+                    for l in os.listdir(thefile):
+                        tarfile = os.path.join(thefile, l)
+                        tar.add(tarfile)
+                    tar.close()
+                    TFH.seek(0)
+                    ret = TFH
+                except Exception as err:
+                    import traceback
+                    traceback.print_exc()
+                    print str(err)
 
         return(ret)
 
