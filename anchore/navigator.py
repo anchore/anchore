@@ -62,16 +62,35 @@ class Navigator(object):
                     gateaction = g['action']
                     break
 
-            pnum = str(len(analysis_report['package_list']['pkgs.all']))
-            fnum = str(len(analysis_report['file_list']['files.all']))
-            snum = str(len(analysis_report['file_suids']['files.suids']))
+            try:
+                pnum = str(len(analysis_report['package_list']['pkgs.all']))
+            except:
+                pnum = "N/A"
+            try:
+                fnum = str(len(analysis_report['file_list']['files.all']))
+            except:
+                fnum = "N/A"
+            try:
+                snum = str(len(analysis_report['file_suids']['files.suids']))
+            except:
+                fnum = "N/A"
+
             analysis_str = ' '.join(["PKGS="+pnum, "FILES="+fnum, "SUIDFILES="+snum])
 
             compare_str = "N/A"
             if baseId in compare_report:
-                pnum = str(len(compare_report[baseId]['package_list']['pkgs.all']))
-                fnum = str(len(compare_report[baseId]['file_list']['files.all']))
-                snum = str(len(compare_report[baseId]['file_suids']['files.suids']))
+                try:
+                    pnum = str(len(compare_report[baseId]['package_list']['pkgs.all']))
+                except:
+                    pnum = "N/A"
+                try:
+                    fnum = str(len(compare_report[baseId]['file_list']['files.all']))
+                except:
+                    fnum = "N/A"
+                try:
+                    snum = str(len(compare_report[baseId]['file_suids']['files.suids']))
+                except:
+                    snum = "N/A"
                 compare_str = ' '.join(["PKGS="+pnum, "FILES="+fnum, "SUIDFILES="+snum])
 
             #row = [ fill(x, 80) for x in [ shortId, usertype, currtags, alltags, gateaction, analysis_str, compare_str ] ]

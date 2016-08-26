@@ -57,7 +57,8 @@ class AnchoreImage(object):
                      'shortId': None,
                      'parentId': None,
                      'shortparentId': None,
-                     'usertype': usertype}
+                     'usertype': usertype,
+                     'sizebytes':0}
 
         self.anchore_image_datadir = None
         self.anchore_imagedir = None
@@ -218,6 +219,9 @@ class AnchoreImage(object):
             if t not in self.anchore_all_tags:
                 self.anchore_all_tags.append(t)
 
+        if 'Size' in self.docker_data:
+            self.meta['sizebytes'] = str(self.docker_data['Size'])
+
         return (True)
 
     def sync_image_meta(self):
@@ -261,7 +265,6 @@ class AnchoreImage(object):
             tagdict[t] = str(level)
             level = level + 1
         anchore_utils.write_kvfile_fromdict(imageoutputdir + "/image_current.tags", tagdict)
-
 
         level = 0
         tagdict = {}
@@ -906,6 +909,8 @@ class AnchoreImage(object):
             FH.write(self.docker_cli.get_image(shortid).data)
             FH.close()
             sout = subprocess.check_output(["tar", "-C", imagedir, "-x", "-f", imagetar], stderr=DEVNULL)
+
+        self.meta['sizebytes'] = str(os.path.getsize(imagetar))
 
         self.squash(imagedir)
 

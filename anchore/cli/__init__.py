@@ -8,6 +8,7 @@ from anchore.version import version as anchore_version
 
 import analyzer
 import explorer
+#import query
 import subscriptions
 import system
 import synchronizer
@@ -149,6 +150,7 @@ main_entry.add_command(subscriptions.subscriptions)
 main_entry.add_command(system.system)
 main_entry.add_command(synchronizer.sync)
 main_entry.add_command(explorer.explore)
+#main_entry.add_command(query.query)
 main_entry.add_command(analyzer.analyze)
 main_entry.add_command(analyzer.gate)
 main_entry.add_command(toolbox.toolbox)

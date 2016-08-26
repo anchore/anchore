@@ -38,7 +38,6 @@ try:
             version = pkgs[pkg]
             outlist.append([config['meta']['shortId'], config['meta']['humanname'], pkg, pkg, version])
         else:
-            #outlist.append([pkg, "NOMATCH", "NOMATCH"])
             pass
 
 except Exception as err:
@@ -47,7 +46,6 @@ except Exception as err:
     print "ERROR: " + str(err)
 
 if len(outlist) < 2:
-    #outlist.append(["NOMATCH", "NOMATCH", "NOMATCH"])
     pass
 
 anchore.anchore_utils.write_kvfile_fromlist(config['output'], outlist)

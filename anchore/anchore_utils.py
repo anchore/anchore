@@ -177,6 +177,9 @@ def list_analysis_outputs(imageId):
 def load_gates_eval_report(imageId):
     return(contexts['anchore_db'].load_gates_eval_report(imageId))
 
+def load_image(imageId):
+    return(contexts['anchore_db'].load_image(imageId))
+
 def make_anchoretmpdir(tmproot):
     import random
     tmpdir = '/'.join([tmproot, str(random.randint(0, 9999999)) + ".anchoretmp"])
@@ -557,7 +560,7 @@ def get_distro_flavor(distro, version, likedistro=None):
 
     return(ret)
 
-def cve_load_data(cvedatadir, image):
+def cve_load_data(cvedatadir, image, cve_data_context=None):
     cve_data = None
 
     idistro = image.get_distro()
@@ -577,10 +580,19 @@ def cve_load_data(cvedatadir, image):
         cvejsonfile = '/'.join([cvedatadir, f[0]+":"+f[1], "cve.json"])
         searchpaths.append(cvejsonfile)
         if os.path.exists(cvejsonfile):
-            FH = open(cvejsonfile, 'r')
-            cve_data = json.loads(FH.read())
-            FH.close()
-            break
+            if not cve_data_context:
+                FH = open(cvejsonfile, 'r')
+                cve_data = json.loads(FH.read())
+                FH.close()
+                break
+            else:
+                if cvejsonfile not in cve_data_context:
+                    FH = open(cvejsonfile, 'r')
+                    buf = FH.read()
+                    FH.close()
+                    cve_data_context[cvejsonfile] = buf                    
+                cve_data = json.loads(cve_data_context[cvejsonfile])
+                break
 
     if not cve_data:
         raise ValueError("could not find CVE data associated with the input container distro: ("+', '.join(searchpaths)+")")
