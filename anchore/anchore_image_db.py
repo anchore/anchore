@@ -208,18 +208,22 @@ class AnchoreImageDB(object):
 
         return(ret)
 
-    def save_analysis_output(self, imageId, module_name, module_value, data, module_type=None):
+    def save_analysis_output(self, imageId, module_name, module_value, data, module_type=None, directory_data=False):
         
         if not module_type or module_type == 'base':
             odir = '/'.join([self.imagerootdir, imageId, "analyzer_output", module_name])
         else:
             odir = '/'.join([self.imagerootdir, imageId, "analyzer_output_"+module_type, module_name])
 
-        thefile = '/'.join([odir, module_value])
-        if not os.path.exists(odir):
-            os.makedirs(odir)
+        if not directory_data:
+            thefile = '/'.join([odir, module_value])
+            if not os.path.exists(odir):
+                os.makedirs(odir)
 
-        return(anchore_utils.write_kvfile_fromdict(thefile, data))
+            return(anchore_utils.write_kvfile_fromdict(thefile, data))
+        else:
+            if os.path.isdir(data):
+                shutil.move(data, odir)
 
     def load_compare_report(self, imageId):
         thefile = self.imagerootdir + "/" + imageId + "/reports/compare_report.json"

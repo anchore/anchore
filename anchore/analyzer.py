@@ -195,7 +195,6 @@ class Analyzer(object):
                                     results[script]['analyzer_outputs']['module_value'] = module_value
                                     results[script]['analyzer_outputs']['module_type'] = mtype
 
-
                     analyzer_status[script] = {}
                     analyzer_status[script].update(results[script])
                 else:
@@ -218,9 +217,11 @@ class Analyzer(object):
                                 dfile = os.path.join(result['outputdir'], 'analyzer_output', d, dd)
                                 module_name = d
                                 module_value = dd
-                                adata = anchore_utils.read_kvfile_todict(dfile)
-                                self.anchoreDB.save_analysis_output(image.meta['imageId'], module_name, module_value, adata, module_type=mtype)
-
+                                if os.path.isfile(dfile):
+                                    adata = anchore_utils.read_kvfile_todict(dfile)
+                                    self.anchoreDB.save_analysis_output(image.meta['imageId'], module_name, module_value, adata, module_type=mtype)
+                                elif os.path.isdir(dfile):
+                                    self.anchoreDB.save_analysis_output(image.meta['imageId'], module_name, module_value, dfile, module_type=mtype, directory_data=True)
         if success:
             self._logger.debug("analyzer commands all finished with successful exit codes")
 
