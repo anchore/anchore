@@ -53,7 +53,7 @@ class Controller(object):
                 action = polinput[2]
                 modparams = ""
                 if (len(polinput) > 3):
-                    modparams = polinput[3]
+                    modparams = ':'.join(polinput[3:])
 
                 if module not in policies:
                     policies[module] = {}
