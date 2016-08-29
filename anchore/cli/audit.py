@@ -9,19 +9,17 @@ config = {}
 imagelist = []
 nav = None
 
-@click.group(short_help='Search, report and query specified image IDs.')
+@click.group(short_help='Commands to generate/review audit reports')
 @click.option('--image', help='Process specified image ID', metavar='<imageid>')
 @click.option('--imagefile', help='Process image IDs listed in specified file', type=click.Path(exists=True), metavar='<file>')
 @click.option('--include-allanchore', help='Include all images known by anchore', is_flag=True)
 @click.pass_obj
 @extended_help_option()
-def explore(anchore_config, image, imagefile, include_allanchore):
+def audit(anchore_config, image, imagefile, include_allanchore):
     """
-    Explore image content via queries and reports for the selected image(s).
-
     Image IDs can be specified as hash ids, repo names (e.g. centos), or tags (e.g. centos:latest).
-
     """
+
     global config, imagelist, nav
     ecode = 0
     success = True
@@ -61,41 +59,7 @@ def init_nav_contexts():
         contexts['anchore_allimages'].clear()
         sys.exit(ecode)
 
-@explore.command(short_help='Run specified query (leave blank to show list).')
-@click.argument('module', nargs=-1, metavar='<modulename>')
-@extended_help_option()
-def query(module):
-    """
-    Execute the specified query (module) with any parameters it requires. Modules are scripts in a specific location.
-
-    Each query has its own parameters and outputs.
-
-    Examples using pre-defined queries:
-
-    Query all images to see which have the package 'wget' installed:
-    'anchore explore query has-package wget'
-
-    """
-    ecode = 0
-    try:
-        nav = init_nav_contexts()
-
-        result = nav.run_query(list(module))
-        if result:
-            anchore_utils.print_result(config, result)
-
-        if nav.check_for_warnings(result):
-            ecode = 2
-
-    except:
-        anchore_print_err("query operation failed")
-        ecode = 1
-
-    contexts['anchore_allimages'].clear()
-    sys.exit(ecode)
-
-
-@explore.command(short_help='Show analysis report of the specified image(s).')
+@audit.command(short_help='Generate summarized report of specified images.')
 @extended_help_option()
 def report():
     """
@@ -136,5 +100,3 @@ def report():
 
     contexts['anchore_allimages'].clear()
     sys.exit(ecode)
-
-

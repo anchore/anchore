@@ -7,8 +7,9 @@ from anchore.configuration import AnchoreConfiguration
 from anchore.version import version as anchore_version
 
 import analyzer
-import explorer
-#import query
+#import explorer
+import query
+import audit
 import subscriptions
 import system
 import synchronizer
@@ -149,8 +150,9 @@ def main_entry(ctx, verbose, debug, quiet, json, plain):
 main_entry.add_command(subscriptions.subscriptions)
 main_entry.add_command(system.system)
 main_entry.add_command(synchronizer.sync)
-main_entry.add_command(explorer.explore)
-#main_entry.add_command(query.query)
+#main_entry.add_command(explorer.explore)
+main_entry.add_command(query.query)
+main_entry.add_command(audit.audit)
 main_entry.add_command(analyzer.analyze)
 main_entry.add_command(analyzer.gate)
 main_entry.add_command(toolbox.toolbox)

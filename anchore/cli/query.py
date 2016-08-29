@@ -9,7 +9,6 @@ config = {}
 imagelist = []
 nav = None
 
-#@click.group(short_help='Run given query against specified image IDs (leave blank for list of queries)')
 @click.command(short_help='Run specified query (leave blank to show list).')
 @click.option('--image', help='Process specified image ID', metavar='<imageid>')
 @click.option('--imagefile', help='Process image IDs listed in specified file', type=click.Path(exists=True), metavar='<file>')
