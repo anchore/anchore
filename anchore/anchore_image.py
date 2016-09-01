@@ -641,8 +641,8 @@ class AnchoreImage(object):
     """ Utilities and report generators """
 
     def squash(self, imagedir=None):
-        return(self.squash_docker_export(imagedir))
-        #return(self.squash_tarcmd_reverse(imagedir))
+        #return(self.squash_docker_export(imagedir))
+        return(self.squash_tarcmd_reverse(imagedir))
         #return(self.squash_tarfile_reverse(imagedir))
 
     def squash_docker_export(self, imagedir=None):
