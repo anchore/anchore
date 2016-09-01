@@ -33,7 +33,10 @@ class AnchoreImage(object):
             self.save_image()
 
         if self.tmpdir and self.docleanup and os.path.exists(self.tmpdir):
-            shutil.rmtree(self.tmpdir)
+            try:
+                shutil.rmtree(self.tmpdir)
+            except:
+                pass
 
     def __init__(self, imagename, anchore_image_datadir, allimages, tmpdirroot="/tmp", dockerfile=None, docker_cli=None, anchore_db=None, usertype=None):
         # all members
@@ -438,7 +441,10 @@ class AnchoreImage(object):
         self.anchore_layers = list(layers)
 
         if self.tmpdir and os.path.exists(self.tmpdir):
-            shutil.rmtree(self.tmpdir)
+            try:
+                shutil.rmtree(self.tmpdir)
+            except:
+                pass
 
         return (True)
 
@@ -635,8 +641,8 @@ class AnchoreImage(object):
     """ Utilities and report generators """
 
     def squash(self, imagedir=None):
-        #return(self.squash_docker_export(imagedir))
-        return(self.squash_tarcmd_reverse(imagedir))
+        return(self.squash_docker_export(imagedir))
+        #return(self.squash_tarcmd_reverse(imagedir))
         #return(self.squash_tarfile_reverse(imagedir))
 
     def squash_docker_export(self, imagedir=None):
@@ -880,10 +886,13 @@ class AnchoreImage(object):
 
                     for absfile in absfiles:
                         if (os.path.exists(absfile)):
-                            if (os.path.islink(absfile) or os.path.isfile(absfile)):
-                                os.remove(absfile)
-                            if (os.path.isdir(absfile)):
-                                shutil.rmtree(absfile)
+                            try:
+                                if (os.path.islink(absfile) or os.path.isfile(absfile)):
+                                    os.remove(absfile)
+                                if (os.path.isdir(absfile)):
+                                    shutil.rmtree(absfile)
+                            except:
+                                pass
 
         self.squashtar = imagedir + "/squashed.tar"
         self.squashed_allfiles = subprocess.check_output(

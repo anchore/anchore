@@ -279,13 +279,21 @@ def print_result(config, result, outputmode=None):
             outputmode = 'json'
         elif config.cliargs['plain']:
             outputmode = 'plaintext'
+        elif config.cliargs['html']:
+            outputmode = 'table'
+            tablemode = 'html'
         else:
             outputmode = 'table'
+            tablemode = 'stdout'
 
-    try:
-        width = int(subprocess.check_output(['stty', 'size']).split()[1]) - 10
-    except:
-        width = 70
+
+    if outputmode == 'table' and tablemode == 'stdout':
+        try:
+            width = int(subprocess.check_output(['stty', 'size']).split()[1]) - 10
+        except:
+            width = 70
+    else:
+        width = 9999999
 
     if outputmode == 'json':
         print json.dumps(result)
@@ -320,11 +328,21 @@ def print_result(config, result, outputmode=None):
                         output.append(row)
                     elif outputmode == 'raw':
                         output.append(orow)
+
+#            if outputmode == 'table' and tablemode == 'html':
+#                print "<HTML><BODY>"
+
             if outputmode == 'table':
                 if sortby:
-                    print t.get_string(sortby=sortby, reversesort=True)
+                    if tablemode == 'stdout':
+                        print t.get_string(sortby=sortby, reversesort=True)
+                    elif tablemode == 'html':
+                        print t.get_html_string(sortby=sortby, reversesort=True)
                 else:
-                    print t
+                    if tablemode == 'stdout':
+                        print t
+                    elif tablemode == 'html':
+                        print t.get_html_string()
                 print ""
             elif outputmode == 'plaintext':
                 print ' '.join(header)
@@ -345,6 +363,7 @@ def print_result(config, result, outputmode=None):
                     t = PrettyTable(['WarningOutput'])
                     for warn in result[k]['warns']:
                         t.add_row([warn])
+                    
                     print t
                 if outputmode == 'plaintext':
                     print "\nWarning Output\n"
@@ -353,6 +372,8 @@ def print_result(config, result, outputmode=None):
                 if outputmode == 'raw':
                     pass
 
+#        if outputmode == 'table' and tablemode == 'html':
+#            print "</BODY></HTML>"
     return (True)
 
 def dpkg_compare_versions(v1, op, v2):

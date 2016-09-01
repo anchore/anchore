@@ -77,10 +77,11 @@ anchore gate --image nginx:latest
 @click.option('--quiet', is_flag=True, help='Only errors to stderr, no status messages.')
 @click.option('--json', is_flag=True, help='Output formatted json to stdout.')
 @click.option('--plain', is_flag=True, help='Output formatted scriptable text to stdout.')
+@click.option('--html', is_flag=True, help='Output formatted HTML table to stdout.')
 @click.version_option(version=anchore_version)
 @click.pass_context
 @extended_help_option(extended_help=main_extended_help)
-def main_entry(ctx, verbose, debug, quiet, json, plain):
+def main_entry(ctx, verbose, debug, quiet, json, plain, html):
     """
     Anchore is a tool to analyze, query, and curate container images. The options at this top level
     control stdout and stderr verbosity and format.
@@ -112,7 +113,7 @@ def main_entry(ctx, verbose, debug, quiet, json, plain):
     debug_logfile = None
     try:
         try:
-            args = {'verbose': verbose, 'debug': debug, 'json': json, 'plain': plain, 'quiet': quiet}
+            args = {'verbose': verbose, 'debug': debug, 'json': json, 'plain': plain, 'html': html, 'quiet': quiet}
             anchore_conf = AnchoreConfiguration(cliargs=args)
         except Exception as err:
             click.echo("Error setting up/reading Anchore configuration", err=True)

@@ -453,8 +453,8 @@ class Analyzer(object):
                 self._logger.error("analyzer failed to run on image " + str(image.meta['imagename']) + ", skipping the rest")
                 break
 
-            if os.path.exists(image.tmpdir):
-                shutil.rmtree(image.tmpdir)
+            #if os.path.exists(image.tmpdir):
+            #    shutil.rmtree(image.tmpdir)
 
         if not success:
             self._logger.error("analyzers failed to run on one or more images.")
