@@ -337,12 +337,14 @@ def print_result(config, result, outputmode=None):
                     if tablemode == 'stdout':
                         print t.get_string(sortby=sortby, reversesort=True)
                     elif tablemode == 'html':
-                        print t.get_html_string(sortby=sortby, reversesort=True)
+                        #print t.get_html_string(attributes={"style":"background-color:#ffcc00;", 'border':'1'}, sortby=sortby, reversesort=True)
+                        print t.get_html_string(format=True, sortby=sortby, reversesort=True)
                 else:
                     if tablemode == 'stdout':
                         print t
                     elif tablemode == 'html':
-                        print t.get_html_string()
+                        #print t.get_html_string(attributes={"style":"background-color:#ffcc00;", 'border':'1'})
+                        print t.get_html_string(format=True)
                 print ""
             elif outputmode == 'plaintext':
                 print ' '.join(header)
