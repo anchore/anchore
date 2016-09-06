@@ -369,6 +369,7 @@ def print_result(config, result, outputmode=None):
                     if tablemode == 'stdout':
                         print t
                     elif tablemode == 'html':
+                        print "<BR></BR>"
                         print t.get_html_string()
                 if outputmode == 'plaintext':
                     print "\nWarning Output\n"
