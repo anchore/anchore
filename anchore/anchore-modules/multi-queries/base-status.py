@@ -38,7 +38,7 @@ for imageId in config['images']:
 
         image = anchore.anchore_image.AnchoreImage(imageId, config['anchore_config']['image_data_store'], allimages)
 
-        bimageId = image.get_earliest_anchore_base()
+        bimageId = image.get_earliest_base()
         if bimageId:
             try:
                 bimage = anchore.anchore_image.AnchoreImage(bimageId, config['anchore_config']['image_data_store'], allimages)

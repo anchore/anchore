@@ -53,7 +53,6 @@ for t in tups:
         pkgout[base] = {}
 
     try:
-        print "MEH: " + s + " : " + d
         diffdata = anchore.anchore_utils.diff_images(image.meta['imageId'], d)
         pkgdiffs = diffdata.pop('package_list', {}).pop('pkgs.all', {})
         for module_type in pkgdiffs.keys():
