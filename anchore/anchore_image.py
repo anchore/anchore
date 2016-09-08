@@ -80,7 +80,6 @@ class AnchoreImage(object):
         self.anchore_analyzer_meta = {}
 
         self.anchore_analysis_report = None
-        self.anchore_compare_report = None
         self.anchore_gates_report = None
         self.anchore_gates_eval_report = None
         self.anchore_image_report = None
@@ -116,7 +115,7 @@ class AnchoreImage(object):
 
         # set up image directory structure
         try:
-            self.outputdirs = {'image': 'image_output', 'analyzer': 'analyzer_output', 'compare': 'compare_output', 'gate': 'gates_output'}
+            self.outputdirs = {'image': 'image_output', 'analyzer': 'analyzer_output', 'gate': 'gates_output'}
             for d in self.outputdirs.keys():
                 thedir = '/'.join([self.anchore_imagedir, self.outputdirs[d]])
                 if not os.path.exists(thedir):
@@ -152,18 +151,18 @@ class AnchoreImage(object):
 
     """ Image loading, discovering and saving """
     def load_image(self):
-        if os.path.exists('/'.join([self.anchore_image_datadir,self.meta['imagename']])):
-            self.meta['imageId'] = self.meta['imagename']
+        self.meta['imageId'] = anchore_utils.discover_imageId(self.meta['imagename'])
+#        if os.path.exists('/'.join([self.anchore_image_datadir,self.meta['imagename']])):
+#            self.meta['imageId'] = self.meta['imagename']
 
         try:
             self.load_image_from_docker()
         except:
             pass
-
         self.sync_image_meta()
 
-        if not self.meta['imageId']:
-            return (False)
+#        if not self.meta['imageId']:
+#            return (False)
 
         self.anchore_imagedir = '/'.join([self.anchore_image_datadir, self.meta['imageId']])
         if not os.path.exists(self.anchore_imagedir):
@@ -175,7 +174,32 @@ class AnchoreImage(object):
         return (True)
 
     def load_image_from_anchore(self):
-        #anchore_data = anchore_image_db.AnchoreImageDB(imagerootdir=self.anchore_image_datadir).load_image(self.meta['imageId'])
+        anchore_data = self.anchore_db.load_image_report(self.meta['imageId'])
+
+        self.anchore_data = anchore_data.pop('meta', {})
+        self.anchore_data_json = json.dumps(self.anchore_data)
+
+        val = anchore_data.pop('anchore_all_tags', [])
+        if len(val) > 0:
+            for v in val:
+                if v not in self.anchore_all_tags:
+                    self.anchore_all_tags.append(v)
+
+        val = anchore_data.pop('familytree', [])
+        if len(val) > 0:
+            self.anchore_familytree = val
+
+        val = anchore_data.pop('layers', [])
+        if len(val) > 0:
+            self.anchore_layers = val
+
+        val = anchore_data.pop('tag_history', [])
+        if len(val) > 0:
+            self.anchore_tag_history = val
+
+        return (True)
+
+    def load_image_from_anchore_orig(self):
         anchore_data = self.anchore_db.load_image(self.meta['imageId'])
 
         self.anchore_data = anchore_data.pop('meta', {})
@@ -186,10 +210,6 @@ class AnchoreImage(object):
             for v in val:
                 if v not in self.anchore_all_tags:
                     self.anchore_all_tags.append(v)
-
-        #self.anchore_allfiles = anchore_data.pop('allfiles', {})
-        #self.anchore_allpkgs = anchore_data.pop('allpkgs', {})
-        #self.anchore_analyzer_meta = anchore_data.pop('analyzer_meta', {})
 
         val = anchore_data.pop('familytree', [])
         if len(val) > 0:
@@ -236,10 +256,6 @@ class AnchoreImage(object):
             self.meta['imageId'] = self.docker_data['Id'].replace("sha256:", "", 1)
             self.meta['shortId'] = self.meta['imageId'][0:12]
             self.meta['parentId'] = self.docker_data['Parent'].replace("sha256:", "", 1)
-#            if self.docker_data['Parent']:
-#                self.meta['parentId'] = self.docker_data['Parent'].replace("sha256:", "", 1)
-#            elif self.docker_data['Config']['Image']:
-#                self.meta['parentId'] = self.docker_data['Config']['Image'].replace("sha256:", "", 1)
             self.meta['shortparentId'] = self.meta['parentId'][0:12]
 
         self.meta['humanname'] = self.get_human_name()
@@ -256,62 +272,63 @@ class AnchoreImage(object):
                     os.remove(self.anchore_imagedir + "/Dockerfile.guessed")
 
         # Image output dir populate
-        imageoutputdir = self.anchore_imagedir + "/image_output/image_info"
-        if not os.path.exists(imageoutputdir):
-            os.makedirs(imageoutputdir)
+        if (True):
+            imageoutputdir = self.anchore_imagedir + "/image_output/image_info"
+            if not os.path.exists(imageoutputdir):
+                os.makedirs(imageoutputdir)
 
-        anchore_utils.write_kvfile_fromdict(imageoutputdir + "/image.meta", self.meta)
+            anchore_utils.write_kvfile_fromdict(imageoutputdir + "/image.meta", self.meta)
 
-        level = 0
-        tagdict = {}
-        for t in self.anchore_current_tags:
-            tagdict[t] = str(level)
-            level = level + 1
-        anchore_utils.write_kvfile_fromdict(imageoutputdir + "/image_current.tags", tagdict)
+            #level = 0
+            #tagdict = {}
+            #for t in self.anchore_current_tags:
+            #    tagdict[t] = str(level)
+            #    level = level + 1
+            #anchore_utils.write_kvfile_fromdict(imageoutputdir + "/image_current.tags", tagdict)
 
-        level = 0
-        tagdict = {}
-        for t in self.anchore_all_tags:
-            tagdict[t] = str(level)
-            level = level + 1
-        anchore_utils.write_kvfile_fromdict(imageoutputdir + "/image_all.tags", tagdict)
+            #level = 0
+            #tagdict = {}
+            #for t in self.anchore_all_tags:
+            #    tagdict[t] = str(level)
+            #    level = level + 1
+            #anchore_utils.write_kvfile_fromdict(imageoutputdir + "/image_all.tags", tagdict)
 
-        dfile = self.get_dockerfile()
-        if dfile:
-            shutil.copy(dfile, imageoutputdir + "/Dockerfile")
+            dfile = self.get_dockerfile()
+            if dfile:
+                shutil.copy(dfile, imageoutputdir + "/Dockerfile")
 
-        if not os.path.exists(self.anchore_imagedir + "/image_output/image_familytree/"):
-            os.makedirs(self.anchore_imagedir + "/image_output/image_familytree/")
+            #if not os.path.exists(self.anchore_imagedir + "/image_output/image_familytree/"):
+            #    os.makedirs(self.anchore_imagedir + "/image_output/image_familytree/")
 
-        level = 0
-        ldict = {}
-        for fid in self.get_layers():
-            ldict[fid] = str(level)
-            level = level + 1
-        anchore_utils.write_kvfile_fromdict(self.anchore_imagedir + "/image_output/image_familytree/layers", ldict)
+            #level = 0
+            #ldict = {}
+            #for fid in self.get_layers():
+            #    ldict[fid] = str(level)
+            #    level = level + 1
+            #anchore_utils.write_kvfile_fromdict(self.anchore_imagedir + "/image_output/image_familytree/layers", ldict)
 
-        level = 0
-        ldict = {}
-        for fid in self.get_familytree():
-            ldict[fid] = str(level)
-            src = '/'.join([self.anchore_image_datadir, fid])
-            dst = '/'.join([self.anchore_imagedir, "/image_output/image_familytree/", fid])
-            try:
-                os.remove(dst)
-            except:
-                pass
-            os.symlink(src, dst)
+            #level = 0
+            #ldict = {}
+            #for fid in self.get_familytree():
+            #    ldict[fid] = str(level)
+            #    src = '/'.join([self.anchore_image_datadir, fid])
+            #    dst = '/'.join([self.anchore_imagedir, "/image_output/image_familytree/", fid])
+            #    try:
+            #        os.remove(dst)
+            #    except:
+            #        pass
+            #    os.symlink(src, dst)
 
-            level = level + 1
-            if self.get_earliest_base() == fid:
-                src = '/'.join([self.anchore_image_datadir, fid])
-                dst = '/'.join([self.anchore_imagedir, "/image_output/image_familytree/base"])
-                try:
-                    os.remove(dst)
-                except:
-                    pass
-                os.symlink(src, dst)
-        anchore_utils.write_kvfile_fromdict(self.anchore_imagedir + "/image_output/image_familytree/familytree", ldict)
+            #    level = level + 1
+            #    if self.get_earliest_base() == fid:
+            #        src = '/'.join([self.anchore_image_datadir, fid])
+            #        dst = '/'.join([self.anchore_imagedir, "/image_output/image_familytree/base"])
+            #        try:
+            #            os.remove(dst)
+            #        except:
+            #            pass
+            #        os.symlink(src, dst)
+            #anchore_utils.write_kvfile_fromdict(self.anchore_imagedir + "/image_output/image_familytree/familytree", ldict)
 
         # generate and save image report
         report = self.generate_image_report()
@@ -501,12 +518,6 @@ class AnchoreImage(object):
             self.anchore_analysis_report = self.anchore_db.load_analysis_report(self.meta['imageId'])
 
         return self.anchore_analysis_report
-
-    def get_compare_report(self):
-        if not self.anchore_compare_report:
-            self.anchore_compare_report = self.anchore_db.load_compare_report(self.meta['imageId'])
-
-        return self.anchore_compare_report
 
     def get_image_report(self):
         if not self.anchore_image_report:
@@ -943,6 +954,8 @@ class AnchoreImage(object):
         if self.docker_data: report['docker_data'] = self.docker_data
         if self.get_familytree(): report['familytree'] = self.get_familytree()
         if self.get_layers(): report['layers'] = self.get_layers()
+        report['dockerfile_contents'] = self.dockerfile_contents
+        report['dockerfile_mode'] = self.dockerfile_mode
 
         return (report)
 

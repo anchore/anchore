@@ -18,59 +18,42 @@ if not config:
 
 imgid = config['imgid']
 imgdir = config['dirs']['imgdir']
-analyzerdir = config['dirs']['analyzerdir']
-comparedir = config['dirs']['comparedir']
-outputdir = config['dirs']['outputdir']
 
 try:
     params = config['params']
 except:
     params = None
 
-if not os.path.exists(imgdir):
+if config['meta']['usertype'] != 'user':
     sys.exit(0)
 
-metafile = '/'.join([imgdir, 'image_info', 'image.meta'])
-meta = {}
-FH=open(metafile, 'r')
-for l in FH.readlines():
-    l=l.strip()
-    (k, v) = re.match('(\S*)\s*(.*)', l).group(1, 2)
-    meta[k] = v
-FH.close()
+outlist = list()
 
-if meta['usertype'] != "user":
-    sys.exit(0)
+imageId = config['imgid']
+baseId = config['baseid']
 
-output = '/'.join([outputdir, gate_name])
-OFH=open(output, 'w')
+diffdata = anchore.anchore_utils.diff_images(imageId, baseId)
+try:
+    isdiff = False
+    pkgdiffs = diffdata.pop('package_list', {}).pop('pkgs.all', {})
+    for module_type in pkgdiffs.keys():
+        for pkg in pkgdiffs[module_type].keys():
+            isdiff = True
+            status = pkgdiffs[module_type][pkg]
+            if (status == 'VERSION_DIFF'):
+                outlist.append('PKGVERSIONDIFF Package version in container is different from baseline for pkg - ' + pkg)
+            elif (status == 'INIMG_NOTINBASE'):
+                outlist.append("PKGADD Package has been added to image since base - " + pkg)
+            elif (status == 'INBASE_NOTINIMG'):
+                outlist.append("PKGDEL Package has been removed to image since base - " + pkg)
 
-pkgfile = '/'.join([comparedir, 'base', 'package_list', 'pkgs.all'])
-if not os.path.exists(pkgfile):
-    sys.exit(0)
+    if (isdiff):
+        outlist.append("PKGDIFF Package manifest is different from image to base")
+except Exception as err:
+    print "ERROR: running gate " + gate_name + " failed: " + str(err)
+    sys.exit(1)
 
-isdiff = 0
-FH=open(pkgfile, 'r')
-for l in FH.readlines():
-    isdiff = 1
-    l = l.strip()
-
-    (pkg, status) = re.match('(\S*)\s*(.*)', l).group(1, 2)
-
-    if (status == 'VERSION_DIFF'):
-        OFH.write('PKGVERSIONDIFF Package version in container is different from baseline for pkg - ' + pkg + "\n")
-    elif (status == 'INIMG_NOTINBASE'):
-        OFH.write("PKGADD Package has been added to image since base - " + pkg + "\n")
-    elif (status == 'INBASE_NOTINIMG'):
-        OFH.write("PKGDEL Package has been removed to image since base - " + pkg + "\n")
-FH.close()
-
-if (isdiff):
-    OFH.write("PKGDIFF Package manifest is different from image to base\n")
-
-OFH.close()
+if outlist:
+    anchore.anchore_utils.save_gate_output(imageId, gate_name, outlist)
 
 sys.exit(0)
-
-
-

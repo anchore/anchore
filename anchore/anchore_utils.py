@@ -62,7 +62,6 @@ def init_analyzer_cmdline(argv, name):
     ret['dirs'] = {}
     ret['dirs']['datadir'] = argv[2]
     ret['dirs']['outputdir'] = '/'.join([argv[3], "analyzer_output", name])
-    #ret['dirs']['inputdir'] = '/'.join([argv[3], "analyzer_input"])
     ret['dirs']['unpackdir'] = argv[4]
 
     for d in ret['dirs'].keys():
@@ -109,6 +108,8 @@ def init_query_cmdline(argv, paramhelp):
         print "ERROR: could not read imgid from input file"
         raise Exception
 
+    ret['image_report'] = contexts['anchore_db'].load_image_report(ret['imgid'])
+
     ret['images'] = images
 
     ret['dirs'] = {}
@@ -116,7 +117,6 @@ def init_query_cmdline(argv, paramhelp):
 
     ret['dirs']['imgdir'] = '/'.join([ret['dirs']['datadir'], ret['imgid'], 'image_output'])
     ret['dirs']['analyzerdir'] = '/'.join([ret['dirs']['datadir'], ret['imgid'], 'analyzer_output'])
-    ret['dirs']['comparedir'] = '/'.join([ret['dirs']['datadir'], ret['imgid'], 'compare_output'])
     ret['dirs']['gatesdir'] = '/'.join([ret['dirs']['datadir'], ret['imgid'], 'gates_output'])
 
     ret['dirs']['outputdir'] = argv[3]
@@ -131,12 +131,13 @@ def init_query_cmdline(argv, paramhelp):
         if not os.path.exists(thedir):
             raise Exception(d + " directory '" + thedir + "' does not exist.")
 
-    metafile = '/'.join([ret['dirs']['imgdir'], 'image_info', 'image.meta'])
-    if not os.path.exists(metafile):
-        raise Exception("image metadata not available")
+    #metafile = '/'.join([ret['dirs']['imgdir'], 'image_info', 'image.meta'])
+    #if not os.path.exists(metafile):
+    #    raise Exception("image metadata not available")
 
-
-    ret['meta'] = read_kvfile_todict(metafile)
+    ret['meta'] = ret['image_report']['meta']
+    ret['baseid'] = ret['image_report']['familytree'][0]
+    #ret['meta'] = read_kvfile_todict(metafile)
     ret['imgtags'] = ret['meta']['humanname']
     ret['output'] = '/'.join([ret['dirs']['outputdir'], ret['name']])
     ret['output_warns'] = '/'.join([ret['dirs']['outputdir'], ret['name']+".WARNS"])
@@ -158,6 +159,9 @@ def anchore_common_context_setup(config):
         contexts['anchore_db'] = anchore_image_db.AnchoreImageDB(imagerootdir=config['image_data_store'])
 
     return(True)
+
+def save_gate_output(imageId, gate_name, data):
+    return(contexts['anchore_db'].save_gate_output(imageId, gate_name, data))
 
 def load_analysis_output(imageId, module_name, module_value):
     ret = {}
@@ -633,8 +637,12 @@ def cve_scanimage(cve_data, image):
     if not cve_data:
         return ({})
 
-    all_packages = {}
-    analysis_report = image.get_analysis_report().copy()
+    #all_packages = {}
+    #analysis_report = image.get_analysis_report().copy()
+
+    all_packages = load_analysis_output(image.meta['imageId'], 'package_list', 'pkgs.all')
+    pkgsplussource = load_analysis_output(image.meta['imageId'], 'package_list', 'pkgs_plus_source.all')
+
     idistro = image.get_distro()
     idistrovers = image.get_distro_vers()
 
@@ -642,26 +650,29 @@ def cve_scanimage(cve_data, image):
 
     flavor = distrodict['flavor']
 
+    #    thelist = []
+    #    if 'package_list' in analysis_report and 'pkgs.all' in analysis_report['package_list']:
+    #        thelist = analysis_report['package_list']['pkgs.all']
+    #for l in thelist:
+    #    l = l.strip()
+    #    l = l.decode('utf8')
+    #    (p, v) = l.split()
+    #    if p not in all_packages:
+    #        all_packages[p] = v
 
-    thelist = []
-    if 'package_list' in analysis_report and 'pkgs.all' in analysis_report['package_list']:
-        thelist = analysis_report['package_list']['pkgs.all']
-    for l in thelist:
-        l = l.strip()
-        l = l.decode('utf8')
-        (p, v) = l.split()
+    #thelist = []
+    #if 'package_list' in analysis_report and 'pkgs_plus_source.all' in analysis_report['package_list']:
+    #    thelist = analysis_report['package_list']['pkgs_plus_source.all']
+    #thelist = pkgsplussource
+    #for l in thelist:
+    #    l = l.strip()
+    #    l = l.decode('utf8')
+    #    (p, v) = l.split()
+    #    if p not in all_packages:
+    #        all_packages[p] = v
+    for p in pkgsplussource.keys():
         if p not in all_packages:
-            all_packages[p] = v
-
-    thelist = []
-    if 'package_list' in analysis_report and 'pkgs_plus_source.all' in analysis_report['package_list']:
-        thelist = analysis_report['package_list']['pkgs_plus_source.all']
-    for l in thelist:
-        l = l.strip()
-        l = l.decode('utf8')
-        (p, v) = l.split()
-        if p not in all_packages:
-            all_packages[p] = v
+            all_packages[p] = pkgsplussource[p]
 
     results = {}
     for v in cve_data:
@@ -750,7 +761,40 @@ def image_context_add(imagelist, allimages, docker_cli=None, dockerfile=None, an
     return (retlist)
 
 
-def diff_images(image, baseimage):
+def diff_images(imageId, baseimageId):
+    ret = {}
+
+    areport = contexts['anchore_db'].load_analysis_report(imageId)
+    breport = contexts['anchore_db'].load_analysis_report(baseimageId)
+    
+    for module_name in areport.keys():
+        if module_name in breport:
+            for module_value in areport[module_name].keys():
+                if module_value in breport[module_name]:
+                    for module_type in areport[module_name][module_value].keys():
+                        output = {}
+
+                        adata = areport[module_name][module_value][module_type]
+                        bdata = breport[module_name][module_value][module_type]
+
+                        for akey in adata.keys():
+                            if akey not in bdata:
+                                output[akey] = "INIMG_NOTINBASE"
+                            elif adata[akey] != bdata[akey]:
+                                output[akey] = "VERSION_DIFF"
+                        for bkey in bdata.keys():
+                            if bkey not in adata:
+                                output[bkey] = "INBASE_NOTINIMG"
+                        if module_name not in ret:
+                            ret[module_name] = {}
+                        if module_value not in ret[module_name]:
+                            ret[module_name][module_value] = {}
+
+                        ret[module_name][module_value][module_type] = output
+
+    return(ret)
+
+def diff_images_orig(image, baseimage):
     retdata = {}
 
     shortida = image.meta['shortId']

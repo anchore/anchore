@@ -34,14 +34,14 @@ class Navigator(object):
 
             image_report = image.get_image_report()
             analysis_report = image.get_analysis_report()
-            compare_report = image.get_compare_report()
+            #compare_report = image.get_compare_report()
             gates_report = image.get_gates_report()
             gates_eval_report = image.get_gates_eval_report()
 
             record = {
                 'image_report': image_report,
                 'analysis_report': analysis_report,
-                'compare_report': compare_report,
+                #'compare_report': compare_report,
                 'gates_report': gates_report,
                 'gates_eval_report': gates_eval_report,
                 # set up printable result
@@ -78,22 +78,21 @@ class Navigator(object):
             analysis_str = ' '.join(["PKGS="+pnum, "FILES="+fnum, "SUIDFILES="+snum])
 
             compare_str = "N/A"
-            if baseId in compare_report:
-                try:
-                    pnum = str(len(compare_report[baseId]['package_list']['pkgs.all']))
-                except:
-                    pnum = "N/A"
-                try:
-                    fnum = str(len(compare_report[baseId]['file_list']['files.all']))
-                except:
-                    fnum = "N/A"
-                try:
-                    snum = str(len(compare_report[baseId]['file_suids']['files.suids']))
-                except:
-                    snum = "N/A"
-                compare_str = ' '.join(["PKGS="+pnum, "FILES="+fnum, "SUIDFILES="+snum])
+#            if baseId in compare_report:
+#                try:
+#                    pnum = str(len(compare_report[baseId]['package_list']['pkgs.all']))
+#                except:
+#                    pnum = "N/A"
+#                try:
+#                    fnum = str(len(compare_report[baseId]['file_list']['files.all']))
+#                except:
+#                    fnum = "N/A"
+#                try:
+#                    snum = str(len(compare_report[baseId]['file_suids']['files.suids']))
+#                except:
+#                    snum = "N/A"
+#                compare_str = ' '.join(["PKGS="+pnum, "FILES="+fnum, "SUIDFILES="+snum])
 
-            #row = [ fill(x, 80) for x in [ shortId, usertype, currtags, alltags, gateaction, analysis_str, compare_str ] ]
             row = [ shortId, usertype, currtags, alltags, gateaction, analysis_str, compare_str ]
 
             record['result']['rows'].append(row)

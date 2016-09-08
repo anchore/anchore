@@ -24,7 +24,7 @@ if not config:
 imgid = config['imgid']
 imgdir = config['dirs']['imgdir']
 analyzerdir = config['dirs']['analyzerdir']
-comparedir = config['dirs']['comparedir']
+#comparedir = config['dirs']['comparedir']
 outputdir = config['dirs']['outputdir']
 
 try:
@@ -39,6 +39,8 @@ try:
     cve_data = anchore.anchore_utils.cve_load_data(cvedirroot, image)
     report = anchore.anchore_utils.cve_scanimage(cve_data, image)
 except Exception as err:
+    import traceback
+    traceback.print_exc()
     print "ERROR: could not scan image for CVEs: " + str(err)
     output = '/'.join([outputdir, gate_name])
     OFH=open(output, 'w')

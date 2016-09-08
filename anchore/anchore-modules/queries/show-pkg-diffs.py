@@ -43,19 +43,20 @@ for fid in config['params']:
         if fimageId:
             fimage = anchore.anchore_image.AnchoreImage(fimageId, config['anchore_config']['image_data_store'], allimages)
 
-            image_report = anchore.anchore_utils.diff_images(image, fimage)
+            image_report = anchore.anchore_utils.diff_images(image.meta['imageId'], fimage.meta['imageId'])
             fpkgs = fimage.get_allpkgs()
 
-            for pkg in image_report['package_list']['pkgs.all'].keys():
-                status = image_report['package_list']['pkgs.all'][pkg]
-                ivers = ipkgs.pop(pkg, "NA")
-                if status == 'VERSION_DIFF':
-                    pvers = fpkgs.pop(pkg, "NA")
-                    outlist.append([config['meta']['shortId'], config['meta']['humanname'], fimage.meta['shortId'], pkg,ivers,pvers])
-                    hascontent=True
-                elif status == 'INIMG_NOTINBASE':
-                    outlist.append([config['meta']['shortId'], config['meta']['humanname'], fimage.meta['shortId'], pkg,ivers,"NOTINSTALLED"])
-                    hascontent=True
+            for module_type in ['base', 'extra', 'user']:
+                for pkg in image_report['package_list']['pkgs.all'][module_type].keys():
+                    status = image_report['package_list']['pkgs.all'][module_type][pkg]
+                    ivers = ipkgs.pop(pkg, "NA")
+                    if status == 'VERSION_DIFF':
+                        pvers = fpkgs.pop(pkg, "NA")
+                        outlist.append([config['meta']['shortId'], config['meta']['humanname'], fimage.meta['shortId'], pkg,ivers,pvers])
+                        hascontent=True
+                    elif status == 'INIMG_NOTINBASE':
+                        outlist.append([config['meta']['shortId'], config['meta']['humanname'], fimage.meta['shortId'], pkg,ivers,"NOTINSTALLED"])
+                        hascontent=True
     except Exception as err:
         import traceback
         traceback.print_exc()

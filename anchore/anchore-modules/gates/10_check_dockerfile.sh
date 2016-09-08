@@ -28,7 +28,7 @@ do
     fi
 done
 
-if [ ! -d "$IMGDIR" -o ! -d "$ANALYZERDIR" -o ! -d "$COMPAREDIR" -o -z "$IMGID" -o -z "$OUTPUTDIR" ]; then
+if [ ! -d "$IMGDIR" -o ! -d "$ANALYZERDIR" -o -z "$IMGID" -o -z "$OUTPUTDIR" ]; then
     # error input
     echo "ERROR: invalid input, gate cannot execute: $@"
     exit 1

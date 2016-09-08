@@ -53,13 +53,15 @@ for t in tups:
         pkgout[base] = {}
 
     try:
-        report = image.get_compare_report().copy().pop(d, {})
-        for l in report['package_list']['pkgs.all']:
-            l = l.strip()
-            (k, v) = re.match('(\S*)\s*(.*)', l).group(1, 2)
-            if not k in pkgout[base]:
-                pkgout[base][k] = 0
-            pkgout[base][k] = pkgout[base][k] + 1
+        print "MEH: " + s + " : " + d
+        diffdata = anchore.anchore_utils.diff_images(image.meta['imageId'], d)
+        pkgdiffs = diffdata.pop('package_list', {}).pop('pkgs.all', {})
+        for module_type in pkgdiffs.keys():
+            for k in pkgdiffs[module_type].keys():
+                if pkgdiffs[module_type][k] == 'INIMG_NOTINBASE':
+                    if k not in pkgout[base]:
+                        pkgout[base][k] = 0
+                    pkgout[base][k] = pkgout[base][k] + 1
     except Exception as e:
         pass
 

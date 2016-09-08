@@ -46,6 +46,14 @@ class AnchoreConfiguration (object):
 
     def __init__(self, cliargs=None):
         # config file handling
+
+        # handle override of the default .anchore location
+        if os.getenv('ANCHOREDATADIR'):
+            self.DEFAULT_ANCHORE_DATA_DIR = os.getenv('ANCHOREDATADIR')
+            self.DEFAULT_CONFIG_DIR = os.path.join(self.DEFAULT_ANCHORE_DATA_DIR, 'conf')
+            self.DEFAULT_CONFIG_FILE = os.path.join(self.DEFAULT_CONFIG_DIR, 'config.yaml')
+            self.DEFAULTS['anchore_data_dir'] = self.DEFAULT_ANCHORE_DATA_DIR
+
         self.config_dir, self.config_file = self.find_config_file()
         try:
             self.data = load_and_merge(file_path=self.config_file, defaults=self.DEFAULTS)

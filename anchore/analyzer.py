@@ -190,10 +190,18 @@ class Analyzer(object):
                                     module_name = d
                                     module_value = dd
                                     if 'analyzer_outputs' not in results[script]:
-                                        results[script]['analyzer_outputs'] = {}
-                                    results[script]['analyzer_outputs']['module_name'] = module_name
-                                    results[script]['analyzer_outputs']['module_value'] = module_value
-                                    results[script]['analyzer_outputs']['module_type'] = mtype
+                                        #results[script]['analyzer_outputs'] = {}
+                                        results[script]['analyzer_outputs'] = list()
+
+                                    aoutput = {'module_name':module_name, 'module_value':module_value, 'module_type':mtype}
+                                    if os.path.isdir(os.path.join(outputdir, 'analyzer_output', d, dd)):
+                                        aoutput['data_type'] = 'dir'
+                                    else:
+                                        aoutput['data_type'] = 'file'
+                                    results[script]['analyzer_outputs'].append(aoutput)
+                                    #results[script]['analyzer_outputs']['module_name'] = module_name
+                                    #results[script]['analyzer_outputs']['module_value'] = module_value
+                                    #results[script]['analyzer_outputs']['module_type'] = mtype
 
                     analyzer_status[script] = {}
                     analyzer_status[script].update(results[script])
@@ -222,6 +230,9 @@ class Analyzer(object):
                                     self.anchoreDB.save_analysis_output(image.meta['imageId'], module_name, module_value, adata, module_type=mtype)
                                 elif os.path.isdir(dfile):
                                     self.anchoreDB.save_analysis_output(image.meta['imageId'], module_name, module_value, dfile, module_type=mtype, directory_data=True)
+
+        self.anchoreDB.save_analyzer_manifest(image.meta['imageId'], analyzer_status)
+
         if success:
             self._logger.debug("analyzer commands all finished with successful exit codes")
 
@@ -234,93 +245,38 @@ class Analyzer(object):
 
             self._logger.info(image.meta['shortId'] + ": analyzed.")
 
-        self.anchoreDB.save_analyzer_manifest(image.meta['imageId'], analyzer_status)
+
         self._logger.debug("running analyzers on image: " + str(image.meta['imagename']) + ": end")
 
         return(success)
 
-    def run_analyzers_orig(self, image):
-        self._logger.debug("running analyzers on image: " + str(image.meta['imagename']) + ": begin")
-
-        imagename = image.meta['imagename']
-        outputdir = image.anchore_imagedir
-        shortid = image.meta['shortId']
-        analyzerdir = '/'.join([self.config["scripts_dir"], "analyzers"])
-
-        path_overrides = ['/'.join([self.config['user_scripts_dir'], 'analyzers'])]
-        if self.config['extra_scripts_dir']:
-            path_overrides = path_overrides + ['/'.join([self.config['extra_scripts_dir'], 'analyzers'])]
-        se = scripting.ScriptSetExecutor(path=analyzerdir, path_overrides=path_overrides)
-        
-        doexec = False
-        lastcsums = None
-        csums = se.csums()
-        if self.force:
-            doexec = True
-        else:
-            if os.path.exists(outputdir + "/analyzers.done"):
-                lastcsums = anchore_utils.read_kvfile_todict(outputdir + "/analyzers.done")
-                if csums != lastcsums:
-                    doexec = True
-            else:
-                doexec = True
-        
-        if not doexec:
-            self._logger.info(image.meta['shortId'] + ": analyzed.")
-            return(True)
-
-        self._logger.info(image.meta['shortId'] + ": analyzing ...")
-
-        if not os.path.exists(outputdir):
-            self._logger.debug("outputdir '" + str(outputdir) + "'not found, creating")
-            os.makedirs(outputdir)
-
-        self._logger.debug("unpacking image")
-        imagedir = image.unpack()
-        self._logger.debug("finished unpacking image to directory: " + str(imagedir))
-
-        self._logger.debug("running all analyzers")
-
-        results = se.execute(capture_output=True, fail_fast=True, cmdline=' '.join([imagename, self.config['image_data_store'], outputdir, imagedir]), lastcsums=lastcsums)
-
-        self._logger.debug("analyzers done running: " + str(len(results)))
-
-        success = True
-        for r in results:
-            (cmd, retcode, output) = r
-            if retcode:
-                # something failed
-                self._logger.error("FAILED")
-                self._logger.error("\tCMD: " + cmd)
-                self._logger.error("\tEXITCODE: " + str(retcode))
-                self._logger.error("\tOUTPUT: " + output)
-                success = False
-            else:
-                self._logger.debug("")
-                self._logger.debug("\tCMD: " + cmd)
-                self._logger.debug("\tEXITCODE: " + str(retcode))
-                self._logger.debug("\tOUTPUT: " + output)
-                self._logger.debug("")
-
-        self._logger.debug("analyzer commands all finished with successful exit codes")
-        if success:
-            self._logger.debug("generating analysis report from analyzer outputs and saving")
-            report = self.generate_analysis_report(image)
-            self.anchoreDB.save_analysis_report(image.meta['imageId'], report)
-
-            self._logger.debug("saving image information with updated analysis data")
-            image.save_image()
-
-            #anchore_utils.touch_file(outputdir + "/analyzers.done")
-            anchore_utils.write_kvfile_fromdict(outputdir + "/analyzers.done", csums)
-
-            self._logger.info(image.meta['shortId'] + ": analyzed.")
-
-        self._logger.debug("running analyzers on image: " + str(image.meta['imagename']) + ": end")
-        return (success)
-
     def generate_analysis_report(self, image):
         # this routine reads the results of image analysis and generates a formatted report
+        report = {}
+        amanifest = self.anchoreDB.load_analyzer_manifest(image.meta['imageId'])
+        for amodule in amanifest.keys():
+            if 'analyzer_outputs' in amanifest[amodule]:
+                for aoutput in amanifest[amodule]['analyzer_outputs']:
+                    module_name = aoutput['module_name']
+                    module_value = aoutput['module_value']
+                    module_type = aoutput['module_type']
+                    data_type = aoutput['data_type']
+                    if module_name not in report:
+                        report[module_name] = {}
+                    if module_value not in report[module_name]:
+                        report[module_name][module_value] = {}
+
+                    if data_type == 'file':
+                        adata = self.anchoreDB.load_analysis_output(image.meta['imageId'], module_name, module_value, module_type=module_type)
+                    else:
+                        adata = {}
+
+                    report[module_name][module_value][module_type] = adata
+        return(report)
+
+    def generate_analysis_report_orig(self, image):
+        # this routine reads the results of image analysis and generates a formatted report
+
         report = {}
 
         analysisdir = image.anchore_imagedir + "/analyzer_output/"
@@ -336,83 +292,6 @@ class Analyzer(object):
                 report[d][o] = anchore_utils.read_plainfile_tolist(datafile)
         return (report)
 
-    def generate_compare_report(self, image):
-        # this routine reads the results of image compare and generates a formatted report
-        report = {}
-
-        rootdir = image.anchore_imagedir + "/compare_output/"
-        for b in os.listdir(rootdir):
-            if b not in report:
-                report[b] = {}
-
-            comparedir = rootdir + "/" + b + "/"
-            for d in os.listdir(comparedir):
-                if d == 'differs.done':
-                    continue
-
-                if d not in report[b]:
-                    report[b][d] = {}
-
-                moduledir = comparedir + "/" + d
-                for o in os.listdir(moduledir):
-                    datafile = moduledir + "/" + o
-                    
-                    if o not in report[b][d]:
-                        report[b][d][o] = list()
-                    report[b][d][o] = anchore_utils.read_plainfile_tolist(datafile)
-
-        return (report)
-
-    def run_differs(self, image, baseimage):
-        self._logger.debug("comparison of " + str(image.meta['imagename']) + " to " + str(image.meta['imagename']) + ": begin")
-        shortida = image.meta['shortId']
-        shortidb = baseimage.meta['shortId']
-
-        if not image.is_analyzed():
-            self._logger.error("cannot compare image " + shortida + " - need to analyze first.")
-            return (False)
-
-        if not baseimage.is_analyzed():
-            self._logger.error("cannot compare image " + shortidb + " - need to analyze first")
-            return (False)
-
-        outputdir = image.anchore_imagedir
-
-        if not self.force and os.path.exists(outputdir + "/compare_output/" + baseimage.meta['imageId'] + "/differs.done"):
-            self._logger.debug("images already compared and --force not specified, nothing to do")
-            self._logger.info(shortida + " to " + shortidb + ": compared.")
-            return (True)
-
-        self._logger.info(shortida + " to " + shortidb + ": comparing ...")
-
-        if not os.path.exists(outputdir):
-            self._logger.debug("output directory '" + str(outputdir) + "' does not exist, creating")
-            os.makedirs(outputdir)
-
-        thedir = outputdir + "/compare_output/" + baseimage.meta['imageId'] + "/"
-        if not os.path.exists(thedir):
-            self._logger.debug("output directory '" + str(thedir) + "' does not exist, creating")
-            os.makedirs(thedir)
-
-        compares = anchore_utils.diff_images(image, baseimage)
-        for azkey in compares.keys():
-            for aokey in compares[azkey].keys():
-                outputdict = compares[azkey][aokey]
-                thedir = outputdir + "/compare_output/" + baseimage.meta['imageId'] + "/" + azkey + "/"
-                if not os.path.exists(thedir):
-                    os.makedirs(thedir)
-                        
-                thefile = thedir + "/" + aokey
-                anchore_utils.write_kvfile_fromdict(thefile, outputdict)
-                
-        self._logger.debug("all comparisons completed")
-
-        anchore_utils.touch_file(outputdir + "/compare_output/" + baseimage.meta['imageId'] + "/differs.done")
-
-        self._logger.info(shortida + " to " + shortidb + ": compared.")
-
-        self._logger.debug("comparison of " + str(image.meta['imagename']) + " to " + str(image.meta['imagename']) + ": end")
-        return (True)
 
     def run(self):
         self._logger.debug("main image analysis on images: " + str(self.images) + ": begin")
@@ -459,28 +338,6 @@ class Analyzer(object):
         if not success:
             self._logger.error("analyzers failed to run on one or more images.")
             return (False)
-
-        # execute differs
-        for k in comparehash.keys():
-            a = comparehash[k][0]
-            b = comparehash[k][1]
-            if a.meta['imageId'] != b.meta['imageId']:
-                self.run_differs(a, b)
-
-            self._logger.debug("generating and saving comparison report")
-            report = self.generate_compare_report(a)
-            self.anchoreDB.save_compare_report(a.meta['imageId'], report)
-
-        for k in linkhash.keys():
-            image = self.allimages[k]
-            base = self.allimages[linkhash[k]]
-            if image.meta['imageId'] != base.meta['imageId']:
-                self._logger.debug("found image (" + image.meta['imageId'] + ") base (" + base.meta[
-                    'imageId'] + "), creating softlink 'base'")
-                dpath = image.anchore_imagedir + "/compare_output/base"
-                if os.path.exists(dpath):
-                    os.remove(dpath)
-                os.symlink(image.anchore_imagedir + "/compare_output/" + base.meta['imageId'], dpath)
 
         if not self.skipgates:
             # execute gates

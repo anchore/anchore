@@ -318,6 +318,16 @@ def show_analyzer_status():
     contexts['anchore_allimages'].clear()
     sys.exit(ecode)
 
+@toolbox.command(name='dump')
+def dump():
+    imagedata = contexts['anchore_db'].load_image_new(imagelist[0])
+    import json
+    print json.dumps(imagedata)
+    rc = contexts['anchore_db'].save_image_new('test', imagedata)
+    print str(rc)
+
+    sys.exit(0)
+
 @toolbox.command(name='show')
 def show():
     """Show image summary information"""

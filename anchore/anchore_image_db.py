@@ -109,8 +109,10 @@ class AnchoreImageDB(object):
         if os.path.exists(imagedir):
             shutil.rmtree(imagedir)
             
-
     def load_image(self, imageId):
+        return(self.load_image_report(imageId));
+
+    def load_image_orig(self, imageId):
         # populate all anchore data into image
         imagedir = self.imagerootdir + "/" + imageId
         analyzer_meta = {}
@@ -123,9 +125,6 @@ class AnchoreImageDB(object):
             # image has not been analyzed
             return(False)
 
-        timer = time.time()
-
-        #analyzer_meta = self.load_analysis_output(imageId, 'analyzer_meta', 'analyzer_meta')
         analyzer_meta = anchore_utils.load_analysis_output(imageId, 'analyzer_meta', 'analyzer_meta')
         report = self.load_image_report(imageId)
 
@@ -138,7 +137,6 @@ class AnchoreImageDB(object):
 
         ret = {}
         ret['meta'] = meta
-
         ret['familytree'] = familytree
         ret['layers'] = layers
         ret['analyzer_meta'] = analyzer_meta
@@ -147,6 +145,70 @@ class AnchoreImageDB(object):
         ret['tag_history'] = tag_history
         
         return(ret)
+
+    def load_image_new(self, imageId):
+        ret = {}
+
+        ret['image_report'] = self.load_image_report(imageId)
+        ret['analysis_report'] = self.load_analysis_report(imageId)
+        ret['analyzer_manifest'] = self.load_analyzer_manifest(imageId)
+        ret['gates_report'] = self.load_gates_report(imageId)
+        ret['gates_eval_report'] = self.load_gates_eval_report(imageId)
+
+        return(ret)
+
+    def make_image_structure(self, imageId):
+        imgdir = os.path.join(self.imagerootdir, imageId)
+        subdirs = ['analyzer_output', 'analyzer_output_extra', 'analyzer_output_user', 'gates_output', 'image_output', 'reports']
+        
+        if not os.path.exists(imgdir):
+            os.makedirs(imgdir)
+
+        for d in subdirs:
+            if not os.path.exists(os.path.join(imgdir, d)):
+                os.makedirs(os.path.join(imgdir, d))
+        return(True)
+
+    def save_image_new(self, imageId, report=None):
+        # setup dir structure
+        self.make_image_structure(imageId)
+
+        if not report:
+            report = load_image_new(imageId)
+
+        # store the reports
+        self.save_image_report(imageId, report['image_report'])
+        self.save_analysis_report(imageId, report['analysis_report'])
+        self.save_analyzer_manifest(imageId, report['analyzer_manifest'])
+        self.save_gates_report(imageId, report['gates_report'])
+        self.save_gates_eval_report(imageId, report['gates_eval_report'])
+
+        # populate the analyzer_outputs
+        for module_name in report['analysis_report'].keys():
+            for module_value in report['analysis_report'][module_name].keys():
+                for module_type in ['base', 'extra', 'user']:
+                    if module_type in report['analysis_report'][module_name][module_value]:
+                        adata = report['analysis_report'][module_name][module_value][module_type]
+                        if adata:
+                            self.save_analysis_output(imageId, module_name, module_value, adata, module_type=module_type)
+                            
+        # populate gates outputs
+        for gname in report['gates_report'].keys():
+            self.save_gate_output(imageId, gname, report['gates_report'][gname])
+
+        # populate image metadata
+        thedir = os.path.join(self.imagerootdir, imageId, "image_output", "image_info")
+        if not os.path.exists(thedir):
+            os.makedirs(thedir)
+
+        thefile = os.path.join(thedir, "image.meta")
+        anchore_utils.write_kvfile_fromdict(thefile, report['image_report']['meta'])
+
+        thefile = os.path.join(thedir, "Dockerfile")
+        anchore_utils.write_plainfile_fromstr(thefile, report['image_report']['dockerfile_contents'])
+
+        return(True)
+                
 
     def load_analysis_report(self, imageId):
         thefile = self.imagerootdir + "/" + imageId + "/reports/analysis_report.json"
@@ -226,7 +288,6 @@ class AnchoreImageDB(object):
         return(ret)
 
     def save_analysis_output(self, imageId, module_name, module_value, data, module_type=None, directory_data=False):
-        
         if not module_type or module_type == 'base':
             odir = '/'.join([self.imagerootdir, imageId, "analyzer_output", module_name])
         else:
@@ -240,25 +301,10 @@ class AnchoreImageDB(object):
             return(anchore_utils.write_kvfile_fromdict(thefile, data))
         else:
             if os.path.isdir(data):
+                if os.path.isdir(odir):
+                    shutil.rmtree(odir)
+                os.makedirs(odir)
                 shutil.move(data, odir)
-
-    def load_compare_report(self, imageId):
-        thefile = self.imagerootdir + "/" + imageId + "/reports/compare_report.json"
-        if not os.path.exists(thefile):
-            return({})
-
-        FH = open(thefile, 'r')
-        ret = json.loads(FH.read())
-        FH.close()
-        
-        return(ret)
-
-    def save_compare_report(self, imageId, report):
-        thedir = self.imagerootdir + "/" + imageId + "/reports/"
-        if not os.path.exists(thedir):
-            os.makedirs(thedir)
-        thefile = thedir + "/compare_report.json"
-        anchore_utils.update_file_jsonstr(json.dumps(report), thefile, False)
 
     def load_gates_report(self, imageId):
         thefile = self.imagerootdir + "/" + imageId + "/reports/gates_report.json"
@@ -276,6 +322,18 @@ class AnchoreImageDB(object):
             os.makedirs(thedir)
         thefile = thedir + "/gates_report.json"
         anchore_utils.update_file_jsonstr(json.dumps(report), thefile, False)
+
+    def load_gate_output(self, imageId, gate_name):
+        thedir = os.path.join(self.imagerootdir, imageId, 'gates_output')
+        thefile = os.path.join(thedir, gate_name)
+        return(anchore_utils.read_plainfile_tolist(thefile))
+
+    def save_gate_output(self, imageId, gate_name, data):
+        thedir = os.path.join(self.imagerootdir, imageId, 'gates_output')
+        if not os.path.exists(thedir):
+            os.makedirs(thedir)
+        thefile = os.path.join(thedir, gate_name)
+        return(anchore_utils.write_plainfile_fromlist(thefile, data))
 
     def load_gates_eval_report(self, imageId):
         thefile = self.imagerootdir + "/" + imageId + "/reports/gates_eval_report.json"
