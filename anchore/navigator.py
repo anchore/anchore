@@ -31,22 +31,20 @@ class Navigator(object):
             image = self.allimages[imageId]
             baseId = image.get_earliest_base()
             bimage = self.allimages[baseId]
+            sizebytes = image.meta['sizebytes']
 
             image_report = image.get_image_report()
             analysis_report = image.get_analysis_report()
-            #compare_report = image.get_compare_report()
             gates_report = image.get_gates_report()
             gates_eval_report = image.get_gates_eval_report()
 
             record = {
                 'image_report': image_report,
                 'analysis_report': analysis_report,
-                #'compare_report': compare_report,
                 'gates_report': gates_report,
                 'gates_eval_report': gates_eval_report,
-                # set up printable result
                 'result': {
-                    'header':['ImageId', 'Type', 'CurrentTags', 'AllTags', 'GateStatus', 'Counts', 'BaseDiffs'],
+                    'header':['ImageId', 'Type', 'CurrentTags', 'AllTags', 'GateStatus', 'Size(bytes)', 'Counts', 'BaseDiffs'],
                     'rows': list()
                 }
             }
@@ -63,37 +61,44 @@ class Navigator(object):
                     break
 
             try:
-                pnum = str(len(analysis_report['package_list']['pkgs.all']))
+                pnum = str(len(anchore_utils.load_analysis_output(image.meta['imageId'], 'package_list', 'pkgs.all').keys()))
             except:
                 pnum = "N/A"
             try:
-                fnum = str(len(analysis_report['file_list']['files.all']))
+                fnum = str(len(anchore_utils.load_analysis_output(image.meta['imageId'], 'file_list', 'files.all').keys()))
             except:
                 fnum = "N/A"
             try:
-                snum = str(len(analysis_report['file_suids']['files.suids']))
+                snum = str(len(anchore_utils.load_analysis_output(image.meta['imageId'], 'file_suids', 'files.suids').keys()))
             except:
                 fnum = "N/A"
 
             analysis_str = ' '.join(["PKGS="+pnum, "FILES="+fnum, "SUIDFILES="+snum])
 
             compare_str = "N/A"
-#            if baseId in compare_report:
-#                try:
-#                    pnum = str(len(compare_report[baseId]['package_list']['pkgs.all']))
-#                except:
-#                    pnum = "N/A"
-#                try:
-#                    fnum = str(len(compare_report[baseId]['file_list']['files.all']))
-#                except:
-#                    fnum = "N/A"
-#                try:
-#                    snum = str(len(compare_report[baseId]['file_suids']['files.suids']))
-#                except:
-#                    snum = "N/A"
-#                compare_str = ' '.join(["PKGS="+pnum, "FILES="+fnum, "SUIDFILES="+snum])
 
-            row = [ shortId, usertype, currtags, alltags, gateaction, analysis_str, compare_str ]
+            if image.meta['imageId'] != baseId:
+                diffdata = anchore_utils.diff_images(image.meta['imageId'], baseId)            
+                record['base_compare_data'] = diffdata
+                pnum = "N/A"
+                if 'package_list' in diffdata and 'pkgs.all' in diffdata['package_list']:
+                    for module_type in diffdata['package_list']['pkgs.all']:
+                        pnum = str(len(diffdata['package_list']['pkgs.all'][module_type]))
+                        break
+
+                fnum = "N/A"
+                if 'file_list' in diffdata and 'files.all' in diffdata['file_list']:
+                    for module_type in diffdata['file_list']['files.all']:
+                        fnum = str(len(diffdata['file_list']['files.all'][module_type]))
+
+                snum = "N/A"
+                if 'file_suids' in diffdata and 'files.suids' in diffdata['file_suids']:
+                    for module_type in diffdata['file_suids']['files.suids']:
+                        snum = str(len(diffdata['file_suids']['files.suids'][module_type]))
+
+                compare_str = ' '.join(["PKGS="+pnum, "FILES="+fnum, "SUIDFILES="+snum])
+
+            row = [ shortId, usertype, currtags, alltags, gateaction, sizebytes, analysis_str, compare_str ]
 
             record['result']['rows'].append(row)
 
