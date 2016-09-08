@@ -51,9 +51,9 @@ class AnchoreImage(object):
         self.dockerfile_mode = None
         self.docker_cli = None
         self.docker_data = {}
-        self.docker_data_json = ""
+        #self.docker_data_json = ""
 
-        self.meta = {'imagename': imagename,
+        self.meta = {'imagename': None,
                      'shortname': None,
                      'humanname': None,
                      'imageId': None,
@@ -67,7 +67,7 @@ class AnchoreImage(object):
         self.anchore_imagedir = None
 
         self.anchore_data = {}
-        self.anchore_data_json = ""
+
         self.anchore_allfiles = {}
         self.anchore_allpkgs = {}
         self.anchore_familytree = None
@@ -76,7 +76,6 @@ class AnchoreImage(object):
         self.anchore_all_tags = []
         self.anchore_tag_history = []
 
-        #self.anchore_analyzer_meta_json = {}
         self.anchore_analyzer_meta = {}
 
         self.anchore_analysis_report = None
@@ -87,39 +86,40 @@ class AnchoreImage(object):
         self.anchore_db = None
 
         # do some setup
-        patt = re.compile('[0-9a-fA-F]+')
-        if (len(self.meta['imagename']) == 64 and patt.match(self.meta['imagename'])):
-            # imagename is a docker long uuid
-            self.meta['shortname'] = self.meta['imagename'][0:12]
-        else:
-            # image name is a non-uuid or a short uuid
-            self.meta['shortname'] = self.meta['imagename']
 
+        # set up imageId
+        result = anchore_utils.discover_imageId(imagename)
+        if len(result.keys()) <= 0:
+            raise Exception("could not locate image named ("+str(imagename)+") in anchore or local container system.")
+        elif len(result.keys()) > 1:
+            raise Exception("input image name ("+str(imagename)+") is ambiguous.")
+        else:
+            self.meta['imageId'] = result.keys()[0]
+
+        if dockerfile and not os.path.exists(dockerfile):
+            raise Exception("input dockerfile ("+str(dockerfile)+") does not exist.")
+
+        self.anchore_image_datadir = anchore_image_datadir
+        self.anchore_imagedir = os.path.join(anchore_image_datadir, self.meta['imageId'])
+
+        # set up external contexts
         if docker_cli:
             self.docker_cli = docker_cli
         else:
             self.docker_cli = docker.Client(base_url='unix://var/run/docker.sock', timeout=300)
-
-        self.anchore_image_datadir = anchore_image_datadir
-        if not os.path.exists(self.anchore_image_datadir):
-            os.makedirs(self.anchore_image_datadir)
 
         if anchore_db:
             self.anchore_db = anchore_db
         else: 
             self.anchore_db = anchore_image_db.AnchoreImageDB(imagerootdir=self.anchore_image_datadir)
 
-        # set up metadata about the image from anchore and docker
-        if not self.load_image():
-            raise Exception("could not load image from Docker or Anchore")
+        # set up metadata about the image from anchoreDB and docker
+        if not self.load_image(dockerfile):
+            raise Exception("could not load image information from Docker or AnchoreDB")
 
         # set up image directory structure
         try:
-            self.outputdirs = {'image': 'image_output', 'analyzer': 'analyzer_output', 'gate': 'gates_output'}
-            for d in self.outputdirs.keys():
-                thedir = '/'.join([self.anchore_imagedir, self.outputdirs[d]])
-                if not os.path.exists(thedir):
-                    os.makedirs(thedir)
+            self.anchore_db.create_image(self.meta['imageId'])
         except Exception as err:
             raise err
 
@@ -128,47 +128,28 @@ class AnchoreImage(object):
 
         self.discover_layers()
         self.discover_familytree()
+        self.discover_dockerfile_contents()
 
         newlist = list(self.anchore_familytree)
         while self.meta['imageId'] in newlist: newlist.remove(self.meta['imageId'])
         anchore_utils.image_context_add(newlist, self.allimages, docker_cli=self.docker_cli, anchore_datadir=self.anchore_image_datadir, tmproot=self.tmpdirroot, anchore_db=self.anchore_db)
 
-        # Dockerfile handling
-        if self.dockerfile:
-            shutil.copy(self.dockerfile, self.anchore_imagedir + "/Dockerfile")
-
-        if os.path.exists(self.anchore_imagedir + "/Dockerfile"):
-            self.dockerfile_contents = anchore_utils.read_plainfile_tostr(self.anchore_imagedir + "/Dockerfile")
-            self.dockerfile_mode = 'Actual'
-            self.meta['usertype'] = 'user'
-        elif os.path.exists(self.anchore_imagedir + "/Dockerfile.guessed"):
-            self.dockerfile_contents = anchore_utils.read_plainfile_tostr(self.anchore_imagedir + "/Dockerfile.guessed")
-            self.dockerfile_mode = 'Guessed'
-        else:
-            self.dockerfile_contents = self.discover_dockerfile_contents()
-            self.dockerfile_mode = 'Guessed'
-
-
     """ Image loading, discovering and saving """
-    def load_image(self):
-        self.meta['imageId'] = anchore_utils.discover_imageId(self.meta['imagename'])
-#        if os.path.exists('/'.join([self.anchore_image_datadir,self.meta['imagename']])):
-#            self.meta['imageId'] = self.meta['imagename']
+    def load_image(self, dockerfile=None):
+        if self.anchore_db.is_image_present(self.meta['imageId']):
+            self.load_image_from_anchore()
+            self.sync_image_meta()
 
+        # if a dockerfile is passed in, override that which is stored
+        if dockerfile:
+            self.dockerfile_contents = anchore_utils.read_plainfile_tostr(dockerfile)
+            self.dockerfile_mode = "Actual"
+
+        #if image is in docker, load the docker data and combine
         try:
             self.load_image_from_docker()
         except:
             pass
-        self.sync_image_meta()
-
-#        if not self.meta['imageId']:
-#            return (False)
-
-        self.anchore_imagedir = '/'.join([self.anchore_image_datadir, self.meta['imageId']])
-        if not os.path.exists(self.anchore_imagedir):
-            os.makedirs(self.anchore_imagedir)
-
-        self.load_image_from_anchore()
         self.sync_image_meta()
 
         return (True)
@@ -177,8 +158,11 @@ class AnchoreImage(object):
         anchore_data = self.anchore_db.load_image_report(self.meta['imageId'])
 
         self.anchore_data = anchore_data.pop('meta', {})
-        self.anchore_data_json = json.dumps(self.anchore_data)
 
+        self.docker_data = anchore_data.pop('docker_data', {})
+        self.dockerfile_contents = anchore_data.pop('dockerfile_contents', "")
+        self.dockerfile_mode = anchore_data.pop('dockerfile_mode', None)
+        
         val = anchore_data.pop('anchore_all_tags', [])
         if len(val) > 0:
             for v in val:
@@ -230,20 +214,18 @@ class AnchoreImage(object):
         return (True)
 
     def load_image_from_docker(self):
-        imagename = self.meta['imagename']
-        shortname = self.meta['shortname']
+        try:
+            ddata = self.docker_cli.inspect_image(self.meta['imageId'])
+        except:
+            return(False)
 
-        self.docker_data = self.docker_cli.inspect_image(shortname)
-        self.docker_data_json = json.dumps(self.docker_data)
+        self.docker_data = ddata
 
         for t in self.docker_data['RepoTags']:
             if t not in self.anchore_current_tags:
                 self.anchore_current_tags.append(t)
             if t not in self.anchore_all_tags:
                 self.anchore_all_tags.append(t)
-
-        if 'Size' in self.docker_data:
-            self.meta['sizebytes'] = str(self.docker_data['Size'])
 
         return (True)
 
@@ -257,8 +239,16 @@ class AnchoreImage(object):
             self.meta['shortId'] = self.meta['imageId'][0:12]
             self.meta['parentId'] = self.docker_data['Parent'].replace("sha256:", "", 1)
             self.meta['shortparentId'] = self.meta['parentId'][0:12]
+            if 'Size' in self.docker_data:
+                self.meta['sizebytes'] = str(self.docker_data['Size'])
 
+        self.meta['imagename'] = self.meta['imageId']
+        self.meta['shortname'] = self.meta['imagename'][0:12]
         self.meta['humanname'] = self.get_human_name()
+
+        if self.dockerfile_mode == 'Actual':
+            self.meta['usertype'] = 'user'
+            
         return (True)
 
     def save_image(self):
@@ -335,6 +325,9 @@ class AnchoreImage(object):
         self.anchore_db.save_image_report(self.meta['imageId'], report)
 
     def discover_dockerfile_contents(self):
+        if self.dockerfile_contents:
+            return(True)
+
         dbuf = ""
         try:
             history = self.docker_cli.history(self.meta['imageId'])
@@ -383,7 +376,9 @@ class AnchoreImage(object):
                 else:
                     c = re.sub(r"^/bin/sh -c #\(nop\) ", "", c)
                     dbuf = dbuf + c + "\n"
-        return (dbuf)
+        self.dockerfile_contents = dbuf
+        self.dockerfile_mode = "Guessed"
+        return (True)
 
     def discover_familytree(self):
         familytree = list()
@@ -539,7 +534,6 @@ class AnchoreImage(object):
 
     def get_distro(self):
         if not self.anchore_analyzer_meta:
-            #self.anchore_analyzer_meta = self.anchore_db.load_analysis_output(self.meta['imageId'], 'analyzer_meta', 'analyzer_meta')
             self.anchore_analyzer_meta = anchore_utils.load_analysis_output(self.meta['imageId'], 'analyzer_meta', 'analyzer_meta')
 
         if not 'DISTRO' in self.anchore_analyzer_meta:
@@ -549,7 +543,6 @@ class AnchoreImage(object):
 
     def get_distro_vers(self):
         if not self.anchore_analyzer_meta:
-            #self.anchore_analyzer_meta = self.anchore_db.load_analysis_output(self.meta['imageId'], 'analyzer_meta', 'analyzer_meta')
             self.anchore_analyzer_meta = anchore_utils.load_analysis_output(self.meta['imageId'], 'analyzer_meta', 'analyzer_meta')
 
         if not 'DISTROVERS' in self.anchore_analyzer_meta:
@@ -575,16 +568,10 @@ class AnchoreImage(object):
         return None
 
     def get_earliest_base(self):
-        # for i in self.get_familytree():
-        #    image = self.allimages[i]
-        #    if image.is_base():
-        #        return(image['imageId'])
-        # return(None)
         return (self.anchore_familytree[0])
 
     def get_allfiles(self):
         if not self.anchore_allfiles:
-            #self.anchore_allfiles = self.anchore_db.load_analysis_output(self.meta['imageId'], 'file_checksums', 'files.sha256sums')
             self.anchore_allfiles = anchore_utils.load_analysis_output(self.meta['imageId'], 'file_checksums', 'files.sha256sums')
 
         return (self.anchore_allfiles)
@@ -954,8 +941,8 @@ class AnchoreImage(object):
         if self.docker_data: report['docker_data'] = self.docker_data
         if self.get_familytree(): report['familytree'] = self.get_familytree()
         if self.get_layers(): report['layers'] = self.get_layers()
-        report['dockerfile_contents'] = self.dockerfile_contents
-        report['dockerfile_mode'] = self.dockerfile_mode
+        if self.dockerfile_contents: report['dockerfile_contents'] = self.dockerfile_contents
+        if self.dockerfile_mode: report['dockerfile_mode'] = self.dockerfile_mode
 
         return (report)
 

@@ -232,10 +232,10 @@ def discover_imageId(name):
                 if name == imageId:
                     match = True
                     matchId = imageId
-                    ret[name] = image['all_tags']
+                    ret[name] = image['anchore_all_tags']
                 else:
-                    alltags = image['all_tags']
-                    currtags = image['current_tags']
+                    alltags = image['anchore_all_tags']
+                    currtags = image['anchore_current_tags']
                     if re.match("^"+name, imageId):
                         if not match:
                             match=True

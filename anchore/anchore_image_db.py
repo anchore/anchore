@@ -82,6 +82,21 @@ class AnchoreImageDB(object):
 
         self.initialized = True
 
+    def is_image_present(self, imageId, imagelist=None):
+        if not imagelist:
+            imagelist = self.get_image_list()
+        if imageId not in imagelist:
+            return(False)
+        return(True)
+
+    def get_image_list(self):
+        ret = {}
+        for d in os.listdir(self.imagerootdir):
+            if os.path.exists(os.path.join(self.imagerootdir, d, "analyzers.done")):
+                t = self.load_image_report(d)
+                ret[d] = list(set(t['anchore_all_tags']) | set(t['anchore_current_tags']))
+        return(ret)
+
     def load_all_images(self):
         ret = {}
         
@@ -156,6 +171,9 @@ class AnchoreImageDB(object):
         ret['gates_eval_report'] = self.load_gates_eval_report(imageId)
 
         return(ret)
+
+    def create_image(self, imageId):
+        return(self.make_image_structure(imageId))
 
     def make_image_structure(self, imageId):
         imgdir = os.path.join(self.imagerootdir, imageId)
