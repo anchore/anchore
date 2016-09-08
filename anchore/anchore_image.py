@@ -898,6 +898,7 @@ class AnchoreImage(object):
         return (True)
 
     def unpack(self, docleanup=True, destdir=None):
+        # create the work dir
         if destdir:
             imagedir = destdir + "/" + str(random.randint(0, 9999999)) + ".anchoretmp"
         else:
@@ -911,15 +912,22 @@ class AnchoreImage(object):
         if not os.path.exists(imagedir):
             os.makedirs(imagedir)
 
+        # pull the image from docker and store/untar the tar
         if not os.path.exists(imagetar):
             FH = open(imagetar, 'w')
             FH.write(self.docker_cli.get_image(shortid).data)
             FH.close()
             sout = subprocess.check_output(["tar", "-C", imagedir, "-x", "-f", imagetar], stderr=DEVNULL)
 
+        # store some metadata and dockerfile if present
         self.meta['sizebytes'] = str(os.path.getsize(imagetar))
+        if self.dockerfile_contents:
+            anchore_utils.update_file_str(self.dockerfile_contents, os.path.join(imagedir, "Dockerfile"), backup=False)
+
+        # cleanup
         os.remove(imagetar)
 
+        # squash the image layers into unpacked rootfs
         self.squash(imagedir)
 
         return (imagedir)

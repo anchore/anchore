@@ -25,7 +25,6 @@ function init_query_cmdline {
     export DATADIR="$2"
     export IMGDIR="$2/$IMGID/image_output"
     export ANALYZERDIR="$2/$IMGID/analyzer_output"
-    #export COMPAREDIR="$2/$IMGID/compare_output"
     export GATESDIR="$2/$IMGID/gates_output"
 
     if [ -z "$3" ]; then
