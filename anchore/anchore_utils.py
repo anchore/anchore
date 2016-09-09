@@ -131,13 +131,9 @@ def init_query_cmdline(argv, paramhelp):
         if not os.path.exists(thedir):
             raise Exception(d + " directory '" + thedir + "' does not exist.")
 
-    #metafile = '/'.join([ret['dirs']['imgdir'], 'image_info', 'image.meta'])
-    #if not os.path.exists(metafile):
-    #    raise Exception("image metadata not available")
-
     ret['meta'] = ret['image_report']['meta']
     ret['baseid'] = ret['image_report']['familytree'][0]
-    #ret['meta'] = read_kvfile_todict(metafile)
+
     ret['imgtags'] = ret['meta']['humanname']
     ret['output'] = '/'.join([ret['dirs']['outputdir'], ret['name']])
     ret['output_warns'] = '/'.join([ret['dirs']['outputdir'], ret['name']+".WARNS"])

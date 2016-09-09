@@ -36,27 +36,27 @@ def query(anchore_config, image, imagefile, include_allanchore, module):
     success = True
     config = anchore_config
 
-    if image and imagefile:
-        raise click.BadOptionUsage('Can only use one of --image, --imagefile')
-
-    try:
-        imagedict = build_image_list(anchore_config, image, imagefile, not (image or imagefile), include_allanchore)
-        imagelist = imagedict.keys()
+    if module:
+        if image and imagefile:
+            raise click.BadOptionUsage('Can only use one of --image, --imagefile')
 
         try:
-            ret = anchore_utils.discover_imageIds(imagelist)
-        except ValueError as err:
-            raise err
-        else:
-            imagelist = ret.keys()
+            imagedict = build_image_list(anchore_config, image, imagefile, not (image or imagefile), include_allanchore)
+            imagelist = imagedict.keys()
 
-    except Exception as err:
-        anchore_print_err("could not load input images")
-        sys.exit(1)
+            try:
+                ret = anchore_utils.discover_imageIds(imagelist)
+            except ValueError as err:
+                raise err
+            else:
+                imagelist = ret.keys()
+
+        except Exception as err:
+            anchore_print_err("could not load input images")
+            sys.exit(1)
 
     try:
         nav = init_nav_contexts()
-
         result = nav.run_query(list(module))
         if result:
             anchore_utils.print_result(config, result)
