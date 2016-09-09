@@ -144,8 +144,12 @@ def main_entry(ctx, verbose, debug, quiet, json, plain, html):
         anchore_print_err("Error running pre-flight checks")
         exit(1)
 
-    if not anchore.anchore_utils.anchore_common_context_setup(ctx.obj):
-        anchore_print_err("Error setting up common data based on configuration")
+    try:
+        if not anchore.anchore_utils.anchore_common_context_setup(ctx.obj):
+            anchore_print_err("Error setting up common data based on configuration")
+            exit(1)
+    except ValueError as err:
+        print "ERROR: " + str(err)
         exit(1)
 
 main_entry.add_command(subscriptions.subscriptions)
