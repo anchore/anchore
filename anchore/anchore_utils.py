@@ -313,6 +313,7 @@ def print_result(config, result, outputmode=None):
                 header = json_dict['result']['header']
                 if outputmode == 'table':
                     t = PrettyTable(header)
+                    t.align = 'l'
                 break
 
             emptyresult = False
@@ -363,6 +364,7 @@ def print_result(config, result, outputmode=None):
             if 'warns' in result[k]:
                 if outputmode == 'table':
                     t = PrettyTable(['WarningOutput'])
+                    t.align = 'l'
                     for warn in result[k]['warns']:
                         t.add_row([warn])
                     
