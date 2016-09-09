@@ -323,10 +323,9 @@ def dump():
     imagedata = contexts['anchore_db'].load_image_new(imagelist[0])
     import json
     print json.dumps(imagedata)
-    rc = contexts['anchore_db'].save_image_new('test', imagedata)
-
-    il = contexts['anchore_db'].get_image_list()
-    print il
+    #rc = contexts['anchore_db'].save_image_new('test', imagedata)
+    #il = contexts['anchore_db'].get_image_list()
+    #print il
     sys.exit(0)
 
 @toolbox.command(name='show')
