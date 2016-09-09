@@ -1,6 +1,6 @@
 docker-py
 prettytable
 click
-requests
+requests < 2.11
 pyyaml
 clint
