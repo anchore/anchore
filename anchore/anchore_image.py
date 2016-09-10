@@ -51,6 +51,7 @@ class AnchoreImage(object):
         self.dockerfile_mode = None
         self.docker_cli = None
         self.docker_data = {}
+        self.docker_history = {}
         #self.docker_data_json = ""
 
         self.meta = {'imagename': None,
@@ -160,6 +161,7 @@ class AnchoreImage(object):
         self.anchore_data = anchore_data.pop('meta', {})
 
         self.docker_data = anchore_data.pop('docker_data', {})
+        self.docker_history = anchore_data.pop('docker_history', {})
         self.dockerfile_contents = anchore_data.pop('dockerfile_contents', "")
         self.dockerfile_mode = anchore_data.pop('dockerfile_mode', None)
         
@@ -216,10 +218,12 @@ class AnchoreImage(object):
     def load_image_from_docker(self):
         try:
             ddata = self.docker_cli.inspect_image(self.meta['imageId'])
+            hdata = self.docker_cli.history(self.meta['imageId'])
         except:
             return(False)
 
         self.docker_data = ddata
+        self.docker_history = hdata
 
         for t in self.docker_data['RepoTags']:
             if t not in self.anchore_current_tags:
@@ -924,6 +928,12 @@ class AnchoreImage(object):
         if self.dockerfile_contents:
             anchore_utils.update_file_str(self.dockerfile_contents, os.path.join(imagedir, "Dockerfile"), backup=False)
 
+        if self.docker_data:
+            anchore_utils.update_file_str(json.dumps(self.docker_data), os.path.join(imagedir, "docker_inspect.json"), backup=False)
+
+        if self.docker_history:
+            anchore_utils.update_file_str(json.dumps(self.docker_history), os.path.join(imagedir, "docker_history.json"), backup=False)
+
         # cleanup
         os.remove(imagetar)
 
@@ -938,6 +948,7 @@ class AnchoreImage(object):
 
         report['meta'] = {}
         report['docker_data'] = {}
+        report['docker_history'] = {}
         report['anchore_current_tags'] = []
         report['anchore_all_tags'] = []
         report['familytree'] = []
@@ -947,6 +958,7 @@ class AnchoreImage(object):
         if self.anchore_current_tags: report['anchore_current_tags'] = self.anchore_current_tags
         if self.anchore_all_tags: report['anchore_all_tags'] = self.anchore_all_tags
         if self.docker_data: report['docker_data'] = self.docker_data
+        if self.docker_history: report['docker_history'] = self.docker_history
         if self.get_familytree(): report['familytree'] = self.get_familytree()
         if self.get_layers(): report['layers'] = self.get_layers()
         if self.dockerfile_contents: report['dockerfile_contents'] = self.dockerfile_contents

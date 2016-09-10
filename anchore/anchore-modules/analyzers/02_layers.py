@@ -29,26 +29,20 @@ if not os.path.exists(outputdir):
 output = list()
 
 try:
-    if os.path.exists(os.path.join(unpackdir, "manifest.json")) and os.path.exists(os.path.join(unpackdir, "Dockerfile")):
-        with open(os.path.join(unpackdir, "manifest.json"), 'r') as FH:
-            manifest = json.loads(FH.read())
 
-        ddata = anchore.anchore_utils.read_plainfile_tolist(os.path.join(unpackdir, "Dockerfile"))
-        layers = manifest[0]['Layers']
+    if os.path.exists(os.path.join(unpackdir, "docker_history.json")):
+        with open(os.path.join(unpackdir, "docker_history.json"), 'r') as FH:
+            history = json.loads(FH.read())
 
-        if re.match("^ *FROM scratch.*", ddata[0]):
-            del ddata[0]
+        for record in history:
+            clean_layer = re.sub("^sha256:", "", record['Id'])
+            if clean_layer == '<missing>':
+                clean_layer = "unknown"
+                
+            clean_createdBy = re.sub(r"^/bin/sh -c #\(nop\) ", "", record['CreatedBy'])
+            line = {'layer':clean_layer, 'dockerfile_line':clean_createdBy, 'layer_sizebytes':str(record['Size'])}
+            output.append(line)
 
-        lsizes = list()
-        for l in layers:
-            lfile = os.path.join(unpackdir, l)
-            lsizes.append(str(os.path.getsize(lfile)))
-
-        if len(ddata) == len(layers):
-            for i in range(0, len(ddata)):
-                clean_layer = re.sub("/layer.tar", "", layers[i])
-                line = {'layer':clean_layer, 'dockerfile_line':ddata[i], 'layer_sizebytes':lsizes[i]}
-                output.append(line)
 except:
     pass
 

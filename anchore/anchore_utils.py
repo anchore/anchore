@@ -179,6 +179,9 @@ def list_analysis_outputs(imageId):
 def load_gates_eval_report(imageId):
     return(contexts['anchore_db'].load_gates_eval_report(imageId))
 
+def load_image_report(imageId):
+    return(contexts['anchore_db'].load_image_report(imageId))
+
 def load_image(imageId):
     return(contexts['anchore_db'].load_image(imageId))
 
