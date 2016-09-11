@@ -173,7 +173,17 @@ class AnalysisMetadataManager(object):
         old_processed = self._images_processed
         result = self.resource_cache.get(self.remote_sync_url)
         if self.remote_sync_url.endswith('.tar.gz'):
-            tarfile.open(result['content']).extractall(path=self.sync_dir)
+            # TODO adding this temporarily while new feed service is in progress
+            tar = tarfile.open(result['content'])
+            try:
+                member = tar.getmember('engine.json')
+                tar.extract(member, path=self.sync_dir)
+            except:
+                pass
+            tar.close()
+
+            # as opposed to this
+            # tarfile.open(result['content']).extractall(path=self.sync_dir)
 
         self._images_processed = self._load_processed_map()
 

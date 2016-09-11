@@ -18,6 +18,8 @@ class AnchoreConfiguration (object):
     EXAMPLE_CONFIG_FILE = resource_filename("anchore", "conf/config.yaml")
     DEFAULT_PKG_DIR = resource_filename("anchore", "")
     DEFAULT_SCRIPTS_DIR = resource_filename("anchore", "anchore-modules")
+    DEFAULT_ANON_ANCHORE_USERNAME = 'TBD'
+    DEFAULT_ANON_ANCHORE_PASSWORD = 'TBD'
     try:
         DEFAULT_EXTRASCRIPTS_DIR = resource_filename("anchore-modules", "/")
     except:
@@ -33,6 +35,8 @@ class AnchoreConfiguration (object):
         'extra_scripts_dir': DEFAULT_EXTRASCRIPTS_DIR,
         'docker_conn': 'unix://var/run/docker.sock',
         'docker_conn_timeout':'60',
+        'anchore_username':DEFAULT_ANON_ANCHORE_USERNAME,
+        'anchore_password':DEFAULT_ANON_ANCHORE_PASSWORD,
         'vulnerabilities': {
             'url': 'https://service-data.anchore.com/vulnerabilities.tar.gz',
         },
