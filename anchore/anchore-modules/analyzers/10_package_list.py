@@ -32,7 +32,7 @@ distrodict = anchore.anchore_utils.get_distro_flavor(meta['DISTRO'], meta['DISTR
 
 #sys.exit(1)
 
-if distrodict['flavor'] not in ['RHEL', 'DEB', 'BUSYB']:
+if distrodict['flavor'] not in ['RHEL', 'DEB', 'BUSYB', 'ALPINE']:
     sys.exit(0)
 
 pkgsall = {}
@@ -78,6 +78,20 @@ elif distrodict['flavor'] == "DEB":
 
     except Exception as err:
         print "WARN: failed to get file list from DPKGs: " + str(err)
+
+elif distrodict['flavor'] == 'ALPINE':
+    try:
+        apkgs = anchore.anchore_utils.apkg_get_all_pkgfiles(unpackdir)
+        for pkg in apkgs.keys():
+            # base
+            pkgsall[pkg] = apkgs[pkg]['version']
+
+            # pkgfiles
+            for pkgfile in apkgs[pkg]['files']:
+                pkgfilesall[pkgfile] = 'APKFILE'
+
+    except Exception as err:
+        print "WARN: failed to generate APK package list: " + str(err)
 
 elif distrodict['flavor'] == "BUSYB":
     pkgsall["BusyBox"] = distrodict['fullversion']

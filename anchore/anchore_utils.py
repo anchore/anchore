@@ -387,6 +387,89 @@ def print_result(config, result, outputmode=None):
 #            print "</BODY></HTML>"
     return (True)
 
+def apkg_get_all_pkgfiles(unpackdir):
+    apkdb = '/'.join([unpackdir, 'rootfs/lib/apk/db/installed'])
+    if not os.path.exists(apkdb):
+        raise ValueError("cannot locate APK installed DB '"+str(apkdb)+"'")
+        
+    apkgs = {}                
+    apkg = {
+        'version':"NA",
+        'sourcepkg':"NA",
+        'release':"NA",
+        'origin':"NA",
+        'arch':"NA",
+        'license':"NA",
+        'size':"NA"
+    }
+    thename = ""
+    thepath = ""
+    thefiles = list()
+    allfiles = list()
+
+    FH=open(apkdb, 'r')
+    for l in FH.readlines():
+        l = l.strip().decode('utf8')
+        if not l:
+            apkgs[thename] = apkg
+            if thepath:
+                meh = list()
+                for x in thefiles:
+                    meh.append(os.path.join(thepath, x))
+                meh.append(os.path.join(thepath))
+                allfiles = allfiles + meh
+            apkgs[thename]['files'] = allfiles
+            apkg = {
+                'version':"NA",
+                'sourcepkg':"NA",
+                'release':"NA",
+                'origin':"NA",
+                'arch':"NA",
+                'license':"NA",
+                'size':"NA",
+                'type':"APKG"
+            }
+            allfiles = list()
+            thefiles = list()
+            thepath = ""
+
+        patt = re.match("(\S):(.*)", l)
+        if patt:
+            (k, v) = patt.group(1,2)
+            apkg['type'] = "APKG"
+            if k == 'P':
+                thename = v
+                apkg['name'] = v
+            elif k == 'V':
+                (vers, rel) = re.match("(\S*)-(\S*)", v).group(1, 2)
+                apkg['version'] = vers
+                apkg['release'] = rel
+            elif k == 'm':
+                apkg['origin'] = v
+            elif k == 'I':
+                apkg['size'] = v
+            elif k == 'L':
+                apkg['license'] = v
+            elif k == 'o':
+                apkg['sourcepkg'] = v
+            elif k == 'A':
+                apkg['arch'] = v
+            elif k == 'F':
+                if thepath:
+                    meh = list()
+                    for x in thefiles:
+                        meh.append(os.path.join(thepath, x))
+                    meh.append(os.path.join(thepath))
+                    allfiles = allfiles + meh
+
+                thepath = "/" + v
+                thefiles = list()
+            elif k == 'R':
+                thefiles.append(v)
+
+    FH.close()
+    return(apkgs)
+
 def dpkg_compare_versions(v1, op, v2):
     cmd = ['dpkg', '--compare-versions', v1, op, v2]
     return(subprocess.call(cmd))
