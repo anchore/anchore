@@ -4,3 +4,4 @@ click
 requests < 2.11
 pyyaml
 clint
+oauth2

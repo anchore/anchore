@@ -44,7 +44,7 @@ except Exception as err:
     print "ERROR: could not scan image for CVEs: " + str(err)
     output = '/'.join([outputdir, gate_name])
     OFH=open(output, 'w')
-    OFH.write("UNSUPPORTEDDISTRO Image distro unsupported by CVE scanner\n")
+    OFH.write("UNSUPPORTEDDISTRO Cannot load CVE data for image distro to perform scan.\n")
     OFH.close()
     sys.exit(0)
 
