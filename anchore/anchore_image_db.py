@@ -248,17 +248,17 @@ class AnchoreImageDB(object):
         anchore_utils.update_file_jsonstr(json.dumps(report), thefile, False)
 
     def list_analysis_outputs(self, imageId):
-        ret = {}
-        thedir = '/'.join([self.imagerootdir, imageId, "analyzer_output"])
-        if os.path.exists(thedir):
-            for f in os.listdir(thedir):
-                if os.path.isdir('/'.join([thedir, f])):
-                    if f not in ret:
-                        ret[f] = {}
-                    for ff in os.listdir('/'.join([thedir, f])):
-                        if os.path.isfile('/'.join([thedir, f, ff])):
-                            ret[f][ff] = True
-        return(ret)
+        aret = {}
+        amanifest = self.load_analyzer_manifest(imageId)
+        for a in amanifest.keys():
+            if 'analyzer_outputs' in amanifest[a]:
+                for record in amanifest[a]['analyzer_outputs']:
+                    module_name = record['module_name']
+                    module_value = record['module_value']
+                    if module_name not in aret:
+                        aret[module_name] = {}
+                    aret[module_name][module_value] = True
+        return(aret)
 
     def load_analyzer_manifest(self, imageId):
         ret = {}

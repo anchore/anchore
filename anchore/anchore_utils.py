@@ -189,6 +189,9 @@ def load_analysis_output(imageId, module_name, module_value):
 def save_analysis_output(imageId, module_name, module_value, data, module_type=None):
     return(contexts['anchore_db'].save_analysis_output(imageId, module_name, module_value, data, module_type=module_type))
 
+def load_analyzer_manifest(imageId):
+    return(contexts['anchore_db'].load_analyzer_manifest(imageId))
+
 def list_analysis_outputs(imageId):
     return(contexts['anchore_db'].list_analysis_outputs(imageId))
 
