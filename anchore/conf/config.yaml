@@ -13,8 +13,10 @@
 # docker_conn: 'unix://var/run/docker.sock'
 # docker_conn_timeout: '60'
 #
-# anchore_username: '<your anchore username>'
-# anchore_password: '<your anchore password>'
+# anchore_auth_conn_timeout: 5
+# anchore_auth_max_retries: 5
+# anchore_client_url: https://ancho.re/v1/account/users
+# anchore_token_url: https://ancho.re/oauth/token
 #
 # vulnerabilities:
 #   url: 'https://service-data.anchore.com/vulnerabilities.tar.gz'
