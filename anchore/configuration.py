@@ -18,8 +18,13 @@ class AnchoreConfiguration (object):
     EXAMPLE_CONFIG_FILE = resource_filename("anchore", "conf/config.yaml")
     DEFAULT_PKG_DIR = resource_filename("anchore", "")
     DEFAULT_SCRIPTS_DIR = resource_filename("anchore", "anchore-modules")
-    DEFAULT_ANON_ANCHORE_USERNAME = 'TBD'
-    DEFAULT_ANON_ANCHORE_PASSWORD = 'TBD'
+    DEFAULT_ANON_ANCHORE_USERNAME = 'anon@ancho.re'
+    DEFAULT_ANON_ANCHORE_PASSWORD = 'pbiU2RYZ2XrmYQ'
+    DEFAULT_ANCHORE_CLIENT_URL = 'https://ancho.re/v1/account/users'
+    DEFAULT_ANCHORE_TOKEN_URL = 'https://ancho.re/oauth/token'
+    DEFAULT_ANCHORE_AUTH_CONN_TIMEOUT = 5
+    DEFAULT_ANCHORE_AUTH_MAX_RETRIES = 5
+    
     try:
         DEFAULT_EXTRASCRIPTS_DIR = resource_filename("anchore-modules", "/")
     except:
@@ -35,8 +40,10 @@ class AnchoreConfiguration (object):
         'extra_scripts_dir': DEFAULT_EXTRASCRIPTS_DIR,
         'docker_conn': 'unix://var/run/docker.sock',
         'docker_conn_timeout':'60',
-        'anchore_username':DEFAULT_ANON_ANCHORE_USERNAME,
-        'anchore_password':DEFAULT_ANON_ANCHORE_PASSWORD,
+        'anchore_client_url':DEFAULT_ANCHORE_CLIENT_URL,
+        'anchore_token_url':DEFAULT_ANCHORE_TOKEN_URL,
+        'anchore_auth_conn_timeout':DEFAULT_ANCHORE_AUTH_CONN_TIMEOUT,
+        'anchore_auth_max_retries':DEFAULT_ANCHORE_AUTH_MAX_RETRIES,
         'vulnerabilities': {
             'url': 'https://service-data.anchore.com/vulnerabilities.tar.gz',
         },

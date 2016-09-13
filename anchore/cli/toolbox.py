@@ -8,7 +8,7 @@ from textwrap import fill
 import click
 
 from anchore.cli.common import anchore_print, anchore_print_err
-from anchore import navigator, anchore_utils
+from anchore import navigator, anchore_utils, anchore_auth
 from anchore.util import contexts, scripting
 
 config = {}
@@ -336,7 +336,6 @@ def dump():
 @toolbox.command(name='show')
 def show():
     """Show image summary information"""
-
 
     if not nav:
         sys.exit(1)

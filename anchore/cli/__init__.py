@@ -15,6 +15,7 @@ import system
 import synchronizer
 import logs
 import toolbox
+import login
 import anchore.anchore_image_db, anchore.anchore_utils
 
 from anchore.util import contexts
@@ -161,6 +162,8 @@ main_entry.add_command(audit.audit)
 main_entry.add_command(analyzer.analyze)
 main_entry.add_command(analyzer.gate)
 main_entry.add_command(toolbox.toolbox)
+main_entry.add_command(login.login)
+main_entry.add_command(login.logout)
 
 def anchore_pre_flight_check(ctx):
     # helper checks

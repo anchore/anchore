@@ -21,6 +21,7 @@ import logging
 import anchore_image, anchore_image_db
 from configuration import AnchoreConfiguration
 from anchore.util import contexts
+import anchore_auth
 
 module_logger = logging.getLogger(__name__)
 
@@ -153,6 +154,21 @@ def anchore_common_context_setup(config):
 
     if 'anchore_db' not in contexts or not contexts['anchore_db']:
         contexts['anchore_db'] = anchore_image_db.AnchoreImageDB(imagerootdir=config['image_data_store'])
+
+    if 'anchore_auth' not in contexts or not contexts['anchore_auth']:
+        aafile = os.path.join(config['anchore_data_dir'], "conf", "anchore_auth.json")
+        username = config.DEFAULT_ANON_ANCHORE_USERNAME
+        password = config.DEFAULT_ANON_ANCHORE_PASSWORD
+        if os.path.exists(aafile):
+            try:
+                with open(aafile, 'r') as FH:
+                    aa = json.loads(FH.read())
+                    username = aa['username']
+                    password = aa['password']
+            except:
+                pass
+                
+        contexts['anchore_auth'] = anchore_auth.anchore_auth_init(username, password, aafile, config['anchore_client_url'], config['anchore_token_url'], config['anchore_auth_conn_timeout'], config['anchore_auth_max_retries'])
 
     return(True)
 
