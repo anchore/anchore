@@ -17,7 +17,6 @@ if not config:
     sys.exit(0)
 
 imgid = config['imgid']
-imgdir = config['dirs']['imgdir']
 
 try:
     params = config['params']
@@ -53,7 +52,6 @@ except Exception as err:
     print "ERROR: running gate " + gate_name + " failed: " + str(err)
     sys.exit(1)
 
-if outlist:
-    anchore.anchore_utils.save_gate_output(imageId, gate_name, outlist)
+anchore.anchore_utils.save_gate_output(imageId, gate_name, outlist)
 
 sys.exit(0)

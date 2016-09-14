@@ -10,6 +10,7 @@ import subprocess
 import docker
 import io
 import tarfile
+import urllib
 
 from stat import *
 from prettytable import PrettyTable
@@ -1032,6 +1033,8 @@ def read_kvfile_tolist(file):
         l = l.strip().decode('utf8')
         if l:
             row = l.split()
+            for i in range(0, len(row)):
+                row[i] = re.sub("____", " ", row[i])
             ret.append(row)
     FH.close()
 
@@ -1074,12 +1077,23 @@ def write_plainfile_fromlist(file, list):
         OFH.write(thestr)
     OFH.close()
 
-def write_kvfile_fromlist(file, list):
+def write_kvfile_fromlist(file, list, delim=' '):
     OFH = open(file, 'w')
     for l in list:
-        thestr = ' '.join(l) + "\n"
+        for i in range(0,len(l)):
+            l[i] = re.sub("\s", "____", l[i])
+            #l[i] = urllib.quote_plus(l[i])
+        thestr = delim.join(l) + "\n"
         thestr = thestr.encode('utf8')
         OFH.write(thestr)
+    OFH.close()
+
+def write_kvfile_fromlist_orig(file, list, delim=' '):
+    OFH = open(file, 'w')
+    for l in list:
+        thestr = delim.join(l) + "\n"
+        thestr = thestr.encode('utf8')
+        OFH.write(thestr + "\n")
     OFH.close()
 
 def write_kvfile_fromdict(file, indict):

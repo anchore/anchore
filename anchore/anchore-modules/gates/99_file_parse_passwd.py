@@ -46,8 +46,6 @@ if not config:
     sys.exit(1)
 
 imgid = config['imgid']
-imgdir = config['dirs']['imgdir']
-analyzerdir = config['dirs']['analyzerdir']
 outputdir = config['dirs']['outputdir']
 
 try:
@@ -62,7 +60,7 @@ outlist = list()
 dstdir = os.path.join(outputdir, 'extract_tmp')
 retlist = get_retrieved_file(config['imgid'], '/etc/passwd', dstdir)
 if not retlist:
-    outlist.append(["FILENOTSTORED", "Cannot locate /etc/passwd in image's stored files archive: check analyzer settings"])
+    outlist.append("FILENOTSTORED Cannot locate /etc/passwd in image's stored files archive: check analyzer settings")
 else:
     users = {}
     with open(retlist[0][1], 'r') as FH:
@@ -80,10 +78,9 @@ else:
             if pkey == 'USERNAMEBLACKLIST':
                 for pval in pvallist.split(","):
                     try:
-                        print pkey + " : " + pval
                         if pval in users:
                             pentry = str(':'.join([pval] + users[u]))
-                            outlist.append(["USERNAMEMATCH", "Blacklisted user '"+pval+"' found in image's /etc/passwd: pentry="+pentry])
+                            outlist.append("USERNAMEMATCH Blacklisted user '"+pval+"' found in image's /etc/passwd: pentry="+pentry)
                     except:
                         pass
             elif pkey == 'USERIDBLACKLIST':
@@ -93,7 +90,7 @@ else:
                             uid = users[u][1]
                             if str(uid) == pval:
                                 pentry = str(':'.join([u] + users[u]))
-                                outlist.append(["USERIDMATCH", "Blacklisted uid '"+pval+"' found in image's /etc/passwd: pentry="+pentry])
+                                outlist.append("USERIDMATCH Blacklisted uid '"+pval+"' found in image's /etc/passwd: pentry="+pentry)
                     except:
                         pass
             elif pkey == 'GROUPIDBLACKLIST':
@@ -103,7 +100,7 @@ else:
                             gid = users[u][2]
                             if str(gid) == pval:
                                 pentry = str(':'.join([u] + users[u]))
-                                outlist.append(["GROUPIDMATCH", "Blacklisted gid '"+pval+"' found in image's /etc/passwd: pentry="+pentry])
+                                outlist.append("GROUPIDMATCH Blacklisted gid '"+pval+"' found in image's /etc/passwd: pentry="+pentry)
                     except:
                         pass
             elif pkey == 'SHELLBLACKLIST':
@@ -113,7 +110,7 @@ else:
                             shellstr = users[u][5]
                             if str(shellstr) == pval:
                                 pentry = str(':'.join([u] + users[u]))
-                                outlist.append(["SHELLMATCH", "Blacklisted shell '"+pval+"' found in image's /etc/passwd: pentry="+pentry])
+                                outlist.append("SHELLMATCH Blacklisted shell '"+pval+"' found in image's /etc/passwd: pentry="+pentry)
                     except:
                         pass
             elif pkey == 'PENTRYBLACKLIST':
@@ -121,16 +118,14 @@ else:
                     try:
                         for u in users.keys():
                             pentry = str(':'.join([u] + users[u]))
-                            print "MEH: " + pval + " | " + pentry
                             if pval == pentry:
-                                outlist.append(["PENTRYMATCH", "Blacklisted pentry '"+pval+"' found in image's /etc/passwd: pentry="+pentry])
+                                outlist.append("PENTRYMATCH Blacklisted pentry '"+pval+"' found in image's /etc/passwd: pentry="+pentry)
                     except:
                         pass
         except:
             pass
 
 # write output
-output = '/'.join([outputdir, gate_name])
-anchore.anchore_utils.write_kvfile_fromlist(output, outlist)
+anchore.anchore_utils.save_gate_output(imgid, gate_name, outlist)
 
 sys.exit(0)

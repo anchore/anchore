@@ -22,10 +22,6 @@ if not config:
     sys.exit(1)
 
 imgid = config['imgid']
-imgdir = config['dirs']['imgdir']
-analyzerdir = config['dirs']['analyzerdir']
-#comparedir = config['dirs']['comparedir']
-outputdir = config['dirs']['outputdir']
 
 try:
     params = config['params']
@@ -42,14 +38,12 @@ except Exception as err:
     import traceback
     traceback.print_exc()
     print "ERROR: could not scan image for CVEs: " + str(err)
-    output = '/'.join([outputdir, gate_name])
-    OFH=open(output, 'w')
-    OFH.write("UNSUPPORTEDDISTRO Cannot load CVE data for image distro to perform scan.\n")
-    OFH.close()
+    outlist = list()
+    outlist.append("UNSUPPORTEDDISTRO Cannot load CVE data for image distro to perform scan.")
+    anchore.anchore_utils.save_gate_output(imgid, gate_name, outlist)
     sys.exit(0)
 
-output = '/'.join([outputdir, gate_name])
-OFH=open(output, 'w')
+outlist = list()
 for k in report.keys():
     vuln = report[k]
     cve = k
@@ -67,7 +61,8 @@ for k in report.keys():
     else:
         t = "VULNUNKNOWN"
 
-    OFH.write(t + " " + sev + " Vulnerability found in package - " + pkg + " (" + cve + " - " + url + ")\n")
+    outlist.append(t + " " + sev + " Vulnerability found in package - " + pkg + " (" + cve + " - " + url + ")")
 
-OFH.close()
+anchore.anchore_utils.save_gate_output(imgid, gate_name, outlist)
+
 sys.exit(0)
