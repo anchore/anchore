@@ -50,11 +50,11 @@ Next, on either distro:
 
 ``anchore sync catalog``
 
-``anchore explore report``
+``anchore audit report``
 
-``anchore explore query has-package curl wget``
+``anchore query has-package curl wget``
 
-``anchore explore query cve-scan all``
+``anchore query cve-scan all``
 
 ``anchore toolbox --image nginx show``
 
