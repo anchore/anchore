@@ -64,7 +64,8 @@ for imageId in config['images']:
 
 for bstr in result.keys():
     if result[bstr]['imageIds']:
-        outlist.append([bstr, str(result[bstr]['count']), ','.join(result[bstr]['imageIds'])])
+        #outlist.append([bstr, str(result[bstr]['count']), ','.join(result[bstr]['imageIds'])])
+        outlist.append([bstr, str(result[bstr]['count']), ' '.join(result[bstr]['imageIds'])])
     else:
         outlist.append([bstr, str(result[bstr]['count']), "N/A"])
 

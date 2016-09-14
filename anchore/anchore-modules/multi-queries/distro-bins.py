@@ -50,7 +50,8 @@ sums = {}
 for d in result.keys():
     for v in result[d].keys():
         if not onlysummarize:
-            outlist.append([d, v, str(result[d][v]['count']), ','.join(result[d][v]['imageIds'])])
+            #outlist.append([d, v, str(result[d][v]['count']), ','.join(result[d][v]['imageIds'])])
+            outlist.append([d, v, str(result[d][v]['count']), ' '.join(result[d][v]['imageIds'])])
 
         if d not in sums:
             sums[d] = {'count':0, 'imageIds':list()}
@@ -59,7 +60,8 @@ for d in result.keys():
 
 if onlysummarize:
     for k in sums.keys():
-        outlist.append([k, 'any', str(sums[k]['count']), ','.join(sums[k]['imageIds'])])
+        #outlist.append([k, 'any', str(sums[k]['count']), ','.join(sums[k]['imageIds'])])
+        outlist.append([k, 'any', str(sums[k]['count']), ' '.join(sums[k]['imageIds'])])
 
 anchore.anchore_utils.write_kvfile_fromlist(config['output'], outlist)
 if len(warns) > 0:
