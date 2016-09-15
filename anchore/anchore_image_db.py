@@ -70,7 +70,7 @@ class AnchoreImageDB(object):
                 code_version_tuple = tuple(anchore_version_string.split('.'))
                 if db_version_tuple[0] < code_version_tuple[0]:
                     raise ValueError("Anchore DB version ("+local_db_version + ") " +
-                                     "is at least one major-version behind the Anchore software version (" + anchore_version_string + ") and cannot be automatically upgraded. Please downgrade Anchore to compatible version or remove your Anchore DB and start from a clean install.")
+                                     "is at least one major-version behind the Anchore software version (" + anchore_version_string + ") and cannot be automatically upgraded. Please downgrade Anchore to compatible version or remove your Anchore DB and start from a clean install. Find us on freenode channel #anchore for additional assistance.")
 
             if update:
                 FH=open(dbmetafile, 'w')
