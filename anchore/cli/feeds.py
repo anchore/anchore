@@ -28,29 +28,34 @@ def list():
 
     ecode = 0
     try:
-        subscribed = {}
-        available = {}
-        feedmeta = anchore_feeds.load_anchore_feedmeta()
-        for feed in feedmeta.keys():
-            if feedmeta[feed]['subscribed']:
-                subscribed[feed] = feedmeta[feed]
-            else:
-                available[feed] = feedmeta[feed]
+        rc, msg = anchore_feeds.check()
+        if rc:
 
-        anchore_print("Available:")
-        for feed in available.keys():
+            subscribed = {}
+            available = {}
+            feedmeta = anchore_feeds.load_anchore_feedmeta()
+            for feed in feedmeta.keys():
+                if feedmeta[feed]['subscribed']:
+                    subscribed[feed] = feedmeta[feed]
+                else:
+                    available[feed] = feedmeta[feed]
+
+            anchore_print("Available:")
+            for feed in available.keys():
+                anchore_print("")
+                anchore_print("  "+feed+" ("+available[feed]['description']+"):")
+                for group in available[feed]['groups'].keys():
+                    anchore_print("    - " + str(group))
+
             anchore_print("")
-            anchore_print("  "+feed+" ("+available[feed]['description']+"):")
-            for group in available[feed]['groups'].keys():
-                anchore_print("    - " + str(group))
-
-        anchore_print("")
-        anchore_print("Subscribed:")
-        for feed in subscribed.keys():
-            anchore_print("  "+feed+" ("+subscribed[feed]['description']+"):")
-            for group in subscribed[feed]['groups'].keys():
-                anchore_print("    - " + str(group))
-
+            anchore_print("Subscribed:")
+            for feed in subscribed.keys():
+                anchore_print("  "+feed+" ("+subscribed[feed]['description']+"):")
+                for group in subscribed[feed]['groups'].keys():
+                    anchore_print("    - " + str(group))
+        else:
+            anchore_print_err(msg)
+            ecode = 1
     except Exception as err:
         anchore_print_err('operation failed')
         ecode = 1
