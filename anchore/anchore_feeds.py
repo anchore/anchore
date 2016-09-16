@@ -80,7 +80,7 @@ def get_group_data(feed, group, since="1970-01-01"):
     last_token = ""
     done=False
     while not done:
-        print "URL: " + url
+        _logger.debug("data group url: " + str(url))
         record = anchore.anchore_auth.anchore_auth_get(contexts['anchore_auth'], url, timeout=60)
         if record['success']:
             data = json.loads(record['text'])
@@ -94,7 +94,6 @@ def get_group_data(feed, group, since="1970-01-01"):
 
                 if 'next_token' in data and data['next_token']:
                     url = baseurl + "&next_token="+data['next_token']
-                    print "NEXT: " + url
                     if last_token == data['next_token']:
                         done=True
                     last_token = data['next_token']
