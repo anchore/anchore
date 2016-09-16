@@ -162,8 +162,12 @@ def anchore_auth_refresh(anchore_auth, forcerefresh=False):
 
     return(True)
 
-def anchore_auth_get(anchore_auth, url):
+def anchore_auth_get(anchore_auth, url, timeout=None):
     # make a request
+    print "GET URL: " + url
+    if not timeout:
+        timeout = anchore_auth['conn_timeout']
+
     ret = {'status_code':1, 'text':'', 'success':False}
     try:
         success = False
@@ -180,7 +184,7 @@ def anchore_auth_get(anchore_auth, url):
                 accessToken = token_info['accessToken']
                 headers = {"Authorization":"Bearer " + accessToken, "Cache-Control":"no-cache"}
 
-                r = requests.get(url, headers=headers, timeout=anchore_auth['conn_timeout'])
+                r = requests.get(url, headers=headers, timeout=timeout)
                 if r.status_code == 401:
                     resp = json.loads(r.text)
                     if resp['name'] == 'invalid_token':
