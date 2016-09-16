@@ -171,6 +171,9 @@ def anchore_common_context_setup(config):
                 
         contexts['anchore_auth'] = anchore_auth.anchore_auth_init(username, password, aafile, config['anchore_client_url'], config['anchore_token_url'], config['anchore_auth_conn_timeout'], config['anchore_auth_max_retries'])
 
+    if 'anchore_config' not in contexts or not contexts['anchore_config']:
+        contexts['anchore_config'] = config
+
     return(True)
 
 def save_gate_output(imageId, gate_name, data):

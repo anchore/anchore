@@ -1,103 +1,117 @@
-# Main entry point for the registry manager cli
+import sys
+import os
+import re
+import json
+import getpass
 import click
 import yaml
+import time
 
-import anchore.catalog
-from anchore.catalog import AnchoreCatalog
 from anchore.cli.common import anchore_print, anchore_print_err
+from anchore.util import contexts
+from anchore import anchore_utils, anchore_auth, anchore_feeds
 
+config = {}
 
-@click.group()
-def system():
-    """
-    Anchore system-level operations, which do not operate on resources, but the overall system itself.
-
-    System includes subcommands to backup, restore, and view status info on the local system.
-    """
-    pass
-
-
-@system.command()
-@click.option('--config', is_flag=True, help='Output the currently used configuration yaml content')
+@click.group(name='system', short_help='System level operations.')
 @click.pass_obj
-def status(anchore_config, config):
+def system(anchore_config):
+    global config
+    config = anchore_config
+
+@system.command(name='status', short_help="Show system status.")
+@click.option('--conf', is_flag=True, help='Output the currently used configuration yaml content')
+def status(conf):
     """
-    Print state of local anchore images and artifacts. Includes paths, cache states, and configuration values.
-
-    Use the --config option to dump the current configuration that the system is using. The configuration option
-    returns structured output (yaml) or json if using the --json option. All configuration values are populated,
-    with defaults if not explicitly overridden in the config file. The output of this is suitable to create a new config
-    file.
-
-
+    Show anchore system status.
     """
-    assert anchore_config is not None
 
+    ecode = 0
     try:
-
-        working_catalog = AnchoreCatalog(config=anchore_config)
-        if config:
-            if anchore_config.cliargs['json']:
-                anchore_print(working_catalog.configuration().data, do_formatting=True)
+        if conf:
+            if config.cliargs['json']:
+                anchore_print(config.data, do_formatting=True)
             else:
-                anchore_print(yaml.safe_dump(working_catalog.configuration().data, indent=True, default_flow_style=False))
+                anchore_print(yaml.safe_dump(config.data, indent=True, default_flow_style=False))
         else:
-            result = working_catalog.check_status()
-            for k, v in result.items():
-                if 'local' in v:
-                    result[k] = v['local']
+            if contexts['anchore_db'].check():
+                print "anchore_db: OK"
+            else:
+                print "anchore_db: NOTINITIALIZED"
 
-            anchore_print(result, do_formatting=True)
+            feedmeta = anchore_feeds.load_anchore_feedmeta()
+            if feedmeta:
+                print "anchore_feeds: OK"
+            else:
+                print "anchore_feeds: NOTSYNCED"
 
-    except:
-        anchore_print_err('Failed checking local system status. Please check config file: %s' % anchore_config.config_file)
-        exit(1)
+            afailed = False
+            latest = 0
+            for imageId in contexts['anchore_db'].load_all_images().keys():
+                amanifest = anchore_utils.load_analyzer_manifest(imageId)
+                for module_name in amanifest.keys():
+                    try:
+                        if amanifest[module_name]['timestamp'] > latest:
+                            latest = amanifest[module_name]['timestamp']
+                        if amanifest[module_name]['status'] != 'SUCCESS':
+                            analyzer_failed_imageId = imageId
+                            analyzer_failed_name = module_name
+                            afailed = True
+                    except:
+                        pass
+
+            if latest == 0:
+                print "analyzer_status: NODATA"
+            elif afailed:
+                print "analyzer_status: FAIL"
+                print "\timageId: " + analyzer_failed_imageId
+                print "analyzer_latest_run: " + time.ctime(latest)
+            else:
+                print "analyzer_status: OK"
+                print "analyzer_latest_run: " + time.ctime(latest)
 
 
-@system.command()
+   
+    except Exception as err:
+        anchore_print_err('operation failed')
+        ecode = 1
+
+    sys.exit(ecode)
+
+@system.command(name='backup', short_help="Backup an anchore installation to a tarfile.")
 @click.argument('outputdir', type=click.Path())
-@click.pass_obj
-def backup(anchore_config, outputdir):
+def backup(outputdir):
     """
-    Backup the Anchore data locally to a tarball. Will result in a backup file with the name:
-    anchore-backup-<date>.tar.gz
-
-    If the anchore configuration file specifies a different image_data_store outside of the anchore_data_dir tree it will
-    be backed up, but may require manual intervention on restore. Backup includes the configuration files as well as data
-    files. Backup does *not* include docker images themselves.
-
+    Backup an anchore installation to a tarfile.
     """
 
+    ecode = 0
     try:
-        output_file = anchore.catalog.AnchoreCatalog.backup(anchore_config, outputdir)
-        anchore_print({'output': output_file}, do_formatting=True)
-    except:
-        anchore_print_err('Backup of catalog to %s failed' % outputdir)
-        exit(1)
+        anchore_print('Backing up anchore system to directory '+str(outputdir)+' ...')
+        backupfile = config.backup(outputdir)
+        anchore_print("Anchore backed up: " + str(backupfile))
+    except Exception as err:
+        anchore_print_err('operation failed')
+        ecode = 1
 
+    sys.exit(ecode)
 
-@system.command(short_help='Restore Anchore data from a tarball')
+@system.command(name='restore', short_help="Restore an anchore installation from a previously backed up tar file.")
 @click.argument('inputfile', type=click.File('rb'))
 @click.argument('destination_root', type=click.Path(), default='/')
-@click.pass_obj
-def restore(anchore_config, inputfile, destination_root):
+def restore(inputfile, destination_root):
     """
-    Restore anchore from a backup to directory root. E.g. "anchore system restore /tmp/anchore_backup.tar.gz /"
-
-    If the image_data_store value has been changed from default ('data') to a path outside of the anchore_data_dir subtree
-    then manual intervention may be required to modify the restored config file or move the image_data_store if relative paths
-    were used that are no longer accessible. The restore process is an untar process so data is placed in the same place
-    relative to the root directory when the tar was created. If the system being restored on is structured differently than
-    the original backup source then manual movement of data or config file values may be necessary to get all artifacts in the
-    correct locations for the system to find.
-
+    Restore an anchore installation from a previously backed up tar file.
     """
 
-    anchore_print('Restoring anchore registry from backup file %s to %s'
-               % (inputfile, destination_root))
+    ecode = 0
     try:
-        anchore.catalog.AnchoreCatalog.restore(destination_root, inputfile)
-    except:
-        anchore_print_err('Restore of catalog from %s failed' % inputfile)
-        exit(1)
+        anchore_print('Restoring anchore system from backup file %s ...' % (str(inputfile.name)))
+        restoredir = config.restore(destination_root, inputfile)
+        anchore_print("Anchore restored.")
+    except Exception as err:
+        anchore_print_err('operation failed')
+        ecode = 1
+
+    sys.exit(ecode)
 

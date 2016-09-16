@@ -84,6 +84,9 @@ class AnchoreImageDB(object):
 
         self.initialized = True
 
+    def check(self):
+        return(self.initialized)
+
     def is_image_present(self, imageId, imagelist=None):
         if not imagelist:
             imagelist = self.get_image_list()

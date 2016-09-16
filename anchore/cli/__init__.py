@@ -10,12 +10,13 @@ import analyzer
 #import explorer
 import query
 import audit
-import subscriptions
+#import subscriptions
 import system
-import synchronizer
+#import synchronizer
 import logs
 import toolbox
 import login
+import feeds
 import anchore.anchore_image_db, anchore.anchore_utils
 
 from anchore.util import contexts
@@ -153,10 +154,9 @@ def main_entry(ctx, verbose, debug, quiet, json, plain, html):
         print "ERROR: " + str(err)
         exit(1)
 
-main_entry.add_command(subscriptions.subscriptions)
+#main_entry.add_command(subscriptions.subscriptions)
 main_entry.add_command(system.system)
-main_entry.add_command(synchronizer.sync)
-#main_entry.add_command(explorer.explore)
+#main_entry.add_command(synchronizer.sync)
 main_entry.add_command(query.query)
 main_entry.add_command(audit.audit)
 main_entry.add_command(analyzer.analyze)
@@ -164,6 +164,7 @@ main_entry.add_command(analyzer.gate)
 main_entry.add_command(toolbox.toolbox)
 main_entry.add_command(login.login)
 main_entry.add_command(login.logout)
+main_entry.add_command(feeds.feeds)
 
 def anchore_pre_flight_check(ctx):
     # helper checks

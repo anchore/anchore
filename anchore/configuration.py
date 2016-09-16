@@ -2,6 +2,9 @@ import yaml
 import os
 import shutil
 import filecmp
+import datetime
+import tarfile
+
 from util.tools import load_and_merge
 from pkg_resources import Requirement, resource_filename
 
@@ -22,6 +25,7 @@ class AnchoreConfiguration (object):
     DEFAULT_ANON_ANCHORE_PASSWORD = 'pbiU2RYZ2XrmYQ'
     DEFAULT_ANCHORE_CLIENT_URL = 'https://ancho.re/v1/account/users'
     DEFAULT_ANCHORE_TOKEN_URL = 'https://ancho.re/oauth/token'
+    DEFAULT_ANCHORE_FEEDS_URL = 'https://ancho.re/v1/service/feeds'
     DEFAULT_ANCHORE_AUTH_CONN_TIMEOUT = 5
     DEFAULT_ANCHORE_AUTH_MAX_RETRIES = 5
     
@@ -32,6 +36,8 @@ class AnchoreConfiguration (object):
 
     DEFAULTS = {
         'anchore_data_dir': DEFAULT_ANCHORE_DATA_DIR,
+        'feeds_dir': 'feeds',
+        'feeds_url': DEFAULT_ANCHORE_FEEDS_URL,
         'image_data_store': 'data',
         'tmpdir': '/tmp',
         'pkg_dir': DEFAULT_PKG_DIR,
@@ -80,6 +86,9 @@ class AnchoreConfiguration (object):
 
             if not os.path.exists(self.data['image_data_store']):
                 os.makedirs(self.data['image_data_store'])
+
+            if not os.path.isabs(self.data['feeds_dir']):
+                self.data['feeds_dir'] = os.path.join(self.data['anchore_data_dir'], self.data['feeds_dir'])
 
             if not os.path.isabs(self.data['user_scripts_dir']):
                 self.data['user_scripts_dir'] = os.path.join(self.data['anchore_data_dir'], self.data['user_scripts_dir'])
@@ -144,3 +153,40 @@ class AnchoreConfiguration (object):
 
         return thedir, thefile
 
+    def backup(self, destdir='/tmp'):
+        dateval = datetime.datetime.now().isoformat('-')
+        backupfile = os.path.join(destdir, 'anchore-backup-{0}.tar.gz'.format(dateval))
+
+        data_dir = self.data['anchore_data_dir']
+        image_dir = self.data['image_data_store']
+
+        #module_logger.info('Backing up anchore to: %s' % backupfile)
+        # Just tar up the whole thing
+        with tarfile.TarFile.open(name=backupfile, mode='w:gz') as tf:
+            tf.add(data_dir)
+            if not data_dir in image_dir:
+                # It's outside the regular data dir tree, so explicitly include
+                tf.add(image_dir)
+            if not data_dir in self.config_dir:
+                tf.add(self.config_dir)
+
+        return backupfile
+
+    def restore(self, dest_root, backup_file):
+        if not os.path.exists(dest_root):
+            raise StandardError('Destination root dir does not exist')
+
+        if isinstance(backup_file, str) and not os.path.exists(backup_file):
+            raise StandardError('Backup file %s not found' % backup_file)
+
+        if isinstance(backup_file, str):
+            #module_logger.info('Restoring anchore from file %s to path: %s' % (backup_file, dest_root))
+            with tarfile.TarFile.open(backup_file, mode='r:gz') as tf:
+                tf.extractall(path=dest_root)
+
+        else:
+            #module_logger.info('Restoring anchore from file %s to path: %s' % (backup_file.name, dest_root))
+            with tarfile.TarFile.open(fileobj=backup_file, mode='r:gz') as tf:
+                tf.extractall(path=dest_root)
+
+        return dest_root

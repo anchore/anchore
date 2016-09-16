@@ -8,7 +8,7 @@ from textwrap import fill
 import click
 
 from anchore.cli.common import anchore_print, anchore_print_err
-from anchore import navigator, anchore_utils, anchore_auth
+from anchore import navigator, anchore_utils, anchore_auth, anchore_feeds
 from anchore.util import contexts, scripting
 
 config = {}
@@ -366,5 +366,9 @@ def show():
         ecode = 1
 
     contexts['anchore_allimages'].clear()
+
+    #data = anchore_auth.anchore_auth_get(contexts['anchore_auth'], "https://ancho.re/v1/service/registries")
+    #print data
+
     sys.exit(ecode)
 
