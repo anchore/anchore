@@ -701,6 +701,41 @@ def get_distro_flavor(distro, version, likedistro=None):
     return(ret)
 
 def cve_load_data(cvedatadir, image, cve_data_context=None):
+    import anchore_feeds
+    cve_data = None
+
+    idistro = image.get_distro()
+    idistrovers = image.get_distro_vers()
+
+    distrodict = get_distro_flavor(idistro, idistrovers)
+
+    distro = distrodict['distro']
+    distrovers = distrodict['version']
+    likedistro = distrodict['likedistro']
+    likeversion = distrodict['likeversion']
+    fulldistro = distrodict['distro']
+    fullversion = distrodict['fullversion']
+    
+    distrolist = [(distro,distrovers), (likedistro, likeversion), (fulldistro, fullversion)]
+    for f in distrolist:
+        dstr = ':'.join([f[0], f[1]])
+        if cve_data_context and dstr in cve_data_context:
+            cve_data = cve_data_context[dstr]
+            break
+        else:
+            feeddata = anchore_feeds.load_anchore_feed('vulnerabilities', ':'.join([f[0], f[1]]))
+            if feeddata['success']:
+                cve_data = feeddata['data']
+                if cve_data_context != None and dstr not in cve_data_context:
+                    cve_data_context[dstr] = cve_data
+                break
+
+    if not cve_data:
+        raise ValueError("cannot find CVE data associated with the input container distro: ("+str(distrolist)+")")
+
+    return (cve_data)
+
+def cve_load_data_orig(cvedatadir, image, cve_data_context=None):
     cve_data = None
 
     idistro = image.get_distro()
@@ -757,26 +792,6 @@ def cve_scanimage(cve_data, image):
 
     flavor = distrodict['flavor']
 
-    #    thelist = []
-    #    if 'package_list' in analysis_report and 'pkgs.all' in analysis_report['package_list']:
-    #        thelist = analysis_report['package_list']['pkgs.all']
-    #for l in thelist:
-    #    l = l.strip()
-    #    l = l.decode('utf8')
-    #    (p, v) = l.split()
-    #    if p not in all_packages:
-    #        all_packages[p] = v
-
-    #thelist = []
-    #if 'package_list' in analysis_report and 'pkgs_plus_source.all' in analysis_report['package_list']:
-    #    thelist = analysis_report['package_list']['pkgs_plus_source.all']
-    #thelist = pkgsplussource
-    #for l in thelist:
-    #    l = l.strip()
-    #    l = l.decode('utf8')
-    #    (p, v) = l.split()
-    #    if p not in all_packages:
-    #        all_packages[p] = v
     for p in pkgsplussource.keys():
         if p not in all_packages:
             all_packages[p] = pkgsplussource[p]
@@ -785,16 +800,16 @@ def cve_scanimage(cve_data, image):
     for v in cve_data:
         outel = {}
         vuln = v['Vulnerability']
-        print "cve-scan: CVE: " + vuln['Name']
+        #print "cve-scan: CVE: " + vuln['Name']
         if 'FixedIn' in vuln:
             for fixes in vuln['FixedIn']:
                 isvuln = False
                 vpkg = fixes['Name']
-                print "cve-scan: Vulnerable Package: " + vpkg
+                #print "cve-scan: Vulnerable Package: " + vpkg
                 if vpkg in all_packages:
                     ivers = all_packages[fixes['Name']]
                     vvers = re.sub(r'^[0-9]*:', '', fixes['Version'])
-                    print "cve-scan: " + vpkg + "\n\tfixed vulnerability package version: " + vvers + "\n\timage package version: " + ivers
+                    #print "cve-scan: " + vpkg + "\n\tfixed vulnerability package version: " + vvers + "\n\timage package version: " + ivers
 
                     if flavor == 'RHEL':
                         if vvers != 'None':
@@ -817,7 +832,7 @@ def cve_scanimage(cve_data, image):
                             isvuln = True
 
                     if isvuln:
-                        print "cve-scan: Found vulnerable package: " + vpkg
+                        #print "cve-scan: Found vulnerable package: " + vpkg
                         severity = url = description = 'Not Available'
                         if 'Severity' in vuln:
                             severity = vuln['Severity']

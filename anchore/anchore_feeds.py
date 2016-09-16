@@ -4,26 +4,33 @@ import requests
 import re
 import json
 import time
+import logging
+
 import anchore.anchore_auth
 from anchore.util import contexts
 
 # network operations
+_logger = logging.getLogger(__name__)
 
 def get_feed_list():
+    ret = {'success':False, 'status_code':1, 'text':""}
+
     feedurl = contexts['anchore_config']['feeds_url']
     baseurl = feedurl
     url = baseurl
     timeout = 5
 
-    ret = list()
+    retlist = list()
 
     done = False
     while not done:
         record = anchore.anchore_auth.anchore_auth_get(contexts['anchore_auth'], url)
+        ret.update(record)
         if record['success']:
             data = json.loads(record['text'])
             if data and 'feeds' in data:
-                ret = ret + data['feeds']
+                retlist = retlist + data['feeds']
+
                 if 'next_token' in data and data['next_token']:
                     url = baseurl + "?next_token="+data['next_token']
                 else:
@@ -32,29 +39,33 @@ def get_feed_list():
                 done=True
         else:
             done=True
-    return(ret)
+
+    return(retlist, ret)
 
 def get_group_list(feed):
+    ret = {'success':False, 'status_code':1, 'text':""}
+
     feedurl = contexts['anchore_config']['feeds_url']
     baseurl = '/'.join([feedurl, feed])
     url = baseurl
     timeout = 5
 
-    ret = list()
+    retlist = list()
 
     done = False
     while not done:
         record = anchore.anchore_auth.anchore_auth_get(contexts['anchore_auth'], url)
+        ret.update(record)
         if record['success']:
             data = json.loads(record['text'])
-            ret = ret + data['groups']
+            retlist = retlist + data['groups']
             if 'next_token' in data and data['next_token']:
                 url = baseurl + "?next_token="+data['next_token']
             else:
                 done=True
         else:
             done=True
-    return(ret)
+    return(retlist, record)
     
 
 def get_group_data(feed, group, since="1970-01-01"):    
@@ -69,20 +80,28 @@ def get_group_data(feed, group, since="1970-01-01"):
     last_token = ""
     done=False
     while not done:
-        print "URL: " + url
+        #print "URL: " + url
         record = anchore.anchore_auth.anchore_auth_get(contexts['anchore_auth'], url, timeout=60)
         if record['success']:
             data = json.loads(record['text'])
-            for d in data['data']:
-                ret = ret + d
+            if 'data' in data:
+                #_logger.info("DATA! " + str(json.dumps(data)))
+                #with open('/tmp/wtf.json', 'w') as OFH:
+                #    OFH.write(json.dumps(data['data']))
+                ret = ret + data['data']
+                #for d in data['data']:
+                #    ret = ret + d
 
-            if 'next_token' in data and data['next_token']:
-                url = baseurl + "&next_token="+data['next_token']
-                print "NEXT: " + url
-                if last_token == data['next_token']:
+                if 'next_token' in data and data['next_token']:
+                    url = baseurl + "&next_token="+data['next_token']
+                    #print "NEXT: " + url
+                    if last_token == data['next_token']:
+                        done=True
+                    last_token = data['next_token']
+                else:
                     done=True
-                last_token = data['next_token']
             else:
+                #print "ERROR: " + str(json.loads(record['text']))
                 done=True
         else:
             done=True
@@ -90,24 +109,31 @@ def get_group_data(feed, group, since="1970-01-01"):
 
 
 def sync_feedmeta():
+    ret = {'success':False, 'text':"", 'status_code':1}
+
     basedir = contexts['anchore_config']['feeds_dir']
     feedurl = contexts['anchore_config']['feeds_url']
     try:
         if not os.path.exists(basedir):
             os.makedirs(basedir)
 
-        feeds = get_feed_list()
+        _logger.info("getting feed list from server ...")
+        feeds, record = get_feed_list()
+        _logger.debug("feed list record: " + str(record))
+
         if feeds:
             with open(os.path.join(basedir, "feeds.json"), 'w') as OFH:
                 OFH.write(json.dumps(feeds))
 
             for feedrecord in feeds:
                 feed = feedrecord['name']
+                _logger.info("getting group list for feed: " + str(feed))
                 feeddir = os.path.join(basedir, feed)
                 if not os.path.exists(feeddir):
                     os.makedirs(feeddir)
 
-                groups = get_group_list(feed)
+                groups, record = get_group_list(feed)
+                _logger.debug("group list record: " + str(record))
                 if groups:
                     with open(os.path.join(feeddir, "groups.json"), 'w') as OFH:
                         OFH.write(json.dumps(groups))
@@ -118,19 +144,25 @@ def sync_feedmeta():
                         if not os.path.exists(groupdir):
                             os.makedirs(groupdir)
                 else:
-                    print "WARN: cannot get list of groups from feed: " + str(feed)
+                    ret['text'] = "WARN: cannot get list of groups from feed: " + str(feed)
+
+            ret['success'] = True
+            ret['status_code'] = 0
         else:
-            print "ERROR: cannot get list of feeds"
-            return(False)
+            ret['text'] = "cannot get list of feeds from service\nMessage from server: " + record['text']
+            return(False, ret)
     except Exception as err:
         import traceback
         traceback.print_exc()
-        print "ERROR: " + str(err)
-        return(False)
+        _logger.debug("exception: " + str(err))
+        ret['text'] = "exception: " + str(err)
+        return(False, ret)
 
-    return(True)
+    return(True, ret)
 
 def sync_feeds():
+    ret = {'success':False, 'text':"", 'status_code':1}
+
     feedmeta = load_anchore_feedmeta()
     
     basedir = contexts['anchore_config']['feeds_dir']
@@ -138,7 +170,7 @@ def sync_feeds():
     try:
         for feed in feedmeta.keys():
             if feedmeta[feed]['subscribed']:
-                print "Subscribed to feed ("+str(feed)+"): syncing..."
+                _logger.info("syncing data for subscribed feed ("+str(feed)+") ...")
                 feeddir = os.path.join(basedir, feed)
                 groups = feedmeta[feed]['groups'].keys()
                 if groups:
@@ -147,6 +179,7 @@ def sync_feeds():
                         if not os.path.exists(groupdir):
                             os.makedirs(groupdir)
 
+                        #sincets = time.time() - 86400
                         sincets = 0
                         group_meta = {}
                         metafile = os.path.join(groupdir, "group_meta.json")
@@ -162,16 +195,15 @@ def sync_feeds():
 
                         since=time.strftime("%Y-%m-%d", time.gmtime(sincets))
                         now = time.strftime("%Y-%m-%d", time.gmtime(updatetime))
-                        print "SINCE: " + since
-                        print "NOW: " + now
-                        print "HERE: " + feed + " : " + group
+                        print since
+                        print now
                         if since != now:
                             datafilename = "data_"+since+"_to_"+now+".json"
                             datafile = os.path.join(groupdir, datafilename)
                             if os.path.exists(datafile):
-                                pass
-                                    #print "data already exists for this timeframe, skipping update"
+                                _logger.info("\tskipping group data: " + str(group) + ": already synced")
                             else:
+                                _logger.info("\tsyncing group data: " + str(group) + ": ...")
                                 data = get_group_data(feed, group, since=since)
                                 if data:
                                     with open(datafile, 'w') as OFH:
@@ -183,13 +215,18 @@ def sync_feeds():
                                         group_meta['datafiles'].append(datafilename)
                                         OFH.write(json.dumps(group_meta))
                         else:
+                            _logger.info("\tskipping group data: " + str(group) + ": already synced")
                             pass
                                 #print "since and now are the same, skipping update"
+        ret['status_code'] = 0
+        ret['success'] = True
     except Exception as err:
-        print "ERROR: " + str(err)
-        return(False)
+        _logger.debug("exception: " + str(err))
 
-    return(True)
+        ret['text'] = "ERROR: " + str(err)
+        return(False, ret)
+
+    return(True, ret)
 
 # on disk data operations
 
@@ -247,6 +284,8 @@ def update_anchore_feedmeta(feedmeta):
         feed = feedrecord['name']
         if feed not in feedmeta:
             feedmeta[feed] = {'subscribed':False, 'description':"NA", 'groups':{}}
+
+        feedmeta[feed]['description'] = feedrecord['description']
 
         groups = load_anchore_feed_groups_list(feed)
         for grouprecord in groups:

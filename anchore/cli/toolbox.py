@@ -344,6 +344,8 @@ def show():
     try:
         image=contexts['anchore_allimages'][imagelist[0]]
 
+        d = anchore_utils.cve_load_data("/tmp", image)
+
         o = collections.OrderedDict()
 
         o['IMAGEID'] = image.meta['imageId']
@@ -366,6 +368,7 @@ def show():
         ecode = 1
 
     contexts['anchore_allimages'].clear()
+
 
     #data = anchore_auth.anchore_auth_get(contexts['anchore_auth'], "https://ancho.re/v1/service/registries")
     #print data

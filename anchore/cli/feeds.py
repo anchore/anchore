@@ -37,19 +37,19 @@ def list():
             else:
                 available[feed] = feedmeta[feed]
 
-        print "Available:"
+        anchore_print("Available:")
         for feed in available.keys():
-            print ""
-            print "  "+feed+" ("+available[feed]['description']+"):"
+            anchore_print("")
+            anchore_print("  "+feed+" ("+available[feed]['description']+"):")
             for group in available[feed]['groups'].keys():
-                print "    - " + str(group)
+                anchore_print("    - " + str(group))
 
-        print ""
-        print "Subscribed:"
+        anchore_print("")
+        anchore_print("Subscribed:")
         for feed in subscribed.keys():
-            print "  "+feed+" ("+subscribed[feed]['description']+"):"
+            anchore_print("  "+feed+" ("+subscribed[feed]['description']+"):")
             for group in subscribed[feed]['groups'].keys():
-                print "    - " + str(group)
+                anchore_print("    - " + str(group))
 
     except Exception as err:
         anchore_print_err('operation failed')
@@ -57,11 +57,11 @@ def list():
 
     sys.exit(ecode)
 
-@feeds.command(name='sub', short_help="Subscribe to specified feed.")
+@feeds.command(name='sub', short_help="Subscribe to specified feed(s).")
 @click.argument('feednames', nargs=-1, metavar='<feedname> <feedname> ...')
 def sub(feednames):
     """
-    Subscribe to the specified feed.
+    Subscribe to the specified feed(s).
     """
 
     ecode = 0
@@ -71,7 +71,7 @@ def sub(feednames):
             if not rc:
                 ecode = 1
             else:
-                print feed + ": subscribed."
+                anchore_print(feed + ": subscribed.")
 
     except Exception as err:
         anchore_print_err('operation failed')
@@ -79,11 +79,11 @@ def sub(feednames):
 
     sys.exit(ecode)
 
-@feeds.command(name='unsub', short_help="Unsubscribe to specified feed.")
+@feeds.command(name='unsub', short_help="Unsubscribe from specified feed(s).")
 @click.argument('feednames', nargs=-1, metavar='<feedname> <feedname> ...')
 def unsub(feednames):
     """
-    Unsubscribe to the specified feed.
+    Unsubscribe from the specified feed(s).
     """
 
     ecode = 0
@@ -93,7 +93,7 @@ def unsub(feednames):
             if not rc:
                 ecode = 1
             else:
-                print feed + ": unsubscribed."
+                anchore_print(feed + ": unsubscribed.")
 
     except Exception as err:
         anchore_print_err('operation failed')
@@ -109,16 +109,17 @@ def sync():
 
     ecode = 0
     try:
-        rc = anchore_feeds.sync_feedmeta()
+        rc, ret = anchore_feeds.sync_feedmeta()
         if not rc:
+            anchore_print_err(ret['text'])
             ecode = 1
         else:
-            rc = anchore_feeds.sync_feeds()
+            rc, ret = anchore_feeds.sync_feeds()
             if not rc:
+                anchore_print_err(ret['text'])
                 ecode = 1
     except Exception as err:
         anchore_print_err('operation failed')
         ecode = 1
 
     sys.exit(ecode)
-

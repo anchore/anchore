@@ -4,6 +4,9 @@ import json
 import requests
 import base64
 import urllib
+import logging
+
+_logger = logging.getLogger(__name__)
 
 def anchore_auth_init(username, password, auth_file, client_info_url, token_url, conn_timeout, max_retries):
     if not username or not password or not auth_file or not client_info_url or not token_url or not conn_timeout or not max_retries:
@@ -64,8 +67,10 @@ def anchore_auth_save(anchore_auth, auth_file):
     return(True)
 
 def anchore_auth_refresh(anchore_auth, forcerefresh=False):
+    ret = {'success':False, 'text':"", 'status_code':0}
     if not anchore_auth:
-        return(False)
+        ret['text'] = json.dumps("no anchore_auth token given as input")
+        return(False, ret)
 
     new_anchore_auth = {}
     new_anchore_auth.update(anchore_auth)
@@ -89,19 +94,22 @@ def anchore_auth_refresh(anchore_auth, forcerefresh=False):
             r = requests.get(url, headers=headers, timeout=conn_timeout)
         except:
             #print "request timed out"
-            return(False)
+            ret['text'] = json.dumps("connection timed out: increase anchore_auth_conn_timeout higher or try again")
+            return(False, ret)
+
+        ret['text'] = r.text
+        ret['status_code'] = r.status_code
 
         if r.status_code == 200:
             new_anchore_auth['client_info'] = json.loads(r.text)['clients'][0]
             client_info = new_anchore_auth['client_info']
+            ret['success'] = True
         elif r.status_code == 401:
             #print "bad username/password!"
-            return(False)
+            return(False, ret)
         else:
             #print "unknown login error: "
-            #print r.text
-            return(False)
-
+            return(False, ret)
     else:
         pass
         #print "skipping client_info get"
@@ -120,14 +128,17 @@ def anchore_auth_refresh(anchore_auth, forcerefresh=False):
             r = requests.post(token_url, headers=headers, data=payload)
         except:
             #print "request timed out"
-            return(False)
+            ret['text'] = json.dumps("connection timed out: increase anchore_auth_conn_timeout higher or try again")
+            return(False, ret)
 
+        ret['text'] = r.text
+        ret['status_code'] = r.status_code
         if r.status_code == 200:
             new_anchore_auth['token_info'] = json.loads(r.text)
+            ret['success'] = True
         else:
             #print "unknown token get error: "
-            #print r.text
-            return(False)
+            return(False, ret)
 
     elif forcerefresh:
         #print "refreshening"
@@ -141,13 +152,17 @@ def anchore_auth_refresh(anchore_auth, forcerefresh=False):
             r = requests.post(token_url, headers=headers, data=payload)
         except:
             #print "request timed out"
-            return(False)
+            ret['text'] = json.dumps("connection timed out: increase anchore_auth_conn_timeout higher or try again")
+            return(False, ret)
 
+        ret['text'] = r.text
+        ret['status_code'] = r.status_code
         if r.status_code == 200:
             new_anchore_auth['token_info'] = json.loads(r.text)
+            ret['success'] = True
         else:
             #print "refresh token invalid"
-            return(False)
+            return(False, ret)
 
     else:
         pass
@@ -160,11 +175,11 @@ def anchore_auth_refresh(anchore_auth, forcerefresh=False):
         pass
         #print "skipping save"
 
-    return(True)
+    return(True, ret)
 
 def anchore_auth_get(anchore_auth, url, timeout=None):
     # make a request
-    print "GET URL: " + url
+    #print "GET URL: " + url
     if not timeout:
         timeout = anchore_auth['conn_timeout']
 
@@ -175,21 +190,26 @@ def anchore_auth_get(anchore_auth, url, timeout=None):
         max_retries = anchore_auth['max_retries']
         while(not success and count < max_retries):
             count += 1
-            if not anchore_auth_refresh(anchore_auth, forcerefresh=False):
+            rc, record = anchore_auth_refresh(anchore_auth, forcerefresh=False)
+            if not rc:
                 #print "cannot get valid auth token"
-                ret['text'] = "auth_failure"
+                ret['text'] = record['text']
                 return(ret)
             else:
                 token_info = anchore_auth['token_info']
                 accessToken = token_info['accessToken']
                 headers = {"Authorization":"Bearer " + accessToken, "Cache-Control":"no-cache"}
 
+                _logger.debug("making authenticated request to url: " + str(url))
                 r = requests.get(url, headers=headers, timeout=timeout)
+                _logger.debug("\tresponse status_code: " + str(r.status_code))
                 if r.status_code == 401:
+                    _logger.debug("\tresponse body: " + str(r.text))
                     resp = json.loads(r.text)
                     if resp['name'] == 'invalid_token':
                         #print "bad tok - attempting to refresh"
-                        if not anchore_auth_refresh(anchore_auth, forcerefresh=True):
+                        rc, record = anchore_auth_refresh(anchore_auth, forcerefresh=True)
+                        if not rc:
                             # start over and retry
                             #print "refresh token failed, invalidating tok and starting over"
                             anchore_auth_invalidate(anchore_auth)

@@ -24,11 +24,13 @@ def login(anchore_config):
         aa = contexts['anchore_auth']
 
         new_anchore_auth = anchore_auth.anchore_auth_init(username, password, aa['auth_file'], aa['client_info_url'], aa['token_url'], aa['conn_timeout'], aa['max_retries'])
-        if not anchore_auth.anchore_auth_refresh(new_anchore_auth):
-            print "Failed to log in: check your username/password and try again!"
+        rc, ret = anchore_auth.anchore_auth_refresh(new_anchore_auth)
+        if not rc:
+            anchore_print("Failed to log in: check your username/password and try again!")
+            anchore_print("Message from server: " + ret['text'])
         else:
             contexts['anchore_auth'].update(new_anchore_auth)
-            print "Login successful."
+            anchore_print("Login successful.")
 
     except Exception as err:
         anchore_print_err('operation failed')
