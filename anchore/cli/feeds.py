@@ -20,39 +20,40 @@ def feeds(anchore_config):
 
 
 @feeds.command(name='list', short_help="List all feeds.")
-#@click.option('--dontask', help='Will delete the image from Anchore DB without asking for coinfirmation', is_flag=True)
-def list():
+@click.option('--showgroups', help='Along with the feed, show all groups within the feed.', is_flag=True)
+def list(showgroups):
     """
     Show list of Anchore data feeds.
     """
-
     ecode = 0
     try:
         rc, msg = anchore_feeds.check()
         if rc:
-
+            result = {}
             subscribed = {}
             available = {}
             feedmeta = anchore_feeds.load_anchore_feedmeta()
             for feed in feedmeta.keys():
                 if feedmeta[feed]['subscribed']:
-                    subscribed[feed] = feedmeta[feed]
+                    subscribed[feed] = {}
+                    subscribed[feed]['description'] = feedmeta[feed]['description']
+                    if showgroups:
+                        subscribed[feed]['groups'] = feedmeta[feed]['groups'].keys()
+
                 else:
-                    available[feed] = feedmeta[feed]
+                    available[feed] = {}
+                    available[feed]['description'] = feedmeta[feed]['description']
+                    if showgroups:
+                        available[feed]['groups'] = feedmeta[feed]['groups'].keys()
 
-            anchore_print("Available:")
-            for feed in available.keys():
-                anchore_print("")
-                anchore_print("  "+feed+" ("+available[feed]['description']+"):")
-                for group in available[feed]['groups'].keys():
-                    anchore_print("    - " + str(group))
+            
+            if available:
+                result['Available'] = available
+            if subscribed:
+                result['Subscribed'] = subscribed
 
-            anchore_print("")
-            anchore_print("Subscribed:")
-            for feed in subscribed.keys():
-                anchore_print("  "+feed+" ("+subscribed[feed]['description']+"):")
-                for group in subscribed[feed]['groups'].keys():
-                    anchore_print("    - " + str(group))
+            anchore_print(result, do_formatting=True)
+
         else:
             anchore_print_err(msg)
             ecode = 1

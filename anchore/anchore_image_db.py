@@ -94,6 +94,12 @@ class AnchoreImageDB(object):
             return(False)
         return(True)
 
+    def is_image_analyzed(self, imageId):
+        amanifest = self.load_analyzer_manifest(imageId)
+        if not amanifest:
+            return(False)
+        return(True)
+
     def get_image_list(self):
         ret = {}
         for d in os.listdir(self.imagerootdir):

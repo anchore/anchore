@@ -34,16 +34,16 @@ def status(conf):
             else:
                 anchore_print(yaml.safe_dump(config.data, indent=True, default_flow_style=False))
         else:
+            result = {}
             if contexts['anchore_db'].check():
-                print "anchore_db: OK"
+                result["anchore_db"] = "OK"
             else:
-                print "anchore_db: NOTINITIALIZED"
+                result["anchore_db"] = "NOTINITIALIZED"
 
-            feedmeta = anchore_feeds.load_anchore_feedmeta()
-            if feedmeta:
-                print "anchore_feeds: OK"
+            if anchore_feeds.check():
+                result["anchore_feeds"] = "OK"
             else:
-                print "anchore_feeds: NOTSYNCED"
+                result["anchore_feeds"] = "NOTSYNCED"
 
             afailed = False
             latest = 0
@@ -61,17 +61,16 @@ def status(conf):
                         pass
 
             if latest == 0:
-                print "analyzer_status: NODATA"
+                result["analyzer_status"] = "NODATA"
             elif afailed:
-                print "analyzer_status: FAIL"
-                print "\timageId: " + analyzer_failed_imageId
-                print "analyzer_latest_run: " + time.ctime(latest)
+                result["analyzer_status"] = "FAIL ("+analyzer_failed_imageId+")"
+                result["analyzer_latest_run"] = time.ctime(latest)
             else:
-                print "analyzer_status: OK"
-                print "analyzer_latest_run: " + time.ctime(latest)
-
-
+                result["analyzer_status"] = "OK"
+                result["analyzer_latest_run"] = time.ctime(latest)
    
+            anchore_print(result, do_formatting=True)
+
     except Exception as err:
         anchore_print_err('operation failed')
         ecode = 1
@@ -89,7 +88,7 @@ def backup(outputdir):
     try:
         anchore_print('Backing up anchore system to directory '+str(outputdir)+' ...')
         backupfile = config.backup(outputdir)
-        anchore_print("Anchore backed up: " + str(backupfile))
+        anchore_print({"anchore_backup_tarball":str(backupfile)}, do_formatting=True)
     except Exception as err:
         anchore_print_err('operation failed')
         ecode = 1

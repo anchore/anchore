@@ -862,6 +862,9 @@ def image_context_add(imagelist, allimages, docker_cli=None, dockerfile=None, an
     for i in imagelist:
         if i in allimages:
             retlist.append(i)
+        elif must_be_analyzed and not anchore_db.is_image_analyzed(i):
+            errorstr = "Image(s) must be analyzed before operation can be performed.\n\tImage: " + str(i)
+            raise Exception(errorstr)
         else:
             try:
                 newimage = anchore_image.AnchoreImage(i, anchore_datadir, docker_cli=docker_cli, allimages=allimages, dockerfile=dockerfile, tmpdirroot=tmproot, usertype=usertype, anchore_db=anchore_db)
