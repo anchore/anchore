@@ -37,6 +37,8 @@ class Controller(object):
 
         self.anchoreDB = contexts['anchore_db']
 
+        self.default_gatepol = '/'.join([self.config.config_dir, "anchore_gate.policy"])
+
         self.policy_override = None
 
     def read_policyfile(self, policyfile):
@@ -99,10 +101,9 @@ class Controller(object):
         # checks are in default), and save (if there is a diff after
         # the merge)
 
-        default_gatepol = '/'.join([self.config.config_dir, "anchore_gate.policy"])
         image_gatepol = image.anchore_imagedir + "/anchore_gate.policy"
 
-        default_policies = self.read_policyfile(default_gatepol)
+        default_policies = self.read_policyfile(self.default_gatepol)
         image_policies = False
 
         if os.path.exists(image_gatepol):
@@ -390,6 +391,41 @@ class Controller(object):
 
     def editwhitelist(self):
         return(self.edit_policy_file(whitelist=True))
+
+    def listpolicy(self):
+        ret = {}
+        for imageId in self.images:
+            if imageId in self.allimages:
+                image = self.allimages[imageId]
+                image_pol = self.get_image_policies(image)
+                ret[imageId] = image_pol
+        return(ret)
+
+    def rmpolicy(self):
+        for imageId in self.images:
+            if imageId in self.allimages:
+                image = self.allimages[imageId]
+                image_gatepol = image.anchore_imagedir + "/anchore_gate.policy"
+                if os.path.exists(image_gatepol):
+                    try:
+                        os.remove(image_gatepol)
+                    except Exception as err:
+                        self._logger.error("failed to remove policy for image ("+imageId+").  bailing out: " + str(err))
+                        return(False)
+        return(True)
+
+    def updatepolicy(self, newpolicyfile):
+        newpol = self.read_policyfile(newpolicyfile)
+        for imageId in self.images:
+            if imageId in self.allimages:
+                try:
+                    image = self.allimages[imageId]
+                    image_gatepol = image.anchore_imagedir + "/anchore_gate.policy"
+                    self.save_policyfile(newpol, image_gatepol)
+                except Exception as err:
+                    self._logger.error("failed to update policy for image ("+imageId+"). bailing out: " + str(err))
+                    return(False)
+        return(True)
 
     def edit_policy_file(self, editpolicy=False, whitelist=False):
         ret = True

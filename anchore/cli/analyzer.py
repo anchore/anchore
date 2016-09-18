@@ -58,11 +58,14 @@ Edit the gate policy for 'nginx:latest':
 @click.option('--imagefile', help='Process image IDs listed in specified file. Cannot be combined with --image', type=click.Path(exists=True), metavar='<file>')
 @click.option('--include-allanchore', help='Include all images known by anchore', is_flag=True)
 @click.option('--editpolicy', is_flag=True, help='Edit the gate policies for specified image(s).')
+@click.option('--rmpolicy', is_flag=True, help='Delete the policies for specified image(s), revert to default policy.')
+@click.option('--listpolicy', is_flag=True, help='List the current gate policy for specified image(s).')
+@click.option('--updatepolicy', help='Store the input gate policy file as the policy for specified image(s).', type=click.Path(exists=True), metavar='<file>')
 @click.option('--policy', help='Use the specified policy file instead of the default.', type=click.Path(exists=True), metavar='<file>')
 @click.option('--whitelist', is_flag=True, help='Edit evaluated gate triggers and optionally whitelist them.')
 @click.pass_obj
 @extended_help_option(extended_help=gate_extended_help)
-def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy, policy, whitelist):
+def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy, rmpolicy, listpolicy, updatepolicy, policy, whitelist):
     """
     Runs gate checks on the specified image(s) or edits the image's gate policy.
     The --editpolicy option is only valid for a single image.
@@ -78,8 +81,8 @@ def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy
     if image and imagefile:
         raise click.BadOptionUsage('Can only use one of --image, --imagefile')
 
-    if policy and (editpolicy or whitelist):
-        raise click.BadOptionUsage('Cannot use --editpolicy or --whitelist when --policy <file> is specified')
+    if policy and (editpolicy or whitelist or listpolicy or updatepolicy or rmpolicy):
+        raise click.BadOptionUsage('Cannot use other policy options when --policy <file> is specified.')
 
     try:
         imagedict = build_image_list(anchore_config, image, imagefile, not (image or imagefile), include_allanchore)
@@ -108,6 +111,38 @@ def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy
         elif whitelist:
             if not con.editwhitelist():
                 ecode = 1
+        elif rmpolicy:
+            if not con.rmpolicy():
+                ecode = 1;
+            else:
+                anchore_print("policies successfully removed.", do_formatting=True)
+        elif updatepolicy:
+            if not con.updatepolicy(updatepolicy):
+                ecode = 1;
+            else:
+                anchore_print("policies successfully updated.", do_formatting=True)
+        elif listpolicy:
+            result = con.listpolicy()
+            record = {}
+            if not result:
+                ecode = 1
+            else:
+                try:
+                    for imageId in result.keys():
+                        record[imageId] = list()
+                        pol = result[imageId]
+                        for gate in pol.keys():
+                            for trigger in pol[gate].keys():
+                                if str(pol[gate][trigger]['params']):
+                                    outstr = ":".join([gate, trigger, str(pol[gate][trigger]['action']), str(pol[gate][trigger]['params'])])
+                                else:
+                                    outstr = ":".join([gate, trigger, str(pol[gate][trigger]['action'])])
+                                record[imageId].append(outstr)
+                    if record:
+                        anchore_print(record, do_formatting=True)
+                except Exception as err:
+                    anchore_print_err("failed to list policies: " + str(err))
+                    ecode = 1
         else:
             try:
                 # run the gates
@@ -117,8 +152,7 @@ def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy
                     success = True
                     ecode = con.result_get_highest_action(result)
             except Exception as err:
-                print str(err)
-                anchore_print_err("failed to run gates")
+                anchore_print_err("failed to run gates: " + str(err))
                 ecode = 1
 
     contexts['anchore_allimages'].clear()
