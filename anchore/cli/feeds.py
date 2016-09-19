@@ -16,8 +16,27 @@ config = {}
 def feeds(anchore_config):
     global config
     config = anchore_config
-    pass
 
+    ecode = 0
+    emsg = ""
+    success = True
+
+    try:
+        rc, msg = anchore_feeds.check()
+        if not rc:
+            anchore_print("initializing feed metadata: ...")
+            rc, ret = anchore_feeds.sync_feedmeta()
+            if not rc:
+                emsg = "could not sync feed metadata from service: " + ret['text']
+                success = False
+
+    except Exception as err:
+        anchore_print_err('operation failed')
+        sys.exit(1)
+
+    if not success:
+        anchore_print_err(emsg)
+        sys.exit(1)
 
 @feeds.command(name='list', short_help="List all feeds.")
 @click.option('--showgroups', help='Along with the feed, show all groups within the feed.', is_flag=True)
@@ -27,46 +46,30 @@ def list(showgroups):
     """
     ecode = 0
     try:
-        rc, msg = anchore_feeds.check()
-        if not rc:
-            anchore_print("initializing feed metadata: ...")
-            rc, ret = anchore_feeds.sync_feedmeta()
-            if not rc:
-                anchore_print_err(ret['text'])
-                rc = False
-                msg = "could not sync feed metadata from service: " + ret['text']
+        result = {}
+        subscribed = {}
+        available = {}
+        feedmeta = anchore_feeds.load_anchore_feedmeta()
+        for feed in feedmeta.keys():
+            if feedmeta[feed]['subscribed']:
+                subscribed[feed] = {}
+                subscribed[feed]['description'] = feedmeta[feed]['description']
+                if showgroups:
+                    subscribed[feed]['groups'] = feedmeta[feed]['groups'].keys()
+
             else:
-                rc = True
+                available[feed] = {}
+                available[feed]['description'] = feedmeta[feed]['description']
+                if showgroups:
+                    available[feed]['groups'] = feedmeta[feed]['groups'].keys()
 
-        if rc:
-            result = {}
-            subscribed = {}
-            available = {}
-            feedmeta = anchore_feeds.load_anchore_feedmeta()
-            for feed in feedmeta.keys():
-                if feedmeta[feed]['subscribed']:
-                    subscribed[feed] = {}
-                    subscribed[feed]['description'] = feedmeta[feed]['description']
-                    if showgroups:
-                        subscribed[feed]['groups'] = feedmeta[feed]['groups'].keys()
+        if available:
+            result['Available'] = available
+        if subscribed:
+            result['Subscribed'] = subscribed
 
-                else:
-                    available[feed] = {}
-                    available[feed]['description'] = feedmeta[feed]['description']
-                    if showgroups:
-                        available[feed]['groups'] = feedmeta[feed]['groups'].keys()
+        anchore_print(result, do_formatting=True)
 
-            
-            if available:
-                result['Available'] = available
-            if subscribed:
-                result['Subscribed'] = subscribed
-
-            anchore_print(result, do_formatting=True)
-
-        else:
-            anchore_print_err(msg)
-            ecode = 1
     except Exception as err:
         anchore_print_err('operation failed')
         ecode = 1
