@@ -10,7 +10,7 @@ import anchore.anchore_utils
 # main routine
 
 try:
-    config = anchore.anchore_utils.init_query_cmdline(sys.argv, "params: <thing> <thing> ...\nhelp: helpstring sentence")
+    config = anchore.anchore_utils.init_query_cmdline(sys.argv, "params: all | <file> <file> ...\nhelp: produce a list of all files that have been successfully retrieved and stored during analysis of this image.  Files listed here can be used as input to the get-retrieved-files query.")
 except Exception as err:
     print str(err)
     sys.exit(1)
@@ -19,7 +19,7 @@ if not config:
     sys.exit(0)
 
 if len(config['params']) <= 0:
-    print "Query requires input: <packageA> <packageB> ..."
+    print "Query requires input: all | <fileA> <fileB> ..."
 
 warns = list()
 outlist = list()
