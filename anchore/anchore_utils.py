@@ -76,13 +76,15 @@ def init_analyzer_cmdline(argv, name):
 
     return(ret)
 
-def init_gate_cmdline(argv, paramhelp):
-    ret = init_query_cmdline(argv, paramhelp)
-    if ret['params'] and ret['params'][0] == 'anchore_getname':
-        FH=open('/'.join([ret['dirs']['outputdir'], paramhelp]), 'w')
-        FH.write("\n")
-        FH.close()
-        sys.exit(0)
+def init_gate_cmdline(argv, gate_name, gate_help={}):
+    ret = init_query_cmdline(argv, gate_name)
+    if ret['params'] and ret['params'][0] == 'anchore_get_help':
+        if gate_help:
+            save_gate_help_output(gate_name, gate_help)
+        ret['params'] = list()
+    elif ret['params'] and ret['params'][0] == 'anchore_run_gate':
+        ret['params'].remove('anchore_run_gate')
+
     return(ret)
 
 def init_query_cmdline(argv, paramhelp):
@@ -178,6 +180,9 @@ def anchore_common_context_setup(config):
 
 def save_gate_output(imageId, gate_name, data):
     return(contexts['anchore_db'].save_gate_output(imageId, gate_name, data))
+
+def save_gate_help_output(gate_name, triggers):
+    return(contexts['anchore_db'].save_gate_help_output(gate_name, triggers))
 
 def load_analysis_output(imageId, module_name, module_value):
     ret = {}

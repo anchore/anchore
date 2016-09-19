@@ -78,6 +78,7 @@ def get_group_data(feed, group, since="1970-01-01"):
 
     ret = list()
     last_token = ""
+    success = True
     done=False
     while not done:
         _logger.debug("data group url: " + str(url))
@@ -85,13 +86,8 @@ def get_group_data(feed, group, since="1970-01-01"):
         if record['success']:
             data = json.loads(record['text'])
             if 'data' in data:
-                #_logger.info("DATA! " + str(json.dumps(data)))
-                #with open('/tmp/wtf.json', 'w') as OFH:
-                #    OFH.write(json.dumps(data['data']))
+                #print "MEH: " + str(data['data'])
                 ret = ret + data['data']
-                #for d in data['data']:
-                #    ret = ret + d
-
                 if 'next_token' in data and data['next_token']:
                     url = baseurl + "&next_token="+data['next_token']
                     if last_token == data['next_token']:
@@ -100,11 +96,12 @@ def get_group_data(feed, group, since="1970-01-01"):
                 else:
                     done=True
             else:
-                #print "ERROR: " + str(json.loads(record['text']))
+                success = False
                 done=True
         else:
+            success = False
             done=True
-    return(ret)
+    return(success, ret)
 
 
 def sync_feedmeta():
@@ -159,7 +156,7 @@ def sync_feedmeta():
 
     return(True, ret)
 
-def sync_feeds():
+def sync_feeds(force_since=None):
     ret = {'success':False, 'text':"", 'status_code':1}
 
     feedmeta = load_anchore_feedmeta()
@@ -178,14 +175,28 @@ def sync_feeds():
                         if not os.path.exists(groupdir):
                             os.makedirs(groupdir)
 
-                        #sincets = time.time() - 86400
                         sincets = 0
                         group_meta = {}
                         metafile = os.path.join(groupdir, "group_meta.json")
                         if os.path.exists(metafile):
+                            # pull out the latest update timestamp
                             with open(metafile, 'r') as FH:
                                 group_meta.update(json.loads(FH.read()))
                                 sincets = group_meta['last_update']
+
+                            # ensure that all datafiles exist
+                            doupdate = False
+                            for datafile in group_meta['datafiles']:
+                                thefile = os.path.join(groupdir, datafile)
+                                if not os.path.exists(thefile):
+                                    group_meta['datafiles'].remove(datafile)
+                                    doupdate = True
+                            if doupdate:
+                                with open(metafile, 'w') as OFH:
+                                    OFH.write(json.dumps(group_meta))
+
+                        if force_since:
+                            sincets = float(force_since)
 
                         if 'files' not in group_meta:
                             group_meta['datafiles'] = list()
@@ -194,29 +205,43 @@ def sync_feeds():
 
                         since=time.strftime("%Y-%m-%d", time.gmtime(sincets))
                         now = time.strftime("%Y-%m-%d", time.gmtime(updatetime))
-                        #print since
-                        #print now
-                        if since != now:
-                            datafilename = "data_"+since+"_to_"+now+".json"
-                            datafile = os.path.join(groupdir, datafilename)
-                            if os.path.exists(datafile):
-                                _logger.info("\tskipping group data: " + str(group) + ": already synced")
-                            else:
-                                _logger.info("\tsyncing group data: " + str(group) + ": ...")
-                                data = get_group_data(feed, group, since=since)
-                                if data:
-                                    with open(datafile, 'w') as OFH:
-                                        OFH.write(json.dumps(data))
 
-                                    with open(metafile, 'w') as OFH:
-                                        group_meta['prev_update'] = sincets
-                                        group_meta['last_update'] = updatetime
-                                        group_meta['datafiles'].append(datafilename)
-                                        OFH.write(json.dumps(group_meta))
-                        else:
+                        datafilename = "data_"+since+"_to_"+now+".json"
+                        datafile = os.path.join(groupdir, datafilename)
+                        if os.path.exists(datafile):
                             _logger.info("\tskipping group data: " + str(group) + ": already synced")
-                            pass
-                                #print "since and now are the same, skipping update"
+                        else:
+                            _logger.info("\tsyncing group data: " + str(group) + ": ...")
+                            success, data = get_group_data(feed, group, since=since)
+                            if success:
+
+                                newdata = list()
+
+                                # TODO this is temporary
+                                #if data:
+                                #    _logger.info("\t\tmerging old and new data: ...")
+                                #    oldfeed = load_anchore_feed(feed, group)
+                                #    olddata = oldfeed['data']
+                                #    for f in data:
+                                #        if f not in olddata:
+                                #            newdata.append(f)
+
+                                # should be effectively this
+                                newdata = data
+
+                                with open(datafile, 'w') as OFH:
+                                    OFH.write(json.dumps(newdata))
+
+                                with open(metafile, 'w') as OFH:
+                                    group_meta['prev_update'] = sincets
+                                    group_meta['last_update'] = updatetime
+                                    for d in os.listdir(groupdir):
+                                        if d not in group_meta['datafiles'] and re.match("^data_.*\.json", d):
+                                            group_meta['datafiles'].append(d)
+                                    if datafilename not in group_meta['datafiles']:
+                                        group_meta['datafiles'].append(datafilename)
+                                    OFH.write(json.dumps(group_meta))
+
         ret['status_code'] = 0
         ret['success'] = True
     except Exception as err:
@@ -268,8 +293,11 @@ def load_anchore_feed_group_datameta(feed, group):
     
     fname = os.path.join(groupdir, "group_meta.json")
     if os.path.exists(fname):
-        with open(fname, 'r') as FH:
-            ret = json.loads(FH.read())
+        try:
+            with open(fname, 'r') as FH:
+                ret = json.loads(FH.read())
+        except:
+            ret = {}
     return(ret)
 
 def load_anchore_feedmeta():
@@ -335,7 +363,7 @@ def load_anchore_feed(feed, group):
     basedir = contexts['anchore_config']['feeds_dir']
     ret = {'success':False, 'msg':"", 'data':list()}
     datameta = {}
-
+    doupdate = False
     feedmeta = load_anchore_feedmeta()
     if not feedmeta:
         ret['msg'] = "feed data does not exist: please sync feed data"

@@ -8,7 +8,7 @@ from textwrap import fill
 import click
 
 from anchore.cli.common import anchore_print, anchore_print_err
-from anchore import navigator, anchore_utils, anchore_auth, anchore_feeds
+from anchore import navigator, controller, anchore_utils, anchore_auth, anchore_feeds
 from anchore.util import contexts, scripting
 
 config = {}
@@ -42,6 +42,9 @@ def toolbox(anchore_config, image):
 
     try:
         nav = navigator.Navigator(anchore_config=config, imagelist=imagelist, allimages=contexts['anchore_allimages'])
+        con = controller.Controller(anchore_config=anchore_config, imagelist=imagelist, allimages=contexts['anchore_allimages'])
+        con.discover_gates()
+
     except Exception as err:
         anchore_print_err('operation failed')
         nav = None

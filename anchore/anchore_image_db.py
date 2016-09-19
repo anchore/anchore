@@ -364,6 +364,26 @@ class AnchoreImageDB(object):
         thefile = os.path.join(thedir, gate_name)
         return(anchore_utils.write_plainfile_fromlist(thefile, data))
 
+    def save_gate_help_output(self, gate_name, triggers):
+        rc = False
+        thedir = os.path.join(self.imagerootdir)
+        if not os.path.exists(thedir):
+            os.makedirs(thedir)
+        thefile = os.path.join(thedir, "gates_info.json")
+        print "HERE: " + thedir + " : " + thefile
+        try:
+            gates_info = {}
+            if os.path.exists(thefile):
+                with open(thefile, 'r') as FH:
+                    gates_info = json.loads(FH.read())
+            if gate_name not in gates_info:
+                gates_info[gate_name] = {}
+            gates_info[gate_name].update(triggers)
+            rc = anchore_utils.update_file_jsonstr(json.dumps(gates_info), thefile)
+        except Exception as err:
+            print "MEH: " + str(err)
+        return(rc)
+
     def load_gates_eval_report(self, imageId):
         thefile = self.imagerootdir + "/" + imageId + "/reports/gates_eval_report.json"
         if not os.path.exists(thefile):

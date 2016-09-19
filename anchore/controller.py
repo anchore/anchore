@@ -218,34 +218,25 @@ class Controller(object):
 
     def discover_gates(self):
         ret = {}
+        
+        gatesdir = '/'.join([self.config["scripts_dir"], "gates"])
+        outputdir = anchore_utils.make_anchoretmpdir(self.config['tmpdir'])
+        tmpdir = anchore_utils.make_anchoretmpdir(self.config['tmpdir'])
+        imgfile = '/'.join([tmpdir, 'images'])
+        imageId = self.images[0]
+        anchore_utils.write_plainfile_fromstr(imgfile, imageId)
 
-        dirmap = {
-            '/'.join([self.config["scripts_dir"], "gates"]):'base',
-            '/'.join([self.config['user_scripts_dir'], 'gates']):'user'
-        }
-
+        path_overrides = ['/'.join([self.config['user_scripts_dir'], 'gates'])]
         if self.config['extra_scripts_dir']:
-            dirmap['/'.join([self.config['extra_scripts_dir'], 'gates'])] = 'xtra'
-         
-        for gdir in dirmap.keys():
-            gtype = dirmap[gdir]
-            gatesdir = gdir
-            for f in os.listdir(gatesdir):
-                thegate = '/'.join([gatesdir, f])
-                if os.access(thegate, os.R_OK ^ os.X_OK): 
-                    tmpdir = anchore_utils.make_anchoretmpdir(self.config['tmpdir'])
-                    namedir = '/'.join([tmpdir, 'namedir'])
-                    os.makedirs(namedir)
-                    imgfile = '/'.join([tmpdir, 'images'])
-                    anchore_utils.write_plainfile_fromlist(imgfile, self.images)
-                    cmdobj = scripting.ScriptExecutor(path=gatesdir, script_name=f)
-                    out = cmdobj.execute(capture_output=True, cmdline=' '.join([imgfile,self.config['image_data_store'], namedir, 'anchore_getname']))
-                    for ff in os.listdir(namedir):
-                        if gtype not in ret:
-                            ret[gtype] = {}
-                        ret[gtype][f] = ff
+            path_overrides = path_overrides + ['/'.join([self.config['extra_scripts_dir'], 'gates'])]
 
-                    shutil.rmtree(tmpdir)
+        results = scripting.ScriptSetExecutor(path=gatesdir, path_overrides=path_overrides).execute(capture_output=True, fail_fast=True, cmdline=' '.join([imgfile, self.config['image_data_store'], outputdir, 'anchore_get_help']))
+
+        # walk through outputdir looking for dropped help output
+
+        shutil.rmtree(tmpdir)
+        shutil.rmtree(outputdir)
+
         return(ret)
 
     def execute_gates(self, image, refresh=True):
@@ -326,18 +317,14 @@ class Controller(object):
 
         analysisdir = image.anchore_imagedir + "/gates_output/"
         for d in os.listdir(analysisdir):
-            if re.match(".*\.eval$", d):
+            if re.match(".*\.eval$", d) or re.match(".*\.help$", d):
                 continue
 
             if d not in report:
                 report[d] = list()
 
             report[d] = anchore_utils.read_plainfile_tolist('/'.join([analysisdir, d]))
-            #FH = open(analysisdir + "/" + d, 'r')
-            #for l in FH.readlines():
-            #    l = l.strip()
-            #    report[d].append(l)
-            #FH.close()
+
         return(report)
 
     def result_get_highest_action(self, results):

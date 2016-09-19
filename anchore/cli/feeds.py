@@ -28,6 +28,16 @@ def list(showgroups):
     ecode = 0
     try:
         rc, msg = anchore_feeds.check()
+        if not rc:
+            anchore_print("initializing feed metadata: ...")
+            rc, ret = anchore_feeds.sync_feedmeta()
+            if not rc:
+                anchore_print_err(ret['text'])
+                rc = False
+                msg = "could not sync feed metadata from service: " + ret['text']
+            else:
+                rc = True
+
         if rc:
             result = {}
             subscribed = {}
@@ -108,7 +118,8 @@ def unsub(feednames):
     sys.exit(ecode)
 
 @feeds.command(name='sync', short_help="Sync (download) latest data for all subscribed feeds from the Anchore service.")
-def sync():
+@click.option('--since', help='Force a feed sync from the given timestamp to today.', metavar='<unix timestamp>')
+def sync(since):
     """
     Sync (download) latest data for all subscribed feeds from the Anchore service.
     """
@@ -120,7 +131,7 @@ def sync():
             anchore_print_err(ret['text'])
             ecode = 1
         else:
-            rc, ret = anchore_feeds.sync_feeds()
+            rc, ret = anchore_feeds.sync_feeds(force_since=since)
             if not rc:
                 anchore_print_err(ret['text'])
                 ecode = 1

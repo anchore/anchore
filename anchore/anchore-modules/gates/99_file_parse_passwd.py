@@ -34,9 +34,41 @@ def get_retrieved_file(imgid, srcfile, dstdir):
     return(ret)
 
 gate_name = "FILEPARSE_PASSWD"
+triggers = {
+    'FILENOTSTORED':
+    {
+        'description':'triggers if the /etc/passwd file is not present/stored in the evaluated image',
+        'params':'none'
+    },
+    'USERNAMEMATCH':
+    {
+        'description':'triggers if specified username is found in the /etc/passwd file',
+        'params':'USERNAMEBLACKLIST'
+    },
+    'USERIDMATCH':
+    {
+        'description':'triggers if specified user id is found in the /etc/passwd file',
+        'params':'USERIDBLACKLIST'
+    },
+    'GROUPIDMATCH':
+    {
+        'description':'triggers if specified group id is found in the /etc/passwd file',
+        'params':'GROUPIDBLACKLIST'
+    },
+    'SHELLMATCH':
+    {
+        'description':'triggers if specified login shell for any user is found in the /etc/passwd file',
+        'params':'SHELLBLACKLIST'
+    },
+    'PENTRYMATCH':
+    {
+        'description':'triggers if specified entire passwd entry is found in the /etc/passwd file',
+        'params':'PENTRYBLACKLIST'
+    }
+}
 
 try:
-    config = anchore.anchore_utils.init_gate_cmdline(sys.argv, "Gate Description")
+    config = anchore.anchore_utils.init_gate_cmdline(sys.argv, gate_name, gate_help=triggers)
 except Exception as err:
     print str(err)
     sys.exit(1)
@@ -44,6 +76,9 @@ except Exception as err:
 if not config:
     print "ERROR: could not set up environment for gate"
     sys.exit(1)
+
+if len(config['params']) <= 0:
+    sys.exit(0)
 
 imgid = config['imgid']
 outputdir = config['dirs']['outputdir']
