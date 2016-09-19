@@ -671,6 +671,7 @@ def get_distro_flavor(distro, version, likedistro=None):
 
     if distro in ['centos', 'rhel']:
         ret['flavor'] = "RHEL"
+        ret['likedistro'] = 'centos'
     elif distro in ['debian', 'ubuntu']:
         ret['flavor'] = "DEB"
     elif distro in ['busybox']:
@@ -685,6 +686,7 @@ def get_distro_flavor(distro, version, likedistro=None):
         for distro in likedistro:
             if distro in ['centos', 'rhel']:
                 ret['flavor'] = "RHEL"
+                ret['likedistro'] = 'centos'
             elif distro in ['debian', 'ubuntu']:
                 ret['flavor'] = "DEB"
             elif distro in ['busybox']:
