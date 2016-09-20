@@ -405,10 +405,10 @@ def print_result(config, result, outputmode=None):
 
                 for orow in json_dict['result']['rows']:
                     if outputmode == 'table':
-                        row = [fill(x, max(12, width / (len(orow))) ) for x in orow ]
+                        row = [ fill(x, max(12, width / (len(orow))) ).encode('utf8') for x in orow ]
                         t.add_row(row)
                     elif outputmode == 'plaintext':
-                        row = [ re.sub("\s", ",", x) for x in orow ]
+                        row = [ re.sub("\s", ",", x.encode('utf8')) for x in orow ]
                         output.append(row)
                     elif outputmode == 'raw':
                         output.append(orow)
@@ -421,14 +421,12 @@ def print_result(config, result, outputmode=None):
                     if tablemode == 'stdout':
                         print t.get_string(sortby=sortby, reversesort=True)
                     elif tablemode == 'html':
-                        #print t.get_html_string(attributes={"style":"background-color:#ffcc00;", 'border':'1'}, sortby=sortby, reversesort=True)
-                        #print t.get_html_string(format=True, sortby=sortby, reversesort=True)
-                        print t.get_html_string(sortby=sortby, reversesort=True)
+                        print t.get_html_string(sortby=sortby, reversesort=True).encode('utf8')
                 else:
                     if tablemode == 'stdout':
                         print t
                     elif tablemode == 'html':
-                        print t.get_html_string()
+                        print t.get_html_string().encode('utf8')
                 print ""
             elif outputmode == 'plaintext':
                 print ' '.join(header)
@@ -490,6 +488,7 @@ def apkg_get_all_pkgfiles(unpackdir):
     FH=open(apkdb, 'r')
     for l in FH.readlines():
         l = l.strip().decode('utf8')
+
         if not l:
             apkgs[thename] = apkg
             if thepath:
