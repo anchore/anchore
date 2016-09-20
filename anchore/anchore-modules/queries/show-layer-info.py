@@ -53,7 +53,9 @@ try:
         dfileline = ' '.join(record['dockerfile_line'].split())
         if not dfileline:
             dfileline = "NA"
-        print "dfileline: " + dfileline
+
+        dfileline = re.sub("^/bin/sh -c", "RUN", dfileline)
+
         if showall:
             outlist.append([config['meta']['shortId'], config['meta']['humanname'], record['layer'], record['layer_sizebytes'], dfileline, str(inherited)])
         else:
