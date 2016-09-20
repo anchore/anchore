@@ -42,8 +42,9 @@ def toolbox(anchore_config, image):
 
     try:
         nav = navigator.Navigator(anchore_config=config, imagelist=imagelist, allimages=contexts['anchore_allimages'])
-        con = controller.Controller(anchore_config=anchore_config, imagelist=imagelist, allimages=contexts['anchore_allimages'])
-        con.discover_gates()
+        #con = controller.Controller(anchore_config=anchore_config, imagelist=imagelist, allimages=contexts['anchore_allimages'])
+        #t = con.discover_gates()
+        #anchore_print(t, do_formatting=True)
 
     except Exception as err:
         anchore_print_err('operation failed')
@@ -294,7 +295,6 @@ def show_taghistory():
     contexts['anchore_allimages'].clear()
     sys.exit(ecode)
 
-
 @toolbox.command(name='show-analyzer-status')
 def show_analyzer_status():
     """Show analyzer status for specified image"""
@@ -332,8 +332,6 @@ def show():
     try:
         image=contexts['anchore_allimages'][imagelist[0]]
 
-        d = anchore_utils.cve_load_data("/tmp", image)
-
         o = collections.OrderedDict()
 
         o['IMAGEID'] = image.meta['imageId']
@@ -356,10 +354,6 @@ def show():
         ecode = 1
 
     contexts['anchore_allimages'].clear()
-
-
-    #data = anchore_auth.anchore_auth_get(contexts['anchore_auth'], "https://ancho.re/v1/service/registries")
-    #print data
 
     sys.exit(ecode)
 

@@ -62,10 +62,11 @@ Edit the gate policy for 'nginx:latest':
 @click.option('--listpolicy', is_flag=True, help='List the current gate policy for specified image(s).')
 @click.option('--updatepolicy', help='Store the input gate policy file as the policy for specified image(s).', type=click.Path(exists=True), metavar='<file>')
 @click.option('--policy', help='Use the specified policy file instead of the default.', type=click.Path(exists=True), metavar='<file>')
+@click.option('--show-gatehelp', help='Show all gate names, triggers, and params that can be used to build an anchore policy', is_flag=True)
 @click.option('--whitelist', is_flag=True, help='Edit evaluated gate triggers and optionally whitelist them.')
 @click.pass_obj
 @extended_help_option(extended_help=gate_extended_help)
-def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy, rmpolicy, listpolicy, updatepolicy, policy, whitelist):
+def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy, rmpolicy, listpolicy, updatepolicy, policy, show_gatehelp, whitelist):
     """
     Runs gate checks on the specified image(s) or edits the image's gate policy.
     The --editpolicy option is only valid for a single image.
@@ -78,6 +79,17 @@ def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy
     ecode = 0
     success = True
 
+    # special option, does not need any image inputs
+    if show_gatehelp:
+        try:
+            gate_info = anchore_utils.discover_gates()
+            anchore_print(gate_info, do_formatting=True)
+        except Exception as err:
+            anchore_print_err("operation failed: " + str(err))
+            sys.exit(1)
+        sys.exit(0)
+
+    # the rest require some form of image(s) be given as input
     if image and imagefile:
         raise click.BadOptionUsage('Can only use one of --image, --imagefile')
 

@@ -216,29 +216,6 @@ class Controller(object):
         self.anchoreDB.save_gates_eval_report(image.meta['imageId'], ret)
         return(ret)
 
-    def discover_gates(self):
-        ret = {}
-        
-        gatesdir = '/'.join([self.config["scripts_dir"], "gates"])
-        outputdir = anchore_utils.make_anchoretmpdir(self.config['tmpdir'])
-        tmpdir = anchore_utils.make_anchoretmpdir(self.config['tmpdir'])
-        imgfile = '/'.join([tmpdir, 'images'])
-        imageId = self.images[0]
-        anchore_utils.write_plainfile_fromstr(imgfile, imageId)
-
-        path_overrides = ['/'.join([self.config['user_scripts_dir'], 'gates'])]
-        if self.config['extra_scripts_dir']:
-            path_overrides = path_overrides + ['/'.join([self.config['extra_scripts_dir'], 'gates'])]
-
-        results = scripting.ScriptSetExecutor(path=gatesdir, path_overrides=path_overrides).execute(capture_output=True, fail_fast=True, cmdline=' '.join([imgfile, self.config['image_data_store'], outputdir, 'anchore_get_help']))
-
-        # walk through outputdir looking for dropped help output
-
-        shutil.rmtree(tmpdir)
-        shutil.rmtree(outputdir)
-
-        return(ret)
-
     def execute_gates(self, image, refresh=True):
         self._logger.debug("gate policy evaluation for image "+str(image.meta['imagename'])+": begin")
         success = True

@@ -6,9 +6,32 @@ import re
 import anchore.anchore_utils
 
 gate_name = "PKGDIFF"
+triggers = {
+    'PKGVERSIONDIFF':
+    {
+        'description':'triggers if the evaluated image has a package installed with a different version of the same package from a previous base image',
+        'params':'none'
+    },
+    'PKGADD':
+    {
+        'description':'triggers if image contains a package that is not in its base',
+        'params':'none'
+    },
+    'PKGDEL':
+    {
+        'description':'triggers if image has removed a package that is installed in its base',
+        'params':'none'
+    },
+    'PKGDIFF':
+    {
+        'description':'triggers if any one of the other events has triggered',
+        'params':'none'
+    },
+}
+
 
 try:
-    config = anchore.anchore_utils.init_gate_cmdline(sys.argv, gate_name)
+    config = anchore.anchore_utils.init_gate_cmdline(sys.argv, gate_name, gate_help=triggers)
 except Exception as err:
     print str(err)
     sys.exit(1)
