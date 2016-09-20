@@ -4,11 +4,22 @@
 anchore, \- manual page for anchore, version 1.0.0rc0
 .SH SYNOPSIS
 .B anchore
-\fIsystem restore \fR[\fIOPTIONS\fR] \fIINPUTFILE \fR[\fIDESTINATION_ROOT\fR]
-.SH DESCRIPTION
-.IP
-Restore an anchore installation from a previously backed up tar file.
+\fIfeeds \fR[\fIOPTIONS\fR] \fICOMMAND \fR[\fIARGS\fR]...
 .SH OPTIONS
 .TP
 \fB\-\-help\fR
 Show this message and exit.
+.SS "Commands:"
+.TP
+list
+List all feeds.
+.TP
+sub
+Subscribe to specified feed(s).
+.TP
+sync
+Sync (download) latest data for all subscribed feeds from the Anchore
+service.
+.TP
+unsub
+Unsubscribe from specified feed(s).

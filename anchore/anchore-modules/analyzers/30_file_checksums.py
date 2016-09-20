@@ -77,14 +77,14 @@ try:
     timer = time.time()
     tar = tarfile.open(unpackdir + "/squashed.tar")
     for member in tar.getmembers():
-        name = member.name
+        name = member.name.decode('utf8')
         if member.isfile():
             thefile = '/'.join([unpackdir, "rootfs", name])
 
             cmd = ["md5sum", thefile]
             try:
                 out = subprocess.check_output(cmd)
-                (csum, other) = re.match("(\S*)\s*(\S*)", out).group(1, 2)
+                (csum, other) = re.match("(\S*)\s*(\S*)", out.decode('utf8')).group(1, 2)
                 outfiles_md5[name] = csum
             except:
                 outfiles_md5[name] = "DIRECTORY_OR_OTHER"
@@ -92,7 +92,7 @@ try:
             cmd = ["sha256sum", thefile]
             try:
                 out = subprocess.check_output(cmd)
-                (csum, other) = re.match("(\S*)\s*(\S*)", out).group(1, 2)
+                (csum, other) = re.match("(\S*)\s*(\S*)", out.decode('utf8')).group(1, 2)
                 outfiles_sha256[name] = csum
             except:
                 outfiles_sha256[name] = "DIRECTORY_OR_OTHER"

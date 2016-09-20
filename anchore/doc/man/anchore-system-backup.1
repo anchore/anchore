@@ -7,13 +7,7 @@ anchore, \- manual page for anchore, version 1.0.0rc0
 \fIsystem backup \fR[\fIOPTIONS\fR] \fIOUTPUTDIR\fR
 .SH DESCRIPTION
 .IP
-Backup the Anchore data locally to a tarball. Will result in a backup file
-with the name: anchore\-backup\-<date>.tar.gz
-.IP
-If the anchore configuration file specifies a different image_data_store
-outside of the anchore_data_dir tree it will be backed up, but may require
-manual intervention on restore. Backup includes the configuration files as
-well as data files. Backup does *not* include docker images themselves.
+Backup an anchore installation to a tarfile.
 .SH OPTIONS
 .TP
 \fB\-\-help\fR
