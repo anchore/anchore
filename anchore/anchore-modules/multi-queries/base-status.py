@@ -44,19 +44,9 @@ for imageId in config['images']:
         realbaseid = None
         if idata and 'familytree' in idata and len(idata['familytree']) > 0:
             realbaseid = idata['familytree'][0]
-
-        thefromid = None
-        thefrom = re.match(".*FROM\s+(\S+).*", idata['dockerfile_contents']).group(1)
-        if thefrom:
-            thefrom = thefrom.lower()
-            if re.match("scratch", thefrom) or re.match(".*<unknown>.*", thefrom):
-                thefromid = thefrom
-            else:
-                try:
-                    thefromid = anchore.anchore_utils.discover_imageId(thefrom).keys()[0]
-                except:
-                    thefromid = None
             
+        (thefrom, thefromid) = anchore.anchore_utils.discover_from_info(idata['dockerfile_contents'])
+
         if realbaseid and thefromid:
             if realbaseid == imageId:
                 pass

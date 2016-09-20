@@ -222,6 +222,20 @@ def make_anchoretmpdir(tmproot):
     except:
         return(False)
 
+def discover_from_info(dockerfile_contents):
+    fromline = fromid = None
+    fromline = re.match(".*FROM\s+(\S+).*", dockerfile_contents).group(1)
+    if fromline:
+        fromline = fromline.lower()
+        if re.match("scratch", fromline) or re.match(".*<unknown>.*", fromline):
+            fromid = fromline
+        else:
+            try:
+                fromid = discover_imageId(fromline).keys()[0]
+            except:
+                fromid = None
+    return(fromline, fromid)
+
 def discover_imageIds(namelist):
     ret = {}
     

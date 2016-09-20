@@ -47,9 +47,14 @@ try:
         layer = record['layer']
         if not inherited:
             if layer != config['imgid']:
-                if layer in ftreetypes:
+                (fromline, fromid) = anchore.anchore_utils.discover_from_info(idata['dockerfile_contents'])
+                if fromid and layer == fromid:
+                    inherited = True
+                elif layer in ftreetypes:
                     if ftreetypes[layer] and ftreetypes[layer] != "none":
                         inherited = True
+                
+                
         dfileline = ' '.join(record['dockerfile_line'].split())
         if not dfileline:
             dfileline = "NA"
