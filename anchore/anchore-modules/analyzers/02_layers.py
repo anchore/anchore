@@ -42,7 +42,6 @@ try:
             clean_createdBy = re.sub(r"^/bin/sh -c #\(nop\) ", "", record['CreatedBy'])
             line = {'layer':clean_layer, 'dockerfile_line':clean_createdBy, 'layer_sizebytes':str(record['Size'])}
             output.append(line)
-
 except:
     pass
 

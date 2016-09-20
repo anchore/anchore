@@ -7,17 +7,10 @@ anchore, \- manual page for anchore, version 1.0.0rc0
 \fIsystem status \fR[\fIOPTIONS\fR]
 .SH DESCRIPTION
 .IP
-Print state of local anchore images and artifacts. Includes paths, cache
-states, and configuration values.
-.IP
-Use the \fB\-\-config\fR option to dump the current configuration that the system
-is using. The configuration option returns structured output (yaml) or
-json if using the \fB\-\-json\fR option. All configuration values are populated,
-with defaults if not explicitly overridden in the config file. The output
-of this is suitable to create a new config file.
+Show anchore system status.
 .SH OPTIONS
 .TP
-\fB\-\-config\fR
+\fB\-\-conf\fR
 Output the currently used configuration yaml content
 .TP
 \fB\-\-help\fR

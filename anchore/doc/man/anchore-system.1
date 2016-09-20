@@ -5,13 +5,6 @@ anchore, \- manual page for anchore, version 1.0.0rc0
 .SH SYNOPSIS
 .B anchore
 \fIsystem \fR[\fIOPTIONS\fR] \fICOMMAND \fR[\fIARGS\fR]...
-.SH DESCRIPTION
-.IP
-Anchore system\-level operations, which do not operate on resources, but
-the overall system itself.
-.IP
-System includes subcommands to backup, restore, and view status info on
-the local system.
 .SH OPTIONS
 .TP
 \fB\-\-help\fR
@@ -19,10 +12,11 @@ Show this message and exit.
 .SS "Commands:"
 .TP
 backup
-Backup the Anchore data locally to a tarball.
+Backup an anchore installation to a tarfile.
 .TP
 restore
-Restore Anchore data from a tarball
+Restore an anchore installation from a previously backed up tar
+file.
 .TP
 status
-Print state of local anchore images and...
+Show system status.

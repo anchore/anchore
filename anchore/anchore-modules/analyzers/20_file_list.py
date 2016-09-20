@@ -8,6 +8,7 @@ import json
 import time
 import rpm
 import subprocess
+import stat
 
 import anchore.anchore_utils
 
@@ -94,15 +95,26 @@ if not os.path.exists(outputdir):
 meta = anchore.anchore_utils.get_distro_from_path('/'.join([unpackdir, "rootfs"]))
 distrodict = anchore.anchore_utils.get_distro_flavor(meta['DISTRO'], meta['DISTROVERS'], meta['LIKEDISTRO'])
 
+simplefiles = {}
 outfiles = {}
 nonpkgoutfiles = {}
 
 try:
-    fmap, allfiles = anchore.anchore_utils.get_files_from_path(unpackdir + "/rootfs")
+    allfiles = {}
+    if os.path.exists(unpackdir + "/anchore_allfiles.json"):
+        with open(unpackdir + "/anchore_allfiles.json", 'r') as FH:
+            allfiles = json.loads(FH.read())
+    else:
+        fmap, allfiles = anchore.anchore_utils.get_files_from_path(unpackdir + "/rootfs")
+        with open(unpackdir + "/anchore_allfiles.json", 'w') as OFH:
+            OFH.write(json.dumps(allfiles))
+
+    #fmap, allfiles = anchore.anchore_utils.get_files_from_path(unpackdir + "/rootfs")
 
     # fileinfo
     for name in allfiles.keys():
         outfiles[name] = json.dumps(allfiles[name])
+        simplefiles[name] = oct(stat.S_IMODE(allfiles[name]['mode']))
 
     if distrodict['flavor'] == "RHEL":
         # rpm file check
@@ -117,6 +129,10 @@ try:
 
 except Exception as err:
     print "ERROR: " + str(err)
+
+if simplefiles:
+    ofile = os.path.join(outputdir, 'files.all')
+    anchore.anchore_utils.write_kvfile_fromdict(ofile, simplefiles)
 
 if outfiles:
     ofile = os.path.join(outputdir, 'files.allinfo')

@@ -1092,6 +1092,7 @@ def read_kvfile_todict(file):
         l = l.strip().decode('utf8')
         if l:
             (k, v) = re.match('(\S*)\s*(.*)', l).group(1, 2)
+            k = re.sub("____", " ", k)
             ret[k] = v
     FH.close()
 
@@ -1130,7 +1131,9 @@ def write_kvfile_fromdict(file, indict):
     for k in dict.keys():
         if not dict[k]:
             dict[k] = "none"
-        thestr = ' '.join([k, dict[k], '\n'])
+        cleank = re.sub("\s+", "____", k)
+        #thestr = ' '.join([k, dict[k], '\n'])
+        thestr = ' '.join([cleank, dict[k], '\n'])
         thestr = thestr.encode('utf8')
         OFH.write(thestr)
     OFH.close()

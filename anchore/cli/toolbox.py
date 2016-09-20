@@ -321,21 +321,6 @@ def show_analyzer_status():
     contexts['anchore_allimages'].clear()
     sys.exit(ecode)
 
-@toolbox.command(name='dump')
-def dump():
-    imagedata = contexts['anchore_db'].load_image_new(imagelist[0])
-    import json
-    #print json.dumps(imagedata)
-    #rc = contexts['anchore_db'].save_image_new('test', imagedata)
-    #il = contexts['anchore_db'].get_image_list()
-    #print il
-    #history = contexts['docker_cli'].history(imagelist[0])
-    #print json.dumps(history)
-    listy = json.loads(imagedata['analysis_report']['layer_info']['layers_to_dockerfile']['base']['dockerfile_to_layer_map'])
-    for record in listy:
-        print record['dockerfile_line'] + "(" + record['layer'] + ") ("+record['layer_sizebytes'] + ")"
-    sys.exit(0)
-
 @toolbox.command(name='show')
 def show():
     """Show image summary information"""

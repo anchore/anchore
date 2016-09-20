@@ -4,13 +4,14 @@
 anchore, \- manual page for anchore, version 1.0.0rc0
 .SH SYNOPSIS
 .B anchore
-\fIsync catalog \fR[\fIOPTIONS\fR]
+\fIfeeds list \fR[\fIOPTIONS\fR]
 .SH DESCRIPTION
 .IP
-Updates the local catalog with the latest from the Anchore web service.
-Pulls CVE data, analysis metadata for images subscribed to as well as
-updates to subscribed images directly from Docker Hub.
+Show list of Anchore data feeds.
 .SH OPTIONS
+.TP
+\fB\-\-showgroups\fR
+Along with the feed, show all groups within the feed.
 .TP
 \fB\-\-help\fR
 Show this message and exit.
