@@ -185,36 +185,6 @@ class AnchoreImage(object):
 
         return (True)
 
-    def load_image_from_anchore_orig(self):
-        anchore_data = self.anchore_db.load_image(self.meta['imageId'])
-
-        self.anchore_data = anchore_data.pop('meta', {})
-        self.anchore_data_json = json.dumps(self.anchore_data)
-
-        val = anchore_data.pop('all_tags', [])
-        if len(val) > 0:
-            for v in val:
-                if v not in self.anchore_all_tags:
-                    self.anchore_all_tags.append(v)
-
-        val = anchore_data.pop('familytree', [])
-        if len(val) > 0:
-            self.anchore_familytree = val
-
-        val = anchore_data.pop('layers', [])
-        if len(val) > 0:
-            self.anchore_layers = val
-
-        val = anchore_data.pop('tag_history', [])
-        if len(val) > 0:
-            self.anchore_tag_history = val
-
-        self.anchore_other = {}
-        if (len(anchore_data.keys()) > 0):
-            self.anchore_other = anchore_data.copy()
-
-        return (True)
-
     def load_image_from_docker(self):
         try:
             ddata = self.docker_cli.inspect_image(self.meta['imageId'])

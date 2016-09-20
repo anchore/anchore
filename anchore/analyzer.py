@@ -274,25 +274,6 @@ class Analyzer(object):
                     report[module_name][module_value][module_type] = adata
         return(report)
 
-    def generate_analysis_report_orig(self, image):
-        # this routine reads the results of image analysis and generates a formatted report
-
-        report = {}
-
-        analysisdir = image.anchore_imagedir + "/analyzer_output/"
-        for d in os.listdir(analysisdir):
-            if d not in report:
-                report[d] = {}
-
-            moduledir = analysisdir + "/" + d
-            for o in os.listdir(moduledir):
-                datafile = moduledir + "/" + o
-                if o not in report[d]:
-                    report[d][o] = list()
-                report[d][o] = anchore_utils.read_plainfile_tolist(datafile)
-        return (report)
-
-
     def run(self):
         self._logger.debug("main image analysis on images: " + str(self.images) + ": begin")
         # analyze image and all of its family members

@@ -492,11 +492,11 @@ def apkg_get_all_pkgfiles(unpackdir):
         if not l:
             apkgs[thename] = apkg
             if thepath:
-                meh = list()
+                flist = list()
                 for x in thefiles:
-                    meh.append(os.path.join(thepath, x))
-                meh.append(os.path.join(thepath))
-                allfiles = allfiles + meh
+                    flist.append(os.path.join(thepath, x))
+                flist.append(os.path.join(thepath))
+                allfiles = allfiles + flist
             apkgs[thename]['files'] = allfiles
             apkg = {
                 'version':"NA",
@@ -535,11 +535,11 @@ def apkg_get_all_pkgfiles(unpackdir):
                 apkg['arch'] = v
             elif k == 'F':
                 if thepath:
-                    meh = list()
+                    flist = list()
                     for x in thefiles:
-                        meh.append(os.path.join(thepath, x))
-                    meh.append(os.path.join(thepath))
-                    allfiles = allfiles + meh
+                        flist.append(os.path.join(thepath, x))
+                    flist.append(os.path.join(thepath))
+                    allfiles = allfiles + flist
 
                 thepath = "/" + v
                 thefiles = list()
@@ -793,46 +793,6 @@ def cve_load_data(cvedatadir, image, cve_data_context=None):
 
     return (cve_data)
 
-def cve_load_data_orig(cvedatadir, image, cve_data_context=None):
-    cve_data = None
-
-    idistro = image.get_distro()
-    idistrovers = image.get_distro_vers()
-
-    distrodict = get_distro_flavor(idistro, idistrovers)
-
-    distro = distrodict['distro']
-    distrovers = distrodict['version']
-    likedistro = distrodict['likedistro']
-    likeversion = distrodict['likeversion']
-    fulldistro = distrodict['distro']
-    fullversion = distrodict['fullversion']
-    
-    searchpaths = list()
-    for f in [(distro,distrovers), (likedistro, likeversion), (fulldistro, fullversion)]:
-        cvejsonfile = '/'.join([cvedatadir, f[0]+":"+f[1], "cve.json"])
-        searchpaths.append(cvejsonfile)
-        if os.path.exists(cvejsonfile):
-            if not cve_data_context:
-                FH = open(cvejsonfile, 'r')
-                cve_data = json.loads(FH.read())
-                FH.close()
-                break
-            else:
-                if cvejsonfile not in cve_data_context:
-                    FH = open(cvejsonfile, 'r')
-                    buf = FH.read()
-                    FH.close()
-                    cve_data_context[cvejsonfile] = buf                    
-                cve_data = json.loads(cve_data_context[cvejsonfile])
-                break
-
-    if not cve_data:
-        raise ValueError("could not find CVE data associated with the input container distro: ("+', '.join(searchpaths)+")")
-
-    return (cve_data)
-
-
 def cve_scanimage(cve_data, image):
     if not cve_data:
         return ({})
@@ -977,55 +937,6 @@ def diff_images(imageId, baseimageId):
 
     return(ret)
 
-def diff_images_orig(image, baseimage):
-    retdata = {}
-
-    shortida = image.meta['shortId']
-    shortidb = baseimage.meta['shortId']
-
-    if not image.is_analyzed():
-        return (retdata)
-
-    if not baseimage.is_analyzed():
-        return (retdata)
-
-    areport = image.get_analysis_report()
-    breport = baseimage.get_analysis_report()
-    
-    for azkey in areport.keys():
-        if azkey in breport:
-            for aokey in areport[azkey].keys():
-                if aokey in breport[azkey]:
-                    outputdict = {}
-
-                    adatadict = {}
-                    for l in areport[azkey][aokey]:
-                        l = l.strip()
-                        #l = l.decode('utf8')
-                        (k, v) = re.match('(\S*)\s*(.*)', l).group(1, 2)
-                        adatadict[k] = v
-
-                    bdatadict = {}
-                    for l in breport[azkey][aokey]:
-                        l = l.strip()
-                        #l = l.decode('utf8')
-                        (k, v) = re.match('(\S*)\s*(.*)', l).group(1, 2)
-                        bdatadict[k] = v
-
-                    for dkey in adatadict.keys():
-                        if not dkey in bdatadict:
-                            outputdict[dkey] = "INIMG_NOTINBASE"
-                        elif adatadict[dkey] != bdatadict[dkey]:
-                            outputdict[dkey] = "VERSION_DIFF"
-
-                    for dkey in bdatadict.keys():
-                        if not dkey in adatadict:
-                            outputdict[dkey] = "INBASE_NOTINIMG"
-                    if azkey not in retdata:
-                        retdata[azkey] = {}
-                    retdata[azkey][aokey] = outputdict
-    return (retdata)
-
 def update_file_list(listbuf, outfile, backup=False):
     src = listbuf
     if not os.path.exists(outfile):
@@ -1162,18 +1073,9 @@ def write_kvfile_fromlist(file, list, delim=' '):
     for l in list:
         for i in range(0,len(l)):
             l[i] = re.sub("\s", "____", l[i])
-            #l[i] = urllib.quote_plus(l[i])
         thestr = delim.join(l) + "\n"
         thestr = thestr.encode('utf8')
         OFH.write(thestr)
-    OFH.close()
-
-def write_kvfile_fromlist_orig(file, list, delim=' '):
-    OFH = open(file, 'w')
-    for l in list:
-        thestr = delim.join(l) + "\n"
-        thestr = thestr.encode('utf8')
-        OFH.write(thestr + "\n")
     OFH.close()
 
 def write_kvfile_fromdict(file, indict):
@@ -1183,7 +1085,6 @@ def write_kvfile_fromdict(file, indict):
         if not dict[k]:
             dict[k] = "none"
         cleank = re.sub("\s+", "____", k)
-        #thestr = ' '.join([k, dict[k], '\n'])
         thestr = ' '.join([cleank, dict[k], '\n'])
         thestr = thestr.encode('utf8')
         OFH.write(thestr)

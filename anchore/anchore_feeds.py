@@ -86,7 +86,6 @@ def get_group_data(feed, group, since="1970-01-01"):
         if record['success']:
             data = json.loads(record['text'])
             if 'data' in data:
-                #print "MEH: " + str(data['data'])
                 ret = ret + data['data']
                 if 'next_token' in data and data['next_token']:
                     url = baseurl + "&next_token="+data['next_token']

@@ -140,40 +140,6 @@ class AnchoreImageDB(object):
     def load_image(self, imageId):
         return(self.load_image_report(imageId));
 
-    def load_image_orig(self, imageId):
-        # populate all anchore data into image
-        imagedir = self.imagerootdir + "/" + imageId
-        analyzer_meta = {}
-        allfiles = {}
-        allpkgs = {}
-        familytree = []
-        layers = []
-
-        if not os.path.exists(imagedir):
-            # image has not been analyzed
-            return(False)
-
-        analyzer_meta = anchore_utils.load_analysis_output(imageId, 'analyzer_meta', 'analyzer_meta')
-        report = self.load_image_report(imageId)
-
-        familytree = report.pop('familytree', list())        
-        layers = report.pop('layers', list())
-        meta = report.pop('meta', {})
-        all_tags = report.pop('anchore_all_tags', list())
-        current_tags = report.pop('anchore_current_tags', list())
-        tag_history = report.pop('tag_history', list())
-
-        ret = {}
-        ret['meta'] = meta
-        ret['familytree'] = familytree
-        ret['layers'] = layers
-        ret['analyzer_meta'] = analyzer_meta
-        ret['all_tags'] = all_tags
-        ret['current_tags'] = current_tags
-        ret['tag_history'] = tag_history
-        
-        return(ret)
-
     def load_image_new(self, imageId):
         ret = {}
 
@@ -372,26 +338,6 @@ class AnchoreImageDB(object):
             os.makedirs(thedir)
         thefile = os.path.join(thedir, "gates_info.json")
         rc = anchore_utils.update_file_jsonstr(json.dumps(gate_help), thefile)
-        return(rc)
-
-    def save_gate_help_output_orig(self, gate_name, triggers):
-        rc = False
-        thedir = os.path.join(self.imagerootdir)
-        if not os.path.exists(thedir):
-            os.makedirs(thedir)
-        thefile = os.path.join(thedir, "gates_info.json")
-        print "HERE: " + thedir + " : " + thefile
-        try:
-            gates_info = {}
-            if os.path.exists(thefile):
-                with open(thefile, 'r') as FH:
-                    gates_info = json.loads(FH.read())
-            if gate_name not in gates_info:
-                gates_info[gate_name] = {}
-            gates_info[gate_name].update(triggers)
-            rc = anchore_utils.update_file_jsonstr(json.dumps(gates_info), thefile)
-        except Exception as err:
-            print "MEH: " + str(err)
         return(rc)
 
     def load_gates_eval_report(self, imageId):
