@@ -50,11 +50,15 @@ try:
                 if layer in ftreetypes:
                     if ftreetypes[layer] and ftreetypes[layer] != "none":
                         inherited = True
+        dfileline = ' '.join(record['dockerfile_line'].split())
+        if not dfileline:
+            dfileline = "NA"
+        print "dfileline: " + dfileline
         if showall:
-            outlist.append([config['meta']['shortId'], config['meta']['humanname'], record['layer'], record['layer_sizebytes'], ' '.join(record['dockerfile_line'].split()), str(inherited)])
+            outlist.append([config['meta']['shortId'], config['meta']['humanname'], record['layer'], record['layer_sizebytes'], dfileline, str(inherited)])
         else:
             if not inherited:
-                outlist.append([config['meta']['shortId'], config['meta']['humanname'], record['layer'], record['layer_sizebytes'], ' '.join(record['dockerfile_line'].split())])
+                outlist.append([config['meta']['shortId'], config['meta']['humanname'], record['layer'], record['layer_sizebytes'], dfileline])
                 
     pass
 
