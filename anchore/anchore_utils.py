@@ -3,6 +3,7 @@ import yaml
 import time
 
 import os
+import shutil
 import sys
 import re
 import rpm
@@ -21,7 +22,7 @@ import logging
 
 import anchore_image, anchore_image_db
 from configuration import AnchoreConfiguration
-from anchore.util import contexts
+from anchore.util import contexts, scripting
 import anchore_auth
 
 module_logger = logging.getLogger(__name__)
@@ -77,14 +78,13 @@ def init_analyzer_cmdline(argv, name):
     return(ret)
 
 def init_gate_cmdline(argv, gate_name, gate_help={}):
-    ret = init_query_cmdline(argv, gate_name)
-    if ret['params'] and ret['params'][0] == 'anchore_get_help':
+    if len(argv) > 2 and argv[2] == 'anchore_get_help':
         if gate_help:
-            save_gate_help_output(gate_name, gate_help)
-        ret['params'] = list()
-    elif ret['params'] and ret['params'][0] == 'anchore_run_gate':
-        ret['params'].remove('anchore_run_gate')
-
+            thefile = os.path.join(argv[1], gate_name + ".help")
+            update_file_jsonstr(json.dumps(gate_help), thefile)
+        sys.exit(0)
+        
+    ret = init_query_cmdline(argv, gate_name)
     return(ret)
 
 def init_query_cmdline(argv, paramhelp):
@@ -181,8 +181,11 @@ def anchore_common_context_setup(config):
 def save_gate_output(imageId, gate_name, data):
     return(contexts['anchore_db'].save_gate_output(imageId, gate_name, data))
 
-def save_gate_help_output(gate_name, triggers):
-    return(contexts['anchore_db'].save_gate_help_output(gate_name, triggers))
+def save_gate_help_output(gate_help):
+    return(contexts['anchore_db'].save_gate_help_output(gate_help))
+
+#def save_gate_help_output(gate_name, triggers):
+#    return(contexts['anchore_db'].save_gate_help_output(gate_name, triggers))
 
 def load_analysis_output(imageId, module_name, module_value):
     ret = {}
@@ -221,6 +224,55 @@ def make_anchoretmpdir(tmproot):
         return(tmpdir)
     except:
         return(False)
+
+def discover_gates():
+    config = contexts['anchore_config']
+    ret = {}
+
+    gatesdir = '/'.join([config["scripts_dir"], "gates"])
+    outputdir = make_anchoretmpdir(config['tmpdir'])
+
+    path_overrides = ['/'.join([config['user_scripts_dir'], 'gates'])]
+    if config['extra_scripts_dir']:
+        path_overrides = path_overrides + ['/'.join([config['extra_scripts_dir'], 'gates'])]
+
+    try:
+        results = scripting.ScriptSetExecutor(path=gatesdir, path_overrides=path_overrides).execute(capture_output=True, fail_fast=True, cmdline=' '.join([outputdir, 'anchore_get_help']))
+    except Exception as err:
+        pass
+
+    # walk through outputdir looking for dropped help output
+    allhelp = {}
+    for d in os.listdir(outputdir):
+        gate_name = None
+        match = re.match("(.*)\.help", d)
+        if match:
+            gate_name = match.group(1)
+        if gate_name:
+            helpfile = os.path.join(outputdir, d)
+            with open(helpfile, 'r') as FH:
+                helpdata = json.loads(FH.read())
+            allhelp[gate_name] = helpdata
+
+    shutil.rmtree(outputdir)
+
+    save_gate_help_output(allhelp)
+
+    return(allhelp)
+
+def discover_from_info(dockerfile_contents):
+    fromline = fromid = None
+    fromline = re.match(".*FROM\s+(\S+).*", dockerfile_contents).group(1)
+    if fromline:
+        fromline = fromline.lower()
+        if re.match("scratch", fromline) or re.match(".*<unknown>.*", fromline):
+            fromid = fromline
+        else:
+            try:
+                fromid = discover_imageId(fromline).keys()[0]
+            except:
+                fromid = None
+    return(fromline, fromid)
 
 def discover_imageIds(namelist):
     ret = {}

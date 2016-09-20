@@ -6,9 +6,31 @@ import re
 import anchore.anchore_utils
 
 gate_name = "SUIDDIFF"
+triggers = {
+    'SUIDMODEDIFF':
+    {
+        'description':'triggers if file is suid, but mode is different between the image and its base',
+        'params':'none'
+    },
+    'SUIDFILEADD':
+    {
+        'description':'triggers if the evaluated image has a file that is SUID and the base image does not',
+        'params':'none'
+    },
+    'SUIDFILEDEL':
+    {
+        'description':'triggers if the base image has a SUID file, but the evaluated image does not',
+        'params':'none'
+    },
+    'SUIDDIFF':
+    {
+        'description':'triggers if any one of the other events for this gate have triggered',
+        'params':'none'
+    },
+}
 
 try:
-    config = anchore.anchore_utils.init_gate_cmdline(sys.argv, gate_name)
+    config = anchore.anchore_utils.init_gate_cmdline(sys.argv, gate_name, gate_help=triggers)
 except Exception as err:
     print str(err)
     sys.exit(1)

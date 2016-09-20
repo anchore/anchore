@@ -60,6 +60,10 @@ function init_query_cmdline {
 }
 
 function init_gate_cmdline {
+    if [ "$2" == "anchore_get_help" ]; then
+	# no help available for shell script gates
+	exit 0
+    fi
     init_query_cmdline $@
     return $?
 }

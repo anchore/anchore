@@ -10,9 +10,42 @@ from anchore import anchore_image
 import anchore.anchore_utils
 
 gate_name = "ANCHORESEC"
+triggers = {
+    'VULNLOW':
+    {
+        'description':'triggers if a vulnerability of LOW severity is found',
+        'params':'none'
+    },
+    'VULNMEDIUM':
+    {
+        'description':'triggers if a vulnerability of MED severity is found',
+        'params':'none'
+    },
+    'VULNHIGH':
+    {
+        'description':'triggers if a vulnerability of HIGH severity is found',
+        'params':'none'
+    },
+    'VULNCRITICAL':
+    {
+        'description':'triggers if a vulnerability of CRITICAL severity is found',
+        'params':'none'
+    },
+    'VULNUNKNOWN':
+    {
+        'description':'triggers if a vulnerability of UNKNOWN severity is found',
+        'params':'none'
+    },
+    'UNSUPPORTEDDISTRO':
+    {
+        'description':'triggers if a vulnerability scan cannot be run against the image due to lack of vulnerability feed data for the images distro',
+        'params':'none'
+    },
+}
+
 
 try:
-    config = anchore.anchore_utils.init_gate_cmdline(sys.argv, gate_name)
+    config = anchore.anchore_utils.init_gate_cmdline(sys.argv, gate_name, gate_help=triggers)
 except Exception as err:
     print str(err)
     sys.exit(1)

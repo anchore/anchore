@@ -42,8 +42,9 @@ def toolbox(anchore_config, image):
 
     try:
         nav = navigator.Navigator(anchore_config=config, imagelist=imagelist, allimages=contexts['anchore_allimages'])
-        con = controller.Controller(anchore_config=anchore_config, imagelist=imagelist, allimages=contexts['anchore_allimages'])
-        con.discover_gates()
+        #con = controller.Controller(anchore_config=anchore_config, imagelist=imagelist, allimages=contexts['anchore_allimages'])
+        #t = con.discover_gates()
+        #anchore_print(t, do_formatting=True)
 
     except Exception as err:
         anchore_print_err('operation failed')
@@ -293,7 +294,6 @@ def show_taghistory():
 
     contexts['anchore_allimages'].clear()
     sys.exit(ecode)
-
 
 @toolbox.command(name='show-analyzer-status')
 def show_analyzer_status():
