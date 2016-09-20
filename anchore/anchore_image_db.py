@@ -39,7 +39,7 @@ class AnchoreImageDB(object):
     def __init__(self, imagerootdir):
         self.initialized = False
         self.imagerootdir = imagerootdir
-
+        self.version = None
         try:
             from anchore import version as anchore_version_string
             if not os.path.exists(self.imagerootdir):
@@ -56,6 +56,8 @@ class AnchoreImageDB(object):
 
             FH=open(dbmetafile, 'r')
             json_dict = json.loads(FH.read())
+            self.version = {'anchore_version': json_dict['anchore_version'], 'db_version': json_dict['anchore_db_version']}
+            
             FH.close()
             if 'anchore_version' not in json_dict:
                 json_dict['anchore_version'] = anchore_version_string
@@ -82,7 +84,7 @@ class AnchoreImageDB(object):
         except Exception as err:
             raise err
 
-        self.initialized = True
+        self.initialized = True        
 
     def check(self):
         return(self.initialized)
