@@ -289,6 +289,7 @@ def discover_imageId(name):
 
     imageId = None
     try:
+
         docker_cli = contexts['docker_cli']
         if docker_cli:
             try:

@@ -86,11 +86,12 @@ def sub(feednames):
     ecode = 0
     try:
         for feed in feednames:
-            rc = anchore_feeds.subscribe_anchore_feed(feed)
+            rc, msg = anchore_feeds.subscribe_anchore_feed(feed)
             if not rc:
                 ecode = 1
+                anchore_print_err(msg)
             else:
-                anchore_print(feed + ": subscribed.")
+                anchore_print(msg)
 
     except Exception as err:
         anchore_print_err('operation failed')
@@ -100,7 +101,9 @@ def sub(feednames):
 
 @feeds.command(name='unsub', short_help="Unsubscribe from specified feed(s).")
 @click.argument('feednames', nargs=-1, metavar='<feedname> <feedname> ...')
-def unsub(feednames):
+@click.option('--delete', help='Delete all feed data after unsubscribing', is_flag=True)
+@click.option('--dontask', help='Used with --delete, will not prompt before deleting all feed data', is_flag=True)
+def unsub(feednames, delete, dontask):
     """
     Unsubscribe from the specified feed(s).
     """
@@ -108,11 +111,29 @@ def unsub(feednames):
     ecode = 0
     try:
         for feed in feednames:
-            rc = anchore_feeds.unsubscribe_anchore_feed(feed)
+            rc, msg = anchore_feeds.unsubscribe_anchore_feed(feed)
             if not rc:
                 ecode = 1
+                anchore_print_err(msg)
             else:
-                anchore_print(feed + ": unsubscribed.")
+                anchore_print(msg)
+                if delete:
+                    dodelete = False
+                    if dontask:
+                        dodelete = True
+                    else:
+                        try:
+                            answer = raw_input("Really delete feed data ("+str(feed)+"'? (y/N)")
+                        except:
+                            answer = "n"
+                        if 'y' == answer.lower():
+                            dodelete = True
+                        else:
+                            anchore_print(str(feed) + ": skipping delete.")
+
+                    if dodelete:
+                        anchore_print(str(feed) + ": deleting feed.")
+                        rc = anchore_feeds.delete_anchore_feed(feed)
 
     except Exception as err:
         anchore_print_err('operation failed')

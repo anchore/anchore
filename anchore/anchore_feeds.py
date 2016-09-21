@@ -1,5 +1,6 @@
 import os
 import sys
+import shutil
 import requests
 import re
 import json
@@ -345,18 +346,37 @@ def save_anchore_feedmeta(feedmeta):
     return(False)
 
 def subscribe_anchore_feed(feed):
+    success = True
+    msg = str(feed) + ": subscribed."
+
     feedmeta = load_anchore_feedmeta()
-    if feed in feedmeta and not feedmeta[feed]['subscribed']:
-        feedmeta[feed]['subscribed'] = True
-        save_anchore_feedmeta(feedmeta)
-    return(True)
+    if feed in feedmeta:
+        if not feedmeta[feed]['subscribed']:
+            feedmeta[feed]['subscribed'] = True
+            if not save_anchore_feedmeta(feedmeta):
+                msg = str(feed) + ": failed to subscribe to feed (check debug output)."
+                success = False
+    else:
+        msg = "cannot find specified feed ("+str(feed)+"): please review the feeds list and try again"
+        success = False
+    return(success, msg)
 
 def unsubscribe_anchore_feed(feed):
+    success = True
+    msg = str(feed) + ": unsubscribed."
+
     feedmeta = load_anchore_feedmeta()
-    if feed in feedmeta and feedmeta[feed]['subscribed']:
-        feedmeta[feed]['subscribed'] = False
-        save_anchore_feedmeta(feedmeta)
-    return(True)
+    if feed in feedmeta:
+        if feedmeta[feed]['subscribed']:
+            feedmeta[feed]['subscribed'] = False
+            if not save_anchore_feedmeta(feedmeta):
+                msg = str(feed) + ": failed to unsubscribe to feed (check debug output)."
+                success = False
+    else:
+        msg = "cannot find specified feed ("+str(feed)+"): please review the feeds list and try again"
+        success = False
+
+    return(success, msg)
 
 def load_anchore_feed(feed, group):
     basedir = contexts['anchore_config']['feeds_dir']
@@ -385,3 +405,15 @@ def load_anchore_feed(feed, group):
             ret['msg'] = "no data exists for given feed/group ("+str(feed)+"/"+str(group)+")"
             
     return(ret)
+
+def delete_anchore_feed(feed):
+    basedir = contexts['anchore_config']['feeds_dir']
+
+    feedmeta = load_anchore_feedmeta()
+    if feed in feedmeta:
+        if not feedmeta[feed]['subscribed']:
+            feeddir = os.path.join(basedir, feed)
+            if os.path.exists(feeddir):
+                shutil.rmtree(feeddir)
+
+    return(True)
