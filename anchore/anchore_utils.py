@@ -390,15 +390,17 @@ def print_result(config, result, outputmode=None):
             for i in result.keys():
                 json_dict = result[i]
                 sortby = False
-                for h in json_dict['result']['header']:
-                    if re.match(r"^\*.*", h):
-                        sortby = h
 
                 header = json_dict['result']['header']
                 if outputmode == 'table':
                     header = [ re.sub("_", " ", x.encode('utf8')) for x in header ]
                     t = PrettyTable(header)
                     t.align = 'l'
+
+                for h in header:
+                    if re.match(r"^\*.*", h):
+                        sortby = h
+
                 break
 
             emptyresult = False
