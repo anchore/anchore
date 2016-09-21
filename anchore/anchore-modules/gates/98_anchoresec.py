@@ -65,7 +65,7 @@ cvedirroot = '/'.join([config['anchore_config']['image_data_store'], "../cve-dat
 
 try:
     image = anchore_image.AnchoreImage(imgid, config['anchore_config']['image_data_store'], {})
-    cve_data = anchore.anchore_utils.cve_load_data(cvedirroot, image)
+    cve_data = anchore.anchore_utils.cve_load_data(image)
     report = anchore.anchore_utils.cve_scanimage(cve_data, image)
 except Exception as err:
     import traceback
