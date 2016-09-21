@@ -11,7 +11,7 @@ import anchore.anchore_utils
 # main routine
 
 try:
-    config = anchore.anchore_utils.init_query_cmdline(sys.argv, "params: all ...\nhelp: shows dockerfile lines, associated layer IDs, and layer sizes")
+    config = anchore.anchore_utils.init_query_cmdline(sys.argv, "params: all | onlyimage ...\nhelp: shows dockerfile lines, associated layer IDs, and layer sizes.  If 'onlyimage' is given, layers inherited from parent images are not displayed.")
 except Exception as err:
     print str(err)
     sys.exit(1)
@@ -35,6 +35,7 @@ else:
 
 try:
     ftreetypes = {}
+
     idata = anchore.anchore_utils.load_image_report(config['imgid'])
     for fid in idata['familytree']:
         fdata = anchore.anchore_utils.load_image_report(fid)
