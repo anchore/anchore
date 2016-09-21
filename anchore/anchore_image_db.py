@@ -42,6 +42,9 @@ class AnchoreImageDB(object):
         self.version = None
         try:
             from anchore import version as anchore_version_string
+
+            self.version = {'anchore_version': anchore_version_string, 'db_version': anchore_version_string}
+
             if not os.path.exists(self.imagerootdir):
                 raise Exception("anchore DB: image root dir does not exist "+str(imagerootdir))
 
@@ -56,9 +59,8 @@ class AnchoreImageDB(object):
 
             FH=open(dbmetafile, 'r')
             json_dict = json.loads(FH.read())
-            self.version = {'anchore_version': json_dict['anchore_version'], 'db_version': json_dict['anchore_db_version']}
-            
             FH.close()
+
             if 'anchore_version' not in json_dict:
                 json_dict['anchore_version'] = anchore_version_string
                 update = True
