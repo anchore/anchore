@@ -758,7 +758,7 @@ def get_distro_flavor(distro, version, likedistro=None):
 
     return(ret)
 
-def cve_load_data(cvedatadir, image, cve_data_context=None):
+def cve_load_data(image, cve_data_context=None):
     import anchore_feeds
     cve_data = None
 

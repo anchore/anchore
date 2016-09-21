@@ -293,11 +293,17 @@ class Navigator(object):
 
                 meta['queryparams'] = ','.join(params)
                 meta['querycommand'] = cmd
+                try:
+                    i = header.index('URL')
+                    meta['url_column_index'] = i
+                except:
+                    pass
                 meta['result'] = {}
                 meta['result']['header'] = header
                 meta['result']['rowcount'] = len(orows)
                 try:
-                    meta['result']['colcount'] = len(orows[0])
+                    #meta['result']['colcount'] = len(orows[0])
+                    meta['result']['colcount'] = len(header)
                 except:
                     meta['result']['colcount'] = 0
                 meta['result']['rows'] = orows

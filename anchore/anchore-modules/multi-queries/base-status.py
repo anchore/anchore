@@ -49,7 +49,7 @@ for imageId in config['images']:
 
         if realbaseid and thefromid:
             if realbaseid == imageId:
-                pass
+                outlist.append([imageId, humanname, thefrom, realbaseid, 'N/A', 'up-to-date'])
             elif thefromid == 'scratch' or thefromid == '<unknown>':
                 outlist.append([imageId, humanname, thefrom, realbaseid, 'N/A', 'N/A'])
             elif realbaseid != thefromid:
