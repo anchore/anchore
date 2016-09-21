@@ -44,7 +44,7 @@ class Navigator(object):
                 'gates_report': gates_report,
                 'gates_eval_report': gates_eval_report,
                 'result': {
-                    'header':['ImageId', 'Type', 'CurrentTags', 'AllTags', 'GateStatus', 'Size(bytes)', 'Counts', 'BaseDiffs'],
+                    'header':['Image_Id', 'Type', 'Current_Tags', 'All_Tags', 'Gate_Status', 'Size(bytes)', 'Counts', 'Base_Diffs'],
                     'rows': list()
                 }
             }
@@ -114,7 +114,7 @@ class Navigator(object):
             image = self.allimages[imageId]
             #result[imageId] = image.get_dockerfile_contents()
             record = {'result':{}}
-            record['result']['header'] = ['ImageId', 'Mode', 'DockerfileContents']
+            record['result']['header'] = ['Image_Id', 'Mode', 'Dockerfile_Contents']
             record['result']['rows'] = list()
             (dbuf, mode) = image.get_dockerfile_contents()
             record['result']['rows'].append([image.meta['shortId'], mode, dbuf])
@@ -126,7 +126,7 @@ class Navigator(object):
         for imageId in self.images:
             image = self.allimages[imageId]
             record = {'result':{}}
-            record['result']['header'] = ['ImageId', 'Current Repo/Tags', 'Past Repo/Tags', 'ImageType']
+            record['result']['header'] = ['Image_Id', 'Current_Repo_Tags', 'Past_Repo_Tags', 'Image_Type']
             record['result']['rows'] = list()
             for fid in image.get_familytree():
                 fimage = self.allimages[fid]
@@ -155,7 +155,7 @@ class Navigator(object):
         for imageId in self.images:
             image = self.allimages[imageId]
             record = {'result':{}}
-            record['result']['header'] = ['LayerId']
+            record['result']['header'] = ['Layer_Id']
             record['result']['rows'] = list()
             for fid in image.get_layers() + [imageId]:
                 record['result']['rows'].append([fid])
@@ -169,7 +169,7 @@ class Navigator(object):
         for imageId in self.images:
             image = self.allimages[imageId]
             record = {'result':{}}
-            record['result']['header'] = ['ImageId', 'Date', 'KnownTags']
+            record['result']['header'] = ['Image_Id', 'Date', 'Known_Tags']
             record['result']['rows'] = list()
             for tagtup in image.get_tag_history():
                 tstr = time.ctime(int(tagtup[0]))
@@ -325,7 +325,7 @@ class Navigator(object):
         result = {}
 
         record = {'result':{}}
-        record['result']['header'] = ["Query", "HelpString"]
+        record['result']['header'] = ["Query", "Help_String"]
         record['result']['rows'] = list()
 
         if command:

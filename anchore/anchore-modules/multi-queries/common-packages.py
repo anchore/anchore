@@ -27,7 +27,7 @@ if not config:
     sys.exit(0)
 
 outlist = list()
-outlist.append(["BaseId", "Package", "*ChildImagesWithPackage"])
+outlist.append(["BaseId", "Package", "*Child_Images_With_Package"])
 
 allimages = {}
 tups = list()

@@ -21,7 +21,7 @@ for name in config['params']:
 
 outlist = list()
 warns = list()
-outlist.append(["Distro", "DistroVersion", "*ImageCount", "ImageIDs"])
+outlist.append(["Distro", "Distro_Version", "*Image_Count", "Image_Ids"])
 
 result = {}
 

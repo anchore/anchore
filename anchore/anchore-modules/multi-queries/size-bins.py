@@ -38,7 +38,7 @@ for i in range(1, len(bins)):
 bstr = str(bins[-1]) + "++"
 result[bstr] = {'count':0, 'imageIds':list()}
 
-outlist.append(["SizeRange(MBs)", "ImageCount", "ImageIDs"])
+outlist.append(["Size_Range(MBs)", "Image_Count", "Image_Ids"])
 
 allimages = {}
 for imageId in config['images']:

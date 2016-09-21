@@ -16,7 +16,6 @@ from anchore.util import scripting, contexts
 
 DEVNULL=open(os.devnull, 'wb')
 
-
 class Controller(object):
     """
     Component that manages gate execution on images.
@@ -332,7 +331,7 @@ class Controller(object):
 
             record = {}
             record['result'] = {}
-            record['result']['header'] = ['ImageID', 'Repo/Tag', 'Gate', 'Trigger', 'CheckOutput', 'GateAction']
+            record['result']['header'] = ['Image_Id', 'Repo_Tag', 'Gate', 'Trigger', 'Check_Output', 'Gate_Action']
             record['result']['rows'] = list()
             report = results
             for m in report:

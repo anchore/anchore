@@ -31,7 +31,7 @@ print "PARAMS: " + str(config['params'])
 
 outlist = list()
 warns = list()
-outlist.append(["ImageId", "Repo/Tag", "FromLine", "ActualBaseId", "CurrentFromBaseId", "Status"])
+outlist.append(["Image_Id", "Repo_Tag", "From_Line", "Actual_Base_Id", "Current_From_Base_Id", "Status"])
 
 result = {}
 
