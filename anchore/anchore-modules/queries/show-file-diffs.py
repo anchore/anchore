@@ -55,8 +55,9 @@ for fid in config['params']:
                     for pkg in image_report['file_checksums'][csumkey][module_type].keys():
                         status = image_report['file_checksums'][csumkey][module_type][pkg]
                         ivers = ipkgs.pop(pkg, "NA")
+                        pvers = fpkgs.pop(pkg, "NA")
+
                         if status == 'VERSION_DIFF':
-                            pvers = fpkgs.pop(pkg, "NA")
                             outlist.append([config['meta']['shortId'], config['meta']['humanname'], fimage.meta['shortId'], pkg, ivers, pvers])
                             hascontent=True
                         elif status == 'INIMG_NOTINBASE':

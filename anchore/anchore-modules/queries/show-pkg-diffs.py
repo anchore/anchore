@@ -51,15 +51,14 @@ for fid in config['params']:
                     for pkg in image_report['package_list']['pkgs.all'][module_type].keys():
                         status = image_report['package_list']['pkgs.all'][module_type][pkg]
                         ivers = ipkgs.pop(pkg, "NA")
+                        pvers = fpkgs.pop(pkg, "NA")
                         if status == 'VERSION_DIFF':
-                            pvers = fpkgs.pop(pkg, "NA")
                             outlist.append([config['meta']['shortId'], config['meta']['humanname'], fimage.meta['shortId'], pkg, ivers,pvers])
                             hascontent=True
                         elif status == 'INIMG_NOTINBASE':
                             outlist.append([config['meta']['shortId'], config['meta']['humanname'], fimage.meta['shortId'], pkg, ivers,"NOTINSTALLED"])
                             hascontent=True
                         elif status == 'INBASE_NOTINIMG':
-                            pvers = fpkgs.pop(pkg, "NA")
                             outlist.append([config['meta']['shortId'], config['meta']['humanname'], fimage.meta['shortId'], pkg, "NOTINSTALLED", pvers])
                             hascontent=True
     except Exception as err:
