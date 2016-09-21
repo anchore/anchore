@@ -142,7 +142,9 @@ class Analyzer(object):
                         cmd = cmdstr.split()
                         try:
                             self._logger.debug("running analyzer: " + cmdstr)
+                            timer = time.time()
                             outstr = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+                            self._logger.debug("analyzer time (seconds): " + str(time.time() - timer))
                             rc = 0
                             self._logger.debug("analyzer status: success")
                             self._logger.debug("analyzer exitcode: " + str(rc))

@@ -12,11 +12,78 @@ import stat
 
 import anchore.anchore_utils
 
-def rpm_check_file_membership_from_path(inpath):
+def rpm_check_file_membership_from_path(inpath, allfiles=None):
+    rpmfiles = {}
+    matchfiles = list()
+    nonmatchfiles = list()
+    realnonmatchfiles = list()
+
+    if not allfiles:
+        filemap, allfiles = anchore.anchore_utils.get_files_from_path(inpath)
+
+    real_root = os.open('/', os.O_RDONLY)
+    try:
+        os.chroot(inpath)
+
+        # get a list of all files from RPM
+        try:
+            sout = subprocess.check_output(['rpm', '-qal'])
+            sout = sout.decode('utf8')
+        except subprocess.CalledProcessError as err:
+            sout = ""
+            errmsg = err.output.decode('utf8')
+
+        for l in sout.splitlines():
+            l = l.strip()
+            rpmfiles[l] = True
+    except Exception as err:
+        print str(err)
+
+    # find any rpm files that are not in the filesystem (first past)
+    for rfile in allfiles.keys():
+        if rfile not in rpmfiles:
+            nonmatchfiles.append(rfile)
+
+    # second pass - hardlinks make this necessary
+    done=False
+    start = 0
+    while not done:
+        cmdlist = nonmatchfiles[start:start+256]
+        if len(cmdlist) <= 0:
+            done=True
+        else:
+            try:
+                sout = subprocess.check_output(['rpm', '-qf'] + cmdlist)
+                sout = sout.decode('utf8')
+            except subprocess.CalledProcessError as err:
+                sout = err.output.decode('utf8')
+
+            for l in sout.splitlines():
+                l = l.strip()
+                try:
+                    filename = re.match("file (.*) is not owned by any package", l).group(1)
+                    realnonmatchfiles.append(filename)
+                except:
+                    pass
+        start = start + 256
+
+    os.fchdir(real_root)
+    os.chroot('.')
+    
+    # for all files, if not unmatched, consider them matched to a package
+    for rfile in allfiles.keys():
+        if rfile not in realnonmatchfiles:
+            matchfiles.append(rfile)
+
+    print "RESULT: " + str(len(matchfiles)) + " : " + str(len(realnonmatchfiles))
+    return(matchfiles, realnonmatchfiles)
+
+def rpm_check_file_membership_from_path_orig(inpath, allfiles=None):
     matchfiles = list()
     nonmatchfiles = list()
 
-    filemap, allfiles = anchore.anchore_utils.get_files_from_path(inpath)
+    if not allfiles:
+        filemap, allfiles = anchore.anchore_utils.get_files_from_path(inpath)
 
     real_root = os.open('/', os.O_RDONLY)
     try:
@@ -41,13 +108,15 @@ def rpm_check_file_membership_from_path(inpath):
     os.chroot('.')
 
     matchfiles = list(set(allfiles.keys()) - set(nonmatchfiles))
+    print "RESULT: " + str(len(matchfiles)) + " : " + str(len(nonmatchfiles))
     return(matchfiles, nonmatchfiles)
 
-def dpkg_check_file_membership_from_path(inpath):
+def dpkg_check_file_membership_from_path(inpath, allfiles=None):
     matchfiles = list()
     nonmatchfiles = list()
 
-    filemap, allfiles = anchore.anchore_utils.get_files_from_path(inpath)
+    if not allfiles:
+        filemap, allfiles = anchore.anchore_utils.get_files_from_path(inpath)
 
     real_root = os.open('/', os.O_RDONLY)
     try:
@@ -74,6 +143,9 @@ def dpkg_check_file_membership_from_path(inpath):
     os.chroot('.')
 
     matchfiles = list(set(allfiles.keys()) - set(nonmatchfiles))
+
+    print "RESULT: " + str(len(matchfiles)) + " : " + str(len(nonmatchfiles))
+
     return(matchfiles, nonmatchfiles)
 
 analyzer_name = "file_list"
@@ -98,7 +170,8 @@ distrodict = anchore.anchore_utils.get_distro_flavor(meta['DISTRO'], meta['DISTR
 simplefiles = {}
 outfiles = {}
 nonpkgoutfiles = {}
-
+import time
+timer = time.time()
 try:
     allfiles = {}
     if os.path.exists(unpackdir + "/anchore_allfiles.json"):
@@ -109,8 +182,6 @@ try:
         with open(unpackdir + "/anchore_allfiles.json", 'w') as OFH:
             OFH.write(json.dumps(allfiles))
 
-    #fmap, allfiles = anchore.anchore_utils.get_files_from_path(unpackdir + "/rootfs")
-
     # fileinfo
     for name in allfiles.keys():
         outfiles[name] = json.dumps(allfiles[name])
@@ -118,12 +189,12 @@ try:
 
     if distrodict['flavor'] == "RHEL":
         # rpm file check
-        match, nonmatch = rpm_check_file_membership_from_path(unpackdir + "/rootfs")
+        match, nonmatch = rpm_check_file_membership_from_path(unpackdir + "/rootfs", allfiles=allfiles)
         for f in nonmatch:
             nonpkgoutfiles[f] = 'NOTPKGED'
     elif distrodict['flavor'] == "DEB":
         # dpkg file check
-        match, nonmatch = dpkg_check_file_membership_from_path(unpackdir + "/rootfs")
+        match, nonmatch = dpkg_check_file_membership_from_path(unpackdir + "/rootfs", allfiles=allfiles)
         for f in nonmatch:
             nonpkgoutfiles[f] = 'NOTPKGED'
 
