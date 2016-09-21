@@ -40,6 +40,8 @@ try:
     tar = tarfile.open(unpackdir + "/squashed.tar")
     for member in tar.getmembers():
         name = member.name.decode('utf8')
+        name = re.sub("^\.", "", name)
+
         if member.isfile():
             thefile = '/'.join([unpackdir, "rootfs", name])
 

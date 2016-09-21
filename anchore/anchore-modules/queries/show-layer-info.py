@@ -28,10 +28,10 @@ outlist = list()
 
 showall = True
 if config['params'][0] == 'onlyimage':
-    outlist.append(["ImageID", "Repo/Tags", "LayerId", "LayerSize", "DockerfileLine"])
+    outlist.append(["Image_Id", "Repo_Tags", "Layer_Id", "Layer_Size_Bytes", "Dockerfile_Line"])
     showall = False
 else:
-    outlist.append(["ImageID", "Repo/Tags", "LayerId", "LayerSize", "DockerfileLine", "InheritedFromParent"])    
+    outlist.append(["Image_Id", "Repo_Tags", "Layer_Id", "Layer_Size_Bytes", "Dockerfile_Line", "Inherited_From_Parent"])    
 
 try:
     ftreetypes = {}

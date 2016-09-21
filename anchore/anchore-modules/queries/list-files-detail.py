@@ -24,7 +24,7 @@ if len(config['params']) <= 0:
     print "Query requires input: <directory prefix> <directory prefix> ..."
 
 outlist = list()
-outlist.append(["ImageID", "Repo/Tags", "Filename", "Type", "Size", "Mode", "LinkDest", "Checksum"])
+outlist.append(["Image_Id", "Repo_Tags", "Filename", "Type", "Size", "Mode", "Link_Dest", "Checksum"])
 
 try:
     # handle the good case, something is found resulting in data matching the required columns

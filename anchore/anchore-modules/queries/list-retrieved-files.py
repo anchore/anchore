@@ -23,7 +23,7 @@ if len(config['params']) <= 0:
 
 warns = list()
 outlist = list()
-outlist.append(["ImageId", "Repo/Tags", "StoredFileName", "StoredFileSizeBytes"])
+outlist.append(["Image_Id", "Repo_Tags", "Stored_Filename", "Stored_File_Size_Bytes"])
 
 tags = "none"
 if config['meta']['humanname']:

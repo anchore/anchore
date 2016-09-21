@@ -20,7 +20,7 @@ if 'all' in config['params']:
     config['params'] = ['STOP', 'WARN', 'GO']
 
 outlist = list()
-outlist.append(["ImageID", "Repo/Tag", "Gate", "Trigger", "Action"])
+outlist.append(["Image_ID", "Repo_Tag", "Gate", "Trigger", "Action"])
 
 
 report = anchore.anchore_utils.load_gates_eval_report(config['meta']['imageId'])

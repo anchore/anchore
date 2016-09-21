@@ -27,13 +27,13 @@ do
     if [ "$p" == "all" ]; then
 	GREPSTR=".*"
     else
-	GREPSTR="${GREPSTR}|^.${p}"
+	GREPSTR="${GREPSTR}|^${p}"
     fi
 done
 
 PKGFILE="$ANALYZERDIR/file_list/files.all"
 if [ -f "$PKGFILE" ]; then
-    echo "ImageID Repo/Tag File Permission"  > $OUTPUT
+    echo "Image_Id Repo_Tag File Permission"  > $OUTPUT
     if [ -z "$SHORTID" -o -z "$HUMANNAME" ]; then
 	export SHORTID="Unknown"
 	export HUMANNAME="Unknown"

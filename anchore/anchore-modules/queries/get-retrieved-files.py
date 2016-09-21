@@ -54,7 +54,7 @@ dstdir = config['params'][1]
 
 warns = list()
 outlist = list()
-outlist.append(["ImageId", "Repo/Tags", "StoredFileName", "OutputLocation"])
+outlist.append(["Image_Id", "Repo_Tags", "Stored_File_Name", "Output_Location"])
 
 tags = "none"
 if config['meta']['humanname']:

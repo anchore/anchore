@@ -396,6 +396,7 @@ def print_result(config, result, outputmode=None):
 
                 header = json_dict['result']['header']
                 if outputmode == 'table':
+                    header = [ re.sub("_", " ", x.encode('utf8')) for x in header ]
                     t = PrettyTable(header)
                     t.align = 'l'
                 break

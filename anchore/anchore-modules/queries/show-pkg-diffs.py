@@ -22,7 +22,7 @@ if len(config['params']) <= 0:
 
 outlist = list()
 warns = list()
-outlist.append(["ImageId", "Repo/Tag", "CompareImageId","Package","InputImageVersion","CompareImageVersion"])
+outlist.append(["Image_Id", "Repo_Tag", "Compare_Image_Id","Package","Input_Image_Version","Compare_Image_Version"])
 
 allimages = {}
 image = anchore.anchore_image.AnchoreImage(config['imgid'], config['anchore_config']['image_data_store'], allimages)

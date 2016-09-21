@@ -24,7 +24,7 @@ if len(config['params']) <= 0:
     print "Query requires input: <package name> <package name> ..."
 
 outlist = list()
-outlist.append(["ImageID", "Repo/Tags", "Package", "Version"])
+outlist.append(["Image_Id", "Repo_Tags", "Package", "Version"])
 
 try:
     # handle the good case, something is found resulting in data matching the required columns

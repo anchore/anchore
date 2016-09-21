@@ -21,7 +21,7 @@ if len(config['params']) <= 0:
 
 warns = list()
 outlist = list()
-outlist.append(["ImageID", "Repo/Tag", "QueryParam", "Package", "Version"])
+outlist.append(["Image_Id", "Repo_Tag", "Query_Param", "Package", "Version"])
 
 try:
     pkgs = anchore.anchore_utils.load_analysis_output(config['meta']['imageId'], 'package_list', 'pkgs.all')
