@@ -4,6 +4,7 @@ import re
 import shutil
 import collections
 import datetime
+import json
 from textwrap import fill
 import click
 
@@ -16,14 +17,16 @@ imagelist = []
 
 @click.group(short_help='Useful tools and operations on images and containers')
 @click.option('--image', help='Process specified image ID', required=True, metavar='<imageid>')
+@click.pass_context
 @click.pass_obj
-def toolbox(anchore_config, image):
+def toolbox(anchore_config, ctx, image):
     """
     A collection of tools for operating on images and containers and building anchore modules.
 
     Subcommands operate on the specified image passed in as --image <imgid>
 
     """
+
     global config, imagelist, nav
     config = anchore_config
     ecode = 0
@@ -40,16 +43,13 @@ def toolbox(anchore_config, image):
         anchore_print_err("could not load any images")
         sys.exit(1)
 
-    try:
-        nav = navigator.Navigator(anchore_config=config, imagelist=imagelist, allimages=contexts['anchore_allimages'])
-        #con = controller.Controller(anchore_config=anchore_config, imagelist=imagelist, allimages=contexts['anchore_allimages'])
-        #t = con.discover_gates()
-        #anchore_print(t, do_formatting=True)
-
-    except Exception as err:
-        anchore_print_err('operation failed')
-        nav = None
-        ecode = 1
+    if ctx.invoked_subcommand != 'import':
+        try:
+            nav = navigator.Navigator(anchore_config=config, imagelist=imagelist, allimages=contexts['anchore_allimages'])
+        except Exception as err:
+            anchore_print_err('operation failed')
+            nav = None
+            ecode = 1
 
 @toolbox.command(name='delete', short_help="Delete input image(s) from the Anchore DB")
 @click.option('--dontask', help='Will delete the image from Anchore DB without asking for coinfirmation', is_flag=True)
@@ -108,7 +108,7 @@ def unpack(destdir):
     sys.exit(ecode)
 
 @toolbox.command(name='setup-module-dev', short_help='Setup a module development environment')
-@click.option('--destdir', help='Destination directory for module development environment')
+@click.option('--destdir', help='Destination directory for module development environment', metavar='<path>')
 def setup_module_dev(destdir):
     """
     Sets up a development environment suitable for working on anchore modules (queries, etc) in the specified directory.
@@ -319,6 +319,71 @@ def show_analyzer_status():
         ecode = 1
 
     contexts['anchore_allimages'].clear()
+    sys.exit(ecode)
+
+@toolbox.command(name='export')
+@click.option('--outfile', help='output file for exported image', required=True, metavar='<file.json>')
+def export(outfile):
+    """Export the specified image anchore data to a file that can be used with import."""
+    ecode = 0
+    savelist = list()
+    for imageId in imagelist:
+
+        try:
+            record = {}
+            record['image'] = {}
+            record['image']['imageId'] = imageId
+            record['image']['imagedata'] = contexts['anchore_db'].load_image_new(imageId)
+        
+            savelist.append(record)
+        except Exception as err:
+            anchore_print_err("could not find record for image ("+str(imageId)+")")
+            ecode = 1
+
+    if ecode == 0:
+        try:
+            with open(outfile, 'w') as OFH:
+                OFH.write(json.dumps(savelist))
+        except Exception as err:
+            anchore_print_err("operation failed: " + str(err))
+            ecode = 1
+
+    sys.exit(ecode)
+
+@toolbox.command(name='import')
+@click.option('--infile', help='input file that contains anchore image data from a previous export', type=click.Path(exists=True), metavar='<file.json>', required=True)
+def image_import(infile):
+    """Export the specified image anchore data to a file that can be used with import."""
+    ecode = 0
+    
+    try:
+        with open(infile, 'r') as FH:
+            savelist = json.loads(FH.read())
+    except Exception as err:
+        anchore_print_err("could not load input file: " + str(err))
+        ecode = 1
+
+    if ecode == 0:
+
+        for record in savelist:
+            try:
+                imageId = record['image']['imageId']
+                if contexts['anchore_db'].is_image_present(imageId):
+                    anchore_print("image ("+str(imageId)+") already exists in DB, skipping import.")
+                else:
+                    imagedata = record['image']['imagedata']
+                    try:
+                        rc = contexts['anchore_db'].save_image_new(imageId, report=imagedata)
+                        if not rc:
+                            contexts['anchore_db'].delete_image(imageId)
+                            raise Exception("save to anchore DB failed")
+                    except Exception as err:
+                        contexts['anchore_db'].delete_image(imageId)
+                        raise err
+            except Exception as err:
+                anchore_print_err("could not store image ("+str(imageId)+") from import file: "+ str(err))
+                ecode = 1
+
     sys.exit(ecode)
 
 @toolbox.command(name='show')

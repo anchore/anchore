@@ -214,23 +214,8 @@ def sync_feeds(force_since=None):
                             _logger.info("\tsyncing group data: " + str(group) + ": ...")
                             success, data = get_group_data(feed, group, since=since)
                             if success:
-
-                                newdata = list()
-
-                                # TODO this is temporary
-                                #if data:
-                                #    _logger.info("\t\tmerging old and new data: ...")
-                                #    oldfeed = load_anchore_feed(feed, group)
-                                #    olddata = oldfeed['data']
-                                #    for f in data:
-                                #        if f not in olddata:
-                                #            newdata.append(f)
-
-                                # should be effectively this
-                                newdata = data
-
                                 with open(datafile, 'w') as OFH:
-                                    OFH.write(json.dumps(newdata))
+                                    OFH.write(json.dumps(data))
 
                                 with open(metafile, 'w') as OFH:
                                     group_meta['prev_update'] = sincets
@@ -242,6 +227,8 @@ def sync_feeds(force_since=None):
                                         group_meta['datafiles'].append(datafilename)
                                     OFH.write(json.dumps(group_meta))
 
+        rc = handle_anchore_feed_post(feed)
+            
         ret['status_code'] = 0
         ret['success'] = True
     except Exception as err:
@@ -415,5 +402,25 @@ def delete_anchore_feed(feed):
             feeddir = os.path.join(basedir, feed)
             if os.path.exists(feeddir):
                 shutil.rmtree(feeddir)
+
+    return(True)
+
+# TODO wip
+def handle_anchore_feed_post(feed):
+
+    feedmeta = load_anchore_feedmeta()
+    if feed in feedmeta:
+        if feed == 'imagedata':
+            # handler
+            for group in feedmeta[feed]['groups']:
+                d = load_anchore_feed(feed, group)
+                for imagedata in d['data']:
+                    imageId = imagedata['image']['imageId']
+                    imagerecord = imagedata['image']['imagedata']
+                    contexts['anchore_db'].save_image_new(imageId, report=imagerecord)
+            pass
+        elif feed == 'vulnerabilities':
+            # no handler
+            pass
 
     return(True)
