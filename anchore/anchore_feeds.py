@@ -159,8 +159,11 @@ def sync_feedmeta():
 def sync_feeds(force_since=None):
     ret = {'success':False, 'text':"", 'status_code':1}
 
+    #feedmeta = load_anchore_feedmeta()
+    #for feed in feedmeta.keys():
+    #    rc, msg = handle_anchore_feed_pre(feed)
+
     feedmeta = load_anchore_feedmeta()
-    
     basedir = contexts['anchore_config']['feeds_dir']
     feedurl = contexts['anchore_config']['feeds_url']
     try:
@@ -227,7 +230,7 @@ def sync_feeds(force_since=None):
                                         group_meta['datafiles'].append(datafilename)
                                     OFH.write(json.dumps(group_meta))
 
-        rc = handle_anchore_feed_post(feed)
+            rc, msg = handle_anchore_feed_post(feed)
             
         ret['status_code'] = 0
         ret['success'] = True
@@ -298,16 +301,18 @@ def load_anchore_feedmeta():
             feedmeta = json.loads(FH.read())
 
     # ensure feed meta is up-to-date
-    update_anchore_feedmeta(feedmeta)
+    update_anchore_feedmeta(feedmeta, default_sublist=['vulnerabilities'])
 
     return(feedmeta)
 
-def update_anchore_feedmeta(feedmeta):
+def update_anchore_feedmeta(feedmeta, default_sublist=None):
     feeds = load_anchore_feeds_list()
     for feedrecord in feeds:
         feed = feedrecord['name']
         if feed not in feedmeta:
             feedmeta[feed] = {'subscribed':False, 'description':"NA", 'groups':{}}
+            if default_sublist and feed in default_sublist:
+                feedmeta[feed]['subscribed'] = True
 
         feedmeta[feed]['description'] = feedrecord['description']
 
@@ -406,8 +411,21 @@ def delete_anchore_feed(feed):
     return(True)
 
 # TODO wip
-def handle_anchore_feed_post(feed):
+def handle_anchore_feed_pre(feed):
+    ret = True
+    msg = ""
+    feedmeta = load_anchore_feedmeta()
+    if feed in feedmeta:
+        if feed == 'vulnerabilities':
+            if not feedmeta[feed]['subscribed']:
+                rc, msg = subscribe_anchore_feed(feed)
+                ret = rc
+    return(ret, msg)
 
+
+def handle_anchore_feed_post(feed):
+    ret = True
+    msg = ""
     feedmeta = load_anchore_feedmeta()
     if feed in feedmeta:
         if feed == 'imagedata':
@@ -423,4 +441,4 @@ def handle_anchore_feed_post(feed):
             # no handler
             pass
 
-    return(True)
+    return(ret, msg)
