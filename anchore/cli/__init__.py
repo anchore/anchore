@@ -24,20 +24,31 @@ from .common import init_output_format, anchore_print_err, extended_help_option
 
 
 main_extended_help="""
-Anchore is a tool for analyzing, querying, and curating container images to deliver the transparency, predictability,
-and control necessary to use containers in production. Anchore is composed of a toolset that runs locally on a host as
-well as a web service that monitors the container ecosystem and provides inputs to the local toolset.
 
-The tool has capabilities to populate a registry, run analysis, explore/query the analysis results (including custom
-queries and checks), and run policy-based gate-functions against container images to help an ops team decide if a container
-should go into the CI/CD pipeline and on to production based on attributes of the Dockerfile, built image, or both.
+Anchore is a tool for analyzing, querying, and curating container
+images to deliver the transparency, predictability, and control
+necessary to use containers in production. Anchore is composed of a
+toolset that runs locally on a host as well as a web service that
+monitors the container ecosystem and provides inputs to the local
+toolset.
 
-After installation, the first command run must be: 'anchore sync catalog' to initialize the system and load subscription data.
+The tool has capabilities to populate a registry, run analysis,
+explore/query the analysis results (including custom queries and
+checks), and run policy-based gate-functions against container images
+to help an ops team decide if a container should go into the CI/CD
+pipeline and on to production based on attributes of the Dockerfile,
+built image, or both.
 
-Subscriptions are lists of container images (e.g. ubuntu:latest, centos:7, nginx:latest), that anchore will automatically
-fetch from docker hub during a catalog sync to keep up-to-date and will also download the latest analysis data on those images
-from the anchore web service. Except during a sync, no network connectivity is required by anchore to run analysis and query
-images.
+After installation, the first command run should be: 'anchore feeds
+list' to initialize the system and load feed data.
+
+Feeds are different types of data that the anchore web service makes
+available for certain container image queries and scans.  At any point
+in time, you can use the 'anchore feeds' commands to sync the latest
+data from the anchore web service, subscribe and/or unsubscribe from
+anchore feeds, or get a list of available feeds. Except during feeds
+operations, no network connectivity is required by anchore to run
+analysis and query images.
 
 Configuration Files:
 
@@ -56,16 +67,20 @@ $HOME/.anchore/conf, then in /etc/anchore. If not found in either place, a new o
 
 High-level example flows:
 
-Initialize the system and subscribe to 'ubuntu' image:
+Initialize the system and sync the by-default subscribed feed 'vulnerabilties':
 
 \b
-anchore sync catalog
-anchore subscriptions add ubuntu
-anchore sync catalog
+anchore feeds list
+anchore feeds sync
+
+Analyze an image
+
+docker pull nginx:latest
+anchore analyze --image nginx:latest --imagetype base
 
 Generate a summary report on all analyzed images
 
-anchore explore report
+anchore audit report
 
 Check gate output for nginx:latest:
 
@@ -88,27 +103,30 @@ def main_entry(ctx, verbose, debug, quiet, json, plain, html):
     Anchore is a tool to analyze, query, and curate container images. The options at this top level
     control stdout and stderr verbosity and format.
 
-    The first command that must be run after installation is: 'anchore sync catalog'. That will initialize
-    the system and prepare the local install for use.
+    After installation, the first command run should be: 'anchore feeds
+    list' to initialize the system and load feed data.
+
 
     High-level example flows:
 
-    Initialize the system and subscribe to 'ubuntu' image:
+    Initialize the system and sync the by-default subscribed feed 'vulnerabilties':
 
     \b
-    anchore sync catalog
-    anchore subscriptions add ubuntu
-    anchore sync catalog
+    anchore feeds list
+    anchore feeds sync
+
+    Analyze an image
+
+    docker pull nginx:latest
+    anchore analyze --image nginx:latest --imagetype base
 
     Generate a summary report on all analyzed images
 
-    anchore explore report
+    anchore audit report
 
     Check gate output for nginx:latest:
 
     anchore gate --image nginx:latest
-
-
     """
     # Load the config into the context object
     logfile = None
@@ -154,9 +172,7 @@ def main_entry(ctx, verbose, debug, quiet, json, plain, html):
         print "ERROR: " + str(err)
         exit(1)
 
-#main_entry.add_command(subscriptions.subscriptions)
 main_entry.add_command(system.system)
-#main_entry.add_command(synchronizer.sync)
 main_entry.add_command(query.query)
 main_entry.add_command(audit.audit)
 main_entry.add_command(analyzer.analyze)
@@ -192,14 +208,6 @@ def anchore_pre_flight_check(ctx):
             anchore_print_err("Anchore requires yum/rpm libs and commands")
             return(False)
 
-#        try:
-#            import graphviz  
-#            cmd = ['dot', '-V']
-#            sout = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
-#        except Exception as err:
-#            anchore_print_err("Anchore requires graphviz libs and commands")
-#            return(False)
-            
     if subcommand in ['explore', 'gate', 'analyze', 'toolbox']:
         # check DB readiness
         try:
