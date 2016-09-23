@@ -17,6 +17,7 @@ class AnchoreConfiguration (object):
     DEFAULT_ANCHORE_DATA_DIR = os.path.join(os.getenv('HOME'), '.anchore')
     DEFAULT_CONFIG_DIR = os.path.join(DEFAULT_ANCHORE_DATA_DIR, 'conf')
     DEFAULT_CONFIG_FILE = os.path.join(DEFAULT_CONFIG_DIR, 'config.yaml')
+    DEFAULT_TMP_DIR = os.path.join(DEFAULT_ANCHORE_DATA_DIR, 'anchoretmp')
     EXAMPLE_CONFIG_DIR = resource_filename("anchore", "conf/")
     EXAMPLE_CONFIG_FILE = resource_filename("anchore", "conf/config.yaml")
     DEFAULT_PKG_DIR = resource_filename("anchore", "")
@@ -39,7 +40,7 @@ class AnchoreConfiguration (object):
         'feeds_dir': 'feeds',
         'feeds_url': DEFAULT_ANCHORE_FEEDS_URL,
         'image_data_store': 'data',
-        'tmpdir': '/tmp',
+        'tmpdir': DEFAULT_TMP_DIR,
         'pkg_dir': DEFAULT_PKG_DIR,
         'scripts_dir': DEFAULT_SCRIPTS_DIR,
         'user_scripts_dir': 'user-scripts',
@@ -69,6 +70,8 @@ class AnchoreConfiguration (object):
             self.DEFAULT_ANCHORE_DATA_DIR = os.getenv('ANCHOREDATADIR')
             self.DEFAULT_CONFIG_DIR = os.path.join(self.DEFAULT_ANCHORE_DATA_DIR, 'conf')
             self.DEFAULT_CONFIG_FILE = os.path.join(self.DEFAULT_CONFIG_DIR, 'config.yaml')
+            self.DEFAULT_TMP_DIR = os.path.join(self.DEFAULT_ANCHORE_DATA_DIR, 'anchoretmp')
+            self.DEFAULTS['tmpdir'] = self.DEFAULT_TMP_DIR
             self.DEFAULTS['anchore_data_dir'] = self.DEFAULT_ANCHORE_DATA_DIR
 
         self.config_dir, self.config_file = self.find_config_file()
@@ -79,6 +82,12 @@ class AnchoreConfiguration (object):
             if cliargs:
                 # store CLI arguments
                 self.cliargs = cliargs
+
+            if not os.path.exists(self.data['anchore_data_dir']):
+                os.makedirs(self.data['anchore_data_dir'])
+
+            if not os.path.exists(self.data['tmpdir']):
+                os.makedirs(self.data['tmpdir'])
 
             #update relative to data dir if not an absolute path
             if not os.path.isabs(self.data['image_data_store']):
