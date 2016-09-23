@@ -97,8 +97,8 @@ class AnchoreImage(object):
         else:
             self.meta['imageId'] = result.keys()[0]
 
-        if dockerfile and not os.path.exists(dockerfile):
-            raise Exception("input dockerfile ("+str(dockerfile)+") does not exist.")
+        if dockerfile and (os.stat(dockerfile).st_size <= 0 or not os.path.exists(dockerfile) or not os.path.isfile(dockerfile)):
+            raise Exception("input dockerfile ("+str(dockerfile)+") is invalid.")
 
         self.anchore_image_datadir = anchore_image_datadir
         self.anchore_imagedir = os.path.join(anchore_image_datadir, self.meta['imageId'])

@@ -324,7 +324,7 @@ def show_analyzer_status():
 @toolbox.command(name='export')
 @click.option('--outfile', help='output file for exported image', required=True, metavar='<file.json>')
 def export(outfile):
-    """Export the specified image anchore data to a file that can be used with import."""
+    """Export image anchore data to a JSON file."""
     ecode = 0
     savelist = list()
     for imageId in imagelist:
@@ -353,7 +353,7 @@ def export(outfile):
 @toolbox.command(name='import')
 @click.option('--infile', help='input file that contains anchore image data from a previous export', type=click.Path(exists=True), metavar='<file.json>', required=True)
 def image_import(infile):
-    """Export the specified image anchore data to a file that can be used with import."""
+    """Import image anchore data from a JSON file."""
     ecode = 0
     
     try:
