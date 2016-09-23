@@ -398,14 +398,16 @@ def show():
         image=contexts['anchore_allimages'][imagelist[0]]
 
         o = collections.OrderedDict()
-
-        o['IMAGEID'] = image.meta['imageId']
+        mymeta = {}
+        mymeta.update(image.meta)
+        o['IMAGEID'] = mymeta.pop('imageId', "NA")
         o['REPOTAGS'] = image.get_alltags_current()
         o['DISTRO'] = image.get_distro()
         o['DISTROVERS'] = image.get_distro_vers()
-        o['SHORTID'] = image.meta['shortId']
-        o['PARENTID'] = image.meta['parentId']
+        o['SHORTID'] = mymeta.pop('shortId', "NA")
+        o['PARENTID'] = mymeta.pop('parentId', "NA")
         o['BASEID'] = image.get_earliest_base()
+        o['IMAGETYPE'] = mymeta.pop('usertype', "NA")
 
         for k in o.keys():
             if type(o[k]) is list:
