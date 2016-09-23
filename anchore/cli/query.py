@@ -26,8 +26,10 @@ def query(anchore_config, image, imagefile, include_allanchore, module):
 
     Examples using pre-defined queries:
 
-    Query all images to see which have the package 'wget' installed:
-    'anchore explore query has-package wget'
+    'anchore query --image nginx:latest list-packages all'
+    'anchore query has-package wget'
+    'anchore query --image nginx:latest list-files-detail all'
+    'anchore query cve-scan all'
 
     """
 

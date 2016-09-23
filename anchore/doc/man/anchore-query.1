@@ -16,9 +16,12 @@ Modules are scripts in a specific location.
 Each query has its own parameters and outputs.
 .IP
 Examples using pre\-defined queries:
-.IP
-Query all images to see which have the package 'wget' installed:
-\&'anchore explore query has\-package wget'
+.TP
+\&'anchore query \fB\-\-image\fR nginx:latest list\-packages all'
+\&'anchore
+.TP
+query has\-package wget'
+\&'anchore query \fB\-\-image\fR nginx:latest listfiles\-detail all'     'anchore query cve\-scan all'
 .SH OPTIONS
 .TP
 \fB\-\-image\fR <imageid>
