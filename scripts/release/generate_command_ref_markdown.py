@@ -2,8 +2,8 @@
 import os
 import subprocess
 
-help2md_exec='/home/zhill/git/help2md/help2md'
-output_dir='/home/zhill/git/anchore.wiki/command_reference/'
+help2md_exec='/root/help2md/help2md'
+output_dir='/root/command_reference/'
 
 def check_help2md():
     if not os.path.exists(help2md_exec):
