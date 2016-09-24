@@ -42,21 +42,23 @@ Next, on either distro:
 
 ``anchore --help``
 
-``anchore sync catalog``
+``docker pull nginx:latest``
 
-``anchore subscriptions show``
+``anchore feeds list``
 
-``anchore subscriptions add ubuntu centos ubuntu:quantal``
+``anchore feeds sync``
 
-``anchore sync catalog``
+``anchore analyze --image nginx:latest --imagetype base``
 
-``anchore audit report``
+``anchore audit --image nginx:latest report``
 
-``anchore query has-package curl wget``
+``anchore query --image nginx:latest has-package curl wget``
 
-``anchore query cve-scan all``
+``anchore query --image nginx:latest list-files-detail all``
 
-``anchore toolbox --image nginx show``
+``anchore query --image nginx:latest cve-scan all``
+
+``anchore toolbox --image nginx:latest show``
 
 For more information, to learn about how to analyze your own
 application containers, and how to customize/extend Anchore, please
