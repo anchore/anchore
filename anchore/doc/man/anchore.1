@@ -19,15 +19,16 @@ and run policy\-based gate\-functions against container images to help an
 ops team decide if a container should go into the CI/CD pipeline and on to
 production based on attributes of the Dockerfile, built image, or both.
 .IP
-After installation, the first command run must be: 'anchore sync catalog'
-to initialize the system and load subscription data.
+After installation, the first command run should be: 'anchore feeds list'
+to initialize the system and load feed data.
 .IP
-Subscriptions are lists of container images (e.g. ubuntu:latest, centos:7,
-nginx:latest), that anchore will automatically fetch from docker hub
-during a catalog sync to keep up\-to\-date and will also download the latest
-analysis data on those images from the anchore web service. Except during
-a sync, no network connectivity is required by anchore to run analysis and
-query images.
+Feeds are different types of data that the anchore web service makes
+available for certain container image queries and scans.  At any point in
+time, you can use the 'anchore feeds' commands to sync the latest data
+from the anchore web service, subscribe and/or unsubscribe from anchore
+feeds, or get a list of available feeds. Except during feeds operations,
+no network connectivity is required by anchore to run analysis and query
+images.
 .IP
 Configuration Files:
 .IP
@@ -47,15 +48,20 @@ for more help on gates).
 .IP
 High\-level example flows:
 .IP
-Initialize the system and subscribe to 'ubuntu' image:
+Initialize the system and sync the by\-default subscribed feed
+\&'vulnerabilties':
 .IP
-anchore sync catalog
-anchore subscriptions add ubuntu
-anchore sync catalog
+anchore feeds list
+anchore feeds sync
+.IP
+Analyze an image
+.IP
+docker pull nginx:latest anchore analyze \fB\-\-image\fR nginx:latest \fB\-\-imagetype\fR
+base
 .IP
 Generate a summary report on all analyzed images
 .IP
-anchore explore report
+anchore audit report
 .IP
 Check gate output for nginx:latest:
 .IP

@@ -4,6 +4,7 @@ import sys
 import os
 import json
 import re
+import shutil
 import tarfile, io
 
 import anchore.anchore_utils
@@ -93,7 +94,13 @@ outlist = list()
 
 # first, attempt to extract /etc/passwd
 dstdir = os.path.join(outputdir, 'extract_tmp')
-retlist = get_retrieved_file(config['imgid'], '/etc/passwd', dstdir)
+
+retlist = list()
+try:
+    retlist = get_retrieved_file(config['imgid'], '/etc/passwd', dstdir)
+except Exception as err:
+    print "Exception: " + str(err)
+
 if not retlist:
     outlist.append("FILENOTSTORED Cannot locate /etc/passwd in image's stored files archive: check analyzer settings")
 else:
@@ -159,6 +166,12 @@ else:
                         pass
         except:
             pass
+
+try:
+
+    shutil.rmtree(dstdir)
+except:
+    pass
 
 # write output
 anchore.anchore_utils.save_gate_output(imgid, gate_name, outlist)

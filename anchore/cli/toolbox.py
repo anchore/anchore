@@ -198,9 +198,9 @@ def setup_module_dev(destdir):
             anchore_print("\tcp " + examples['analyzers'] + " " + config.data['scripts_dir'] + "/analyzers/99_analyzer-example.sh")
             anchore_print("\tcp " + examples['queries'] + " " + config.data['scripts_dir'] + "/queries/")
             anchore_print("\tanchore analyze --force --image " + imageId + " --imagetype none")
-            anchore_print("\tanchore explore --image " + imageId + " query query-example")
-            anchore_print("\tanchore explore --image " + imageId + " query query-example passwd")
-            anchore_print("\tanchore explore --image " + imageId + " query query-example pdoesntexist")
+            anchore_print("\tanchore query --image " + imageId + " query-example")
+            anchore_print("\tanchore query --image " + imageId + " query-example passwd")
+            anchore_print("\tanchore query --image " + imageId + " query-example pdoesntexist")
             
     except:
         anchore_print_err("operation failed")

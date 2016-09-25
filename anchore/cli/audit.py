@@ -78,6 +78,8 @@ def report():
 
     GateStatus - The overall aggregate gate output status: GO|STOP|WARN
 
+    Size - The size in bytes of the image on disk
+    
     Counts - The counts for various attributes of the images such as packages, files, and suid files
 
     BaseDiffs - Differences of this image from its base image

@@ -159,10 +159,6 @@ def sync_feedmeta():
 def sync_feeds(force_since=None):
     ret = {'success':False, 'text':"", 'status_code':1}
 
-    #feedmeta = load_anchore_feedmeta()
-    #for feed in feedmeta.keys():
-    #    rc, msg = handle_anchore_feed_pre(feed)
-
     feedmeta = load_anchore_feedmeta()
     basedir = contexts['anchore_config']['feeds_dir']
     feedurl = contexts['anchore_config']['feeds_url']
@@ -230,7 +226,15 @@ def sync_feeds(force_since=None):
                                         group_meta['datafiles'].append(datafilename)
                                     OFH.write(json.dumps(group_meta))
 
-            rc, msg = handle_anchore_feed_post(feed)
+                                # finally, do any post download feed/group handler actions
+                                rc, msg = handle_anchore_feed_post(feed, group)
+                            else:
+                                _logger.warn("\t\tWARN: failed to download feed/group data ("+str(feed)+"/"+str(group)+"): check --debug output and/or try again") 
+                            rc, msg = handle_anchore_feed_post(feed, group)
+
+        else:
+            _logger.info("skipping data sync for unsubscribed feed ("+str(feed)+") ...")
+            
             
         ret['status_code'] = 0
         ret['success'] = True
@@ -423,22 +427,36 @@ def handle_anchore_feed_pre(feed):
     return(ret, msg)
 
 
-def handle_anchore_feed_post(feed):
+def handle_anchore_feed_post(feed, group):
     ret = True
     msg = ""
-    feedmeta = load_anchore_feedmeta()
-    if feed in feedmeta:
-        if feed == 'imagedata':
-            # handler
-            for group in feedmeta[feed]['groups']:
-                d = load_anchore_feed(feed, group)
-                for imagedata in d['data']:
-                    imageId = imagedata['image']['imageId']
-                    imagerecord = imagedata['image']['imagedata']
-                    contexts['anchore_db'].save_image_new(imageId, report=imagerecord)
-            pass
-        elif feed == 'vulnerabilities':
-            # no handler
-            pass
+    if feed == 'imagedata':
+        # handler
+        d = load_anchore_feed(feed, group)
+        if d and d['success']:
+            for record in d['data']:
+                if 'redirecturl' in record.keys():
+                    for tag in record['redirecturl'].keys():
+                        url = record['redirecturl'][tag]
+                        imageId = tag
+                        if not contexts['anchore_db'].is_image_present(imageId):
+                            try:
+                                r = requests.get(url, timeout=10)
+                                if r.status_code == 200:
+                                    data = json.loads(r.text)
+                                    for imagedata in data:
+                                        imagerecord = imagedata['image']['imagedata']
+                                        _logger.info("\t\tpopulating anchore DB with image data: " + imageId)
+                                        contexts['anchore_db'].save_image_new(imageId, report=imagerecord)
+                            except Exception as err:
+                                _logger.error("exception: " + str(err))
+                                ret = False
+                                msg = "failed to download/import image: " + imageId
+                        else:
+                            _logger.info("\t\tskipping: " + str(imageId) + ": already in DB")
+
+    else:
+        # no handler
+        pass
 
     return(ret, msg)
