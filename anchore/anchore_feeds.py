@@ -232,10 +232,9 @@ def sync_feeds(force_since=None):
                                 _logger.warn("\t\tWARN: failed to download feed/group data ("+str(feed)+"/"+str(group)+"): check --debug output and/or try again") 
                             rc, msg = handle_anchore_feed_post(feed, group)
 
-        else:
-            _logger.info("skipping data sync for unsubscribed feed ("+str(feed)+") ...")
-            
-            
+            else:
+                _logger.info("skipping data sync for unsubscribed feed ("+str(feed)+") ...")            
+
         ret['status_code'] = 0
         ret['success'] = True
     except Exception as err:
