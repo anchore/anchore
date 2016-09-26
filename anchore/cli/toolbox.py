@@ -325,6 +325,10 @@ def show_analyzer_status():
 @click.option('--outfile', help='output file for exported image', required=True, metavar='<file.json>')
 def export(outfile):
     """Export image anchore data to a JSON file."""
+
+    if not nav:
+        sys.exit(1)
+
     ecode = 0
     savelist = list()
     for imageId in imagelist:
