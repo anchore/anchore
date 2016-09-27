@@ -178,14 +178,17 @@ def anchore_common_context_setup(config):
 
     return(True)
 
+# anchoreDB pass through functions
+
 def save_gate_output(imageId, gate_name, data):
     return(contexts['anchore_db'].save_gate_output(imageId, gate_name, data))
 
 def save_gate_help_output(gate_help):
     return(contexts['anchore_db'].save_gate_help_output(gate_help))
 
-#def save_gate_help_output(gate_name, triggers):
-#    return(contexts['anchore_db'].save_gate_help_output(gate_name, triggers))
+def save_analysis_output(imageId, module_name, module_value, data, module_type=None):
+    return(contexts['anchore_db'].save_analysis_output(imageId, module_name, module_value, data, module_type=module_type))
+
 
 def load_analysis_output(imageId, module_name, module_value):
     ret = {}
@@ -198,23 +201,50 @@ def load_analysis_output(imageId, module_name, module_value):
     #return(contexts['anchore_db'].load_analysis_output(imageId, module_name, module_value))
     return(ret)
 
-def save_analysis_output(imageId, module_name, module_value, data, module_type=None):
-    return(contexts['anchore_db'].save_analysis_output(imageId, module_name, module_value, data, module_type=module_type))
+def load_gate_output(imageId, gate_name):
+    return(contexts['anchore_db'].load_gate_report(imageId, gate_name))
 
-def load_analyzer_manifest(imageId):
-    return(contexts['anchore_db'].load_analyzer_manifest(imageId))
-
-def list_analysis_outputs(imageId):
-    return(contexts['anchore_db'].list_analysis_outputs(imageId))
-
-def load_gates_eval_report(imageId):
-    return(contexts['anchore_db'].load_gates_eval_report(imageId))
 
 def load_image_report(imageId):
     return(contexts['anchore_db'].load_image_report(imageId))
 
+def load_analysis_report(imageId):
+    return(contexts['anchore_db'].load_analysis_report(imageId))
+
+def load_gates_report(imageId):
+    return(contexts['anchore_db'].load_gates_report(imageId))
+
+def load_gates_eval_report(imageId):
+    return(contexts['anchore_db'].load_gates_eval_report(imageId))
+
+
+def list_analysis_outputs(imageId):
+    return(contexts['anchore_db'].list_analysis_outputs(imageId))
+
+def load_analyzer_manifest(imageId):
+    return(contexts['anchore_db'].load_analyzer_manifest(imageId))
+
+
 def load_image(imageId):
     return(contexts['anchore_db'].load_image(imageId))
+
+def load_all_images():
+    return(contexts['anchore_db'].load_all_images())
+
+
+def is_image_analyzed(imageId):
+    return(contexts['anchore_db'].is_image_analyzed(imageId))
+
+def is_image_present(imageId, imagelist=None):
+    return(contexts['anchore_db'].is_image_present(imageId, imagelist))
+
+
+def get_image_list():
+    return(contexts['anchore_db'].get_image_list())
+
+def delete_image(imageId):
+    return(contexts['anchore_db'].delete_image(imageId))
+
 
 def make_anchoretmpdir(tmproot):
     import random
@@ -704,6 +734,14 @@ def get_distro_from_path(inpath):
             meta['DISTROVERS'] = slist[1]
         except:
             meta['DISTROVERS'] = "0"
+    elif os.path.exists('/'.join([inpath, "/etc/debian_version"])):
+        with open('/'.join([inpath, "/etc/debian_version"]), 'r') as FH:
+            meta['DISTRO'] = 'debian'
+            for line in FH.readlines():
+                line = line.strip()
+                patt = re.match("(\d+)\..*", line)
+                if patt:
+                    meta['DISTROVERS'] = patt.group(1)
 
     if not meta['DISTRO']:
         meta['DISTRO'] = "Unknown"

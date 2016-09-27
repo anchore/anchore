@@ -210,7 +210,6 @@ def setup_module_dev(destdir):
     
     sys.exit(ecode)
 
-
 @toolbox.command(name='show-dockerfile')
 def generate_dockerfile():
     """Generate (or display actual) image Dockerfile"""
@@ -368,7 +367,6 @@ def image_import(infile):
         ecode = 1
 
     if ecode == 0:
-
         for record in savelist:
             try:
                 imageId = record['image']['imageId']
