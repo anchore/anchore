@@ -28,8 +28,10 @@ class AnchoreConfiguration (object):
     DEFAULT_ANCHORE_TOKEN_URL = 'https://ancho.re/oauth/token'
     DEFAULT_ANCHORE_FEEDS_URL = 'https://ancho.re/v1/service/feeds'
     DEFAULT_ANCHORE_AUTH_CONN_TIMEOUT = 5
-    DEFAULT_ANCHORE_AUTH_MAX_RETRIES = 5
-    
+    DEFAULT_ANCHORE_AUTH_MAX_RETRIES = 3
+    DEFAULT_ANCHORE_FEEDS_CONN_TIMEOUT = 10
+    DEFAULT_ANCHORE_FEEDS_MAX_RETRIES = 3
+
     try:
         DEFAULT_EXTRASCRIPTS_DIR = resource_filename("anchore-modules", "/")
     except:
@@ -39,6 +41,8 @@ class AnchoreConfiguration (object):
         'anchore_data_dir': DEFAULT_ANCHORE_DATA_DIR,
         'feeds_dir': 'feeds',
         'feeds_url': DEFAULT_ANCHORE_FEEDS_URL,
+        'feeds_conn_timeout': DEFAULT_ANCHORE_FEEDS_CONN_TIMEOUT,
+        'feeds_max_retries': DEFAULT_ANCHORE_FEEDS_MAX_RETRIES,
         'image_data_store': 'data',
         'tmpdir': DEFAULT_TMP_DIR,
         'pkg_dir': DEFAULT_PKG_DIR,
@@ -46,7 +50,7 @@ class AnchoreConfiguration (object):
         'user_scripts_dir': 'user-scripts',
         'extra_scripts_dir': DEFAULT_EXTRASCRIPTS_DIR,
         'docker_conn': 'unix://var/run/docker.sock',
-        'docker_conn_timeout':'60',
+        'docker_conn_timeout':'120',
         'anchore_client_url':DEFAULT_ANCHORE_CLIENT_URL,
         'anchore_token_url':DEFAULT_ANCHORE_TOKEN_URL,
         'anchore_auth_conn_timeout':DEFAULT_ANCHORE_AUTH_CONN_TIMEOUT,

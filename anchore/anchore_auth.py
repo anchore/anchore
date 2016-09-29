@@ -12,12 +12,10 @@ def anchore_auth_init(username, password, auth_file, client_info_url, token_url,
     if not username or not password or not auth_file or not client_info_url or not token_url or not conn_timeout or not max_retries:
         return(False)
 
-    #'token_url':'https://ancho.re/oauth/token',
-    #'client_info_url':'https://ancho.re/v1/account/users',
     anchore_auth = {'username':'', 
                     'password':'',
-                    'max_retries':max_retries,
-                    'conn_timeout':conn_timeout,
+                    'max_retries':int(max_retries),
+                    'conn_timeout':int(conn_timeout),
                     'client_info_url':client_info_url,
                     'token_url':token_url,
                     'auth_file':auth_file,
@@ -26,7 +24,6 @@ def anchore_auth_init(username, password, auth_file, client_info_url, token_url,
                 }
 
     if os.path.exists(auth_file):
-        #print "using existing auth tokens"
         try:
             with open(auth_file, 'r') as FH:
                 loaded_anchore_auth = json.loads(FH.read())
@@ -35,7 +32,6 @@ def anchore_auth_init(username, password, auth_file, client_info_url, token_url,
             pass
 
     if anchore_auth['username'] != username or anchore_auth['password'] != password:
-        #print "invalidating exiting token: u/p reset"
         anchore_auth['username'] = username
         anchore_auth['password'] = password
         anchore_auth_invalidate(anchore_auth)
@@ -84,7 +80,7 @@ def anchore_auth_refresh(anchore_auth, forcerefresh=False):
     client_info = anchore_auth['client_info']
     token_info = anchore_auth['token_info']
     auth_file = anchore_auth['auth_file']
-    conn_timeout = anchore_auth['conn_timeout']
+    conn_timeout = int(anchore_auth['conn_timeout'])
 
     if not client_info:
         # get client info
@@ -177,19 +173,27 @@ def anchore_auth_refresh(anchore_auth, forcerefresh=False):
 
     return(True, ret)
 
-def anchore_auth_get(anchore_auth, url, timeout=None):
+def anchore_auth_get(anchore_auth, url, timeout=None, retries=None):
     # make a request
-    #print "GET URL: " + url
     if not timeout:
-        timeout = anchore_auth['conn_timeout']
+        timeout = int(anchore_auth['conn_timeout'])
+
+    if not retries:
+        retries = int(anchore_auth['max_retries'])
+
+    timeout = int(timeout)
+    retries = int(retries)
 
     ret = {'status_code':1, 'text':'', 'success':False}
-    try:
-        success = False
-        count = 0
-        max_retries = anchore_auth['max_retries']
-        while(not success and count < max_retries):
-            count += 1
+
+    success = False
+    count = 0
+    #retries = anchore_auth['max_retries']
+
+    while(not success and count < retries):
+        count += 1
+        _logger.debug("get attempt "+str(count)+" of " + str(retries))
+        try:
             rc, record = anchore_auth_refresh(anchore_auth, forcerefresh=False)
             if not rc:
                 #print "cannot get valid auth token"
@@ -224,12 +228,13 @@ def anchore_auth_get(anchore_auth, url, timeout=None):
                 ret['status_code'] = r.status_code
                 ret['text'] = r.text
 
-    except requests.exceptions.ConnectTimeout as err:
-        #print "get request timed out"
-        ret['text'] = "timed_out"
-        return(ret)
-    except Exception as err:
-        ret['text'] = str(err)
-        return(ret)
+        except requests.exceptions.ConnectTimeout as err:
+            _logger.debug("attempt failed: " + str(err))
+            ret['text'] = "server error: timed_out: " + str(err)
+            #return(ret)
+        except Exception as err:
+            _logger.debug("attempt failed: " + str(err))
+            ret['text'] = "server error: " + str(err)
+            #return(ret)
 
     return(ret)

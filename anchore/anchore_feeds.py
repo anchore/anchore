@@ -17,15 +17,17 @@ def get_feed_list():
     ret = {'success':False, 'status_code':1, 'text':""}
 
     feedurl = contexts['anchore_config']['feeds_url']
+    feed_timeout = contexts['anchore_config']['feeds_conn_timeout']
+    feed_maxretries = contexts['anchore_config']['feeds_max_retries']
+
     baseurl = feedurl
     url = baseurl
-    timeout = 5
 
     retlist = list()
 
     done = False
     while not done:
-        record = anchore.anchore_auth.anchore_auth_get(contexts['anchore_auth'], url)
+        record = anchore.anchore_auth.anchore_auth_get(contexts['anchore_auth'], url, timeout=feed_timeout, retries=feed_maxretries)
         ret.update(record)
         if record['success']:
             data = json.loads(record['text'])
@@ -47,15 +49,17 @@ def get_group_list(feed):
     ret = {'success':False, 'status_code':1, 'text':""}
 
     feedurl = contexts['anchore_config']['feeds_url']
+    feed_timeout = contexts['anchore_config']['feeds_conn_timeout']
+    feed_maxretries = contexts['anchore_config']['feeds_max_retries']
+
     baseurl = '/'.join([feedurl, feed])
     url = baseurl
-    timeout = 5
 
     retlist = list()
 
     done = False
     while not done:
-        record = anchore.anchore_auth.anchore_auth_get(contexts['anchore_auth'], url)
+        record = anchore.anchore_auth.anchore_auth_get(contexts['anchore_auth'], url, timeout=feed_timeout, retries=feed_maxretries)
         ret.update(record)
         if record['success']:
             data = json.loads(record['text'])
@@ -71,9 +75,11 @@ def get_group_list(feed):
 
 def get_group_data(feed, group, since="1970-01-01"):    
     feedurl = contexts['anchore_config']['feeds_url']
+    feed_timeout = contexts['anchore_config']['feeds_conn_timeout']
+    feed_maxretries = contexts['anchore_config']['feeds_max_retries']
+
     baseurl = '/'.join([feedurl, feed, group, "?since="+since])
     url = baseurl
-    timeout = 5
 
     updatetime = int(time.time())
 
@@ -83,7 +89,7 @@ def get_group_data(feed, group, since="1970-01-01"):
     done=False
     while not done:
         _logger.debug("data group url: " + str(url))
-        record = anchore.anchore_auth.anchore_auth_get(contexts['anchore_auth'], url, timeout=60)
+        record = anchore.anchore_auth.anchore_auth_get(contexts['anchore_auth'], url, timeout=feed_timeout, retries=feed_maxretries)
         if record['success']:
             data = json.loads(record['text'])
             if 'data' in data:
