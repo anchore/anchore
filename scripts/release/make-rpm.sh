@@ -12,5 +12,5 @@ if [ -z "$REL" ]; then
     exit 1
 fi
 
-python setup.py bdist_rpm --requires="python python-setuptools python2-clint PyYAML python-requests python-click python-prettytable python-docker-py dpkg rpm-python python-oauth2" --build-requires="python python-setuptools" --release="$REL"
+python setup.py bdist_rpm --requires="python python-setuptools python2-clint PyYAML python-requests python-click python-prettytable python-docker-py dpkg rpm-python" --build-requires="python python-setuptools" --release="$REL"
 python setup.py clean --all
