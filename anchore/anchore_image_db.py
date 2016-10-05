@@ -364,9 +364,10 @@ class AnchoreImageDB(object):
         if not os.path.exists(thefile):
             return({})
 
-        FH = open(thefile, 'r')
-        ret = json.loads(FH.read())
-        FH.close()
+        ret = {}
+        with open(thefile, 'r') as FH:
+            ret = json.loads(FH.read())
+
         return(ret)
 
     def save_image_report(self, imageId, report):

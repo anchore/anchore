@@ -38,7 +38,7 @@ class AnchoreImage(object):
             except:
                 pass
 
-    def __init__(self, imagename, anchore_image_datadir, allimages, tmpdirroot="/tmp", dockerfile=None, docker_cli=None, anchore_db=None, usertype=None):
+    def __init__(self, imagename, anchore_image_datadir, allimages, tmpdirroot="/tmp", dockerfile=None, docker_cli=None, anchore_db=None, docker_images=None, usertype=None):
         # all members
         self.allimages = allimages
         self.initialized = False
@@ -84,7 +84,9 @@ class AnchoreImage(object):
         self.anchore_gates_eval_report = None
         self.anchore_image_report = None
 
+        # some contexts
         self.anchore_db = None
+        self.docker_images = None
 
         # do some setup
 
@@ -114,6 +116,11 @@ class AnchoreImage(object):
         else: 
             self.anchore_db = anchore_image_db.AnchoreImageDB(imagerootdir=self.anchore_image_datadir)
 
+        if docker_images:
+            self.docker_images = docker_images
+        else: 
+            self.docker_images = self.docker_cli.images(all=True)
+
         # set up metadata about the image from anchoreDB and docker
         if not self.load_image(dockerfile):
             raise Exception("could not load image information from Docker or AnchoreDB")
@@ -133,7 +140,7 @@ class AnchoreImage(object):
 
         newlist = list(self.anchore_familytree)
         while self.meta['imageId'] in newlist: newlist.remove(self.meta['imageId'])
-        anchore_utils.image_context_add(newlist, self.allimages, docker_cli=self.docker_cli, anchore_datadir=self.anchore_image_datadir, tmproot=self.tmpdirroot, anchore_db=self.anchore_db)
+        anchore_utils.image_context_add(newlist, self.allimages, docker_cli=self.docker_cli, anchore_datadir=self.anchore_image_datadir, tmproot=self.tmpdirroot, anchore_db=self.anchore_db, docker_images=self.docker_images)
 
     """ Image loading, discovering and saving """
     def load_image(self, dockerfile=None):
@@ -187,8 +194,20 @@ class AnchoreImage(object):
 
     def load_image_from_docker(self):
         try:
-            ddata = self.docker_cli.inspect_image(self.meta['imageId'])
-            hdata = self.docker_cli.history(self.meta['imageId'])
+            idata = {}
+            ddata = {}
+            hdata = {}
+            Id = None
+
+            # first get a list of docker images and search for the input image
+            dimages = self.docker_images
+            if self.meta['imageId'] in dimages:
+                idata = dimages[self.meta['imageId']]
+
+            if idata:
+                ddata = self.docker_cli.inspect_image(self.meta['imageId'])
+                hdata = self.docker_cli.history(self.meta['imageId'])
+
         except:
             return(False)
 
@@ -368,10 +387,7 @@ class AnchoreImage(object):
             if image_id: familytree.append(image_id)
             if parent_id:
                 if parent_id not in self.allimages:
-                    self.allimages[parent_id] = AnchoreImage(parent_id,
-                                                             anchore_image_datadir=self.anchore_image_datadir,
-                                                             allimages=self.allimages, tmpdirroot=self.tmpdirroot,
-                                                             docker_cli=self.docker_cli)
+                    self.allimages[parent_id] = AnchoreImage(parent_id, anchore_image_datadir=self.anchore_image_datadir, allimages=self.allimages, tmpdirroot=self.tmpdirroot, docker_cli=self.docker_cli, anchore_db=self.anchore_db, docker_images=self.docker_images)
                 nextimage = self.allimages[parent_id]
             else:
                 done = 1

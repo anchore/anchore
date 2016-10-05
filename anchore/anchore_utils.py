@@ -146,11 +146,21 @@ def init_query_cmdline(argv, paramhelp):
 
 def anchore_common_context_setup(config):
     if 'docker_cli' not in contexts or not contexts['docker_cli']:
+
+        dimages = {}
         try:
             contexts['docker_cli'] = docker.Client(base_url=config['docker_conn'], timeout=int(config['docker_conn_timeout']))
             testconn = contexts['docker_cli'].version()
+            docker_images = contexts['docker_cli'].images(all=True)
+            for i in docker_images:
+                if 'Id' in i:
+                    Id = re.sub("sha256:", "", i['Id'])
+                    dimages[Id] = i
+                    
         except Exception as err:
             contexts['docker_cli']=None
+
+        contexts['docker_images'] = dimages
 
     if 'anchore_allimages' not in contexts or not contexts['anchore_allimages']:
         contexts['anchore_allimages'] = {}
@@ -304,6 +314,20 @@ def discover_from_info(dockerfile_contents):
                 fromid = None
     return(fromline, fromid)
 
+def get_imageIds_named(name):
+    ret = list()
+    for result in contexts['anchore_db'].load_all_images_iter():
+        imageId = result[0]
+        image = result[1]
+        if name == imageId:
+            ret.append(imageId)
+        elif re.match("^"+name, imageId):
+            ret.append(imageId)
+        elif name in image['anchore_all_tags'] + image['anchore_current_tags'] or name+":latest" in image['anchore_all_tags'] + image['anchore_current_tags']:
+            ret.append(imageId)
+
+    return(ret)
+
 def discover_imageIds(namelist):
     ret = {}
     
@@ -317,61 +341,64 @@ def discover_imageId(name):
 
     ret = {}
 
+    # method -
+    # 1) check if 'name' is in docker images list (key == imageId)
+    # 2) check if 'name' or 'name:latest' is in docker images list repo/tags
+    # 3) check anchoreDB
+    # 4) check docker_inspect
+
     imageId = None
     try:
 
-        docker_cli = contexts['docker_cli']
-        if docker_cli:
-            try:
-                docker_data = docker_cli.inspect_image(name)
-                imageId = re.sub("sha256:", "", docker_data['Id'])
-                repos = []
-                for r in docker_data['RepoTags']:
+        iname = re.sub("sha256:", "", name)
+        for dimageId in contexts['docker_images'].keys():
+            i = contexts['docker_images'][dimageId]
+            if iname == i['Id'] or iname == re.sub("sha256:", "", i['Id']):
+                imageId = re.sub("sha256:", "", i['Id'])
+                repotags = i['RepoTags']
+                break
+            elif 'RepoTags' in i and i['RepoTags']:
+                for r in i['RepoTags']:
+                    if name == r or name+":latest" == r:
+                        imageId = re.sub("sha256:", "", i['Id'])
+                        repotags = i['RepoTags']
+                        break
+
+        if imageId:
+            repos = []
+            if repotags:
+                for r in repotags:
                     repos.append(r)
-                ret[imageId] = repos
-            except Exception as err:
-                pass
+
+            ret[imageId] = repos
 
         if not imageId:
-            match = False
+            aimage = contexts['anchore_db'].load_image(name)
+            if aimage:
+                imageId = name
+                ret[imageId] = aimage.pop('anchore_all_tags', [])
 
-            for result in contexts['anchore_db'].load_all_images_iter():
-                imageId = result[0]
-                image = result[1]
+        if not imageId:
+            ilist = get_imageIds_named(name)
+            if len(ilist) == 1:
+                imageId = ilist[0]
+                aimage = contexts['anchore_db'].load_image(imageId)
+                ret[imageId] = aimage.pop('anchore_all_tags', [])
+            elif len(ilist) > 1:
+                raise ValueError("Input image name '"+str(name)+"' is ambiguous in anchore:\n\tmatching imageIds: " + str(ilist))
 
-                if name == imageId:
-                    match = True
-                    matchId = imageId
-                    ret[name] = image['anchore_all_tags']
-                else:
-                    alltags = image['anchore_all_tags']
-                    currtags = image['anchore_current_tags']
-                    if re.match("^"+name, imageId):
-                        if not match:
-                            match=True
-                            matchId = imageId
-                            ret[imageId] = alltags
-                            continue
-                        else:
-                            raise ValueError("Input image name (ID) '"+str(name)+"' is ambiguous in anchore:\n\tprevious match=" + str(matchId) + "("+str(ret[matchId])+")\n\tconflicting match=" + str(imageId)+"("+str(alltags)+")")
-
-                    if name in currtags or name+":latest" in currtags:
-                        if not match:
-                            match = True
-                            matchId = imageId
-                            ret[imageId] = alltags
-                            continue
-                        else:
-                            raise ValueError("Input image name (CURRTAGS) '"+str(name)+"' is ambiguous in anchore:\n\tprevious match=" + str(matchId) + "("+str(ret[matchId])+")\n\tconflicting match=" + str(imageId)+"("+str(alltags)+")")
-
-                    if name in alltags or name+":latest" in alltags:
-                        if not match:
-                            match = True
-                            matchId = imageId
-                            ret[imageId] = alltags
-                            continue
-                        else:
-                            raise ValueError("Input image name (ALLTAGS) '"+str(name)+"' is ambiguous in anchore:\n\tprevious match=" + str(matchId) + "("+str(ret[matchId])+")\n\tconflicting match=" + str(imageId)+"("+str(alltags)+")")
+        if not imageId:
+            docker_cli = contexts['docker_cli']
+            if docker_cli:
+                try:
+                    docker_data = docker_cli.inspect_image(name)
+                    imageId = re.sub("sha256:", "", docker_data['Id'])
+                    repos = []
+                    for r in docker_data['RepoTags']:
+                        repos.append(r)
+                    ret[imageId] = repos
+                except Exception as err:
+                    pass
                     
     except ValueError as err:
         raise err
@@ -873,8 +900,8 @@ def cve_scanimage(cve_data, image):
 
                     if flavor == 'RHEL':
                         if vvers != 'None':
-                            fixfile = vpkg + "-" + vvers + ".rpm"
-                            imagefile = vpkg + "-" + ivers + ".rpm"
+                            fixfile = vpkg + "-" + vvers + ".arch.rpm"
+                            imagefile = vpkg + "-" + ivers + ".arch.rpm"
                             (n1, v1, r1, e1, a1) = splitFilename(imagefile)
                             (n2, v2, r2, e2, a2) = splitFilename(fixfile)
                             if rpm.labelCompare(('1', v1, r1), ('1', v2, r2)) < 0:
@@ -917,7 +944,7 @@ def cve_get_fixpkg(cve_data, cveId):
                     retlist.append(p['Name'])
     return (retlist)
 
-def image_context_add(imagelist, allimages, docker_cli=None, dockerfile=None, anchore_datadir=None, tmproot='/tmp', anchore_db=None, must_be_analyzed=False, usertype=None, must_load_all=False):
+def image_context_add(imagelist, allimages, docker_cli=None, dockerfile=None, anchore_datadir=None, tmproot='/tmp', anchore_db=None, docker_images=None, must_be_analyzed=False, usertype=None, must_load_all=False):
     retlist = list()
     for i in imagelist:
         if i in allimages:
@@ -927,7 +954,7 @@ def image_context_add(imagelist, allimages, docker_cli=None, dockerfile=None, an
             raise Exception(errorstr)
         else:
             try:
-                newimage = anchore_image.AnchoreImage(i, anchore_datadir, docker_cli=docker_cli, allimages=allimages, dockerfile=dockerfile, tmpdirroot=tmproot, usertype=usertype, anchore_db=anchore_db)
+                newimage = anchore_image.AnchoreImage(i, anchore_datadir, docker_cli=docker_cli, allimages=allimages, dockerfile=dockerfile, tmpdirroot=tmproot, usertype=usertype, anchore_db=anchore_db, docker_images=docker_images)
             except Exception as err:
                 if must_load_all:
                     import traceback

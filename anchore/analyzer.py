@@ -49,7 +49,7 @@ class Analyzer(object):
 
         self._logger.debug("init input processed, loading input images: " + str(imagelist))
         
-        self.images = anchore_utils.image_context_add(imagelist, allimages, docker_cli=contexts['docker_cli'], dockerfile=self.dockerfile, anchore_datadir=self.anchore_datadir, tmproot=self.config['tmpdir'], anchore_db=contexts['anchore_db'], usertype=usertype, must_load_all=True)
+        self.images = anchore_utils.image_context_add(imagelist, allimages, docker_cli=contexts['docker_cli'], dockerfile=self.dockerfile, anchore_datadir=self.anchore_datadir, tmproot=self.config['tmpdir'], anchore_db=contexts['anchore_db'], docker_images=contexts['docker_images'], usertype=usertype, must_load_all=True)
 
         self._logger.debug("loaded input images, checking that all input images have been loaded " + str(self.images))
 
@@ -201,9 +201,6 @@ class Analyzer(object):
                                     else:
                                         aoutput['data_type'] = 'file'
                                     results[script]['analyzer_outputs'].append(aoutput)
-                                    #results[script]['analyzer_outputs']['module_name'] = module_name
-                                    #results[script]['analyzer_outputs']['module_value'] = module_value
-                                    #results[script]['analyzer_outputs']['module_type'] = mtype
 
                     analyzer_status[script] = {}
                     analyzer_status[script].update(results[script])
@@ -211,6 +208,7 @@ class Analyzer(object):
                     self._logger.debug("skipping analyzer (no change in analyzer/config and prior run succeeded): " + script)
 
         # process and store analyzer outputs
+        didsave = False
         for script in results.keys():
             result = results[script]
             if result['status'] == 'SUCCESS':
@@ -230,17 +228,20 @@ class Analyzer(object):
                                 if os.path.isfile(dfile):
                                     adata = anchore_utils.read_kvfile_todict(dfile)
                                     self.anchoreDB.save_analysis_output(image.meta['imageId'], module_name, module_value, adata, module_type=mtype)
+                                    didsave = True
                                 elif os.path.isdir(dfile):
                                     self.anchoreDB.save_analysis_output(image.meta['imageId'], module_name, module_value, dfile, module_type=mtype, directory_data=True)
+                                    didsave = True
 
         self.anchoreDB.save_analyzer_manifest(image.meta['imageId'], analyzer_status)
 
         if success:
             self._logger.debug("analyzer commands all finished with successful exit codes")
 
-            self._logger.debug("generating analysis report from analyzer outputs and saving")
-            report = self.generate_analysis_report(image)
-            self.anchoreDB.save_analysis_report(image.meta['imageId'], report)
+            if didsave:
+                self._logger.debug("generating analysis report from analyzer outputs and saving")                
+                report = self.generate_analysis_report(image)
+                self.anchoreDB.save_analysis_report(image.meta['imageId'], report)
 
             self._logger.debug("saving image information with updated analysis data")
             image.save_image()
