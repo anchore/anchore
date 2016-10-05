@@ -1,5 +1,5 @@
 import json
-
+import re
 import os
 import shutil
 import time
@@ -42,8 +42,16 @@ class AnchoreImageDB(object):
         self.version = None
         try:
             from anchore import version as anchore_version_string
-
-            self.version = {'anchore_version': anchore_version_string, 'db_version': anchore_version_string}
+            anchore_db_version_string = anchore_version_string
+            try:
+                patt = re.match("([0-9]+)\.([0-9]+)\.(.*)", anchore_version_string)
+                if patt:
+                    (major, minor, subminor) = patt.group(1,2,3)
+                    anchore_db_version_string = '.'.join([major, minor])
+            except Exception as err:
+                pass
+                
+            self.version = {'anchore_version': anchore_version_string, 'db_version': anchore_db_version_string}
 
             if not os.path.exists(self.imagerootdir):
                 raise Exception("anchore DB: image root dir does not exist "+str(imagerootdir))
@@ -51,35 +59,38 @@ class AnchoreImageDB(object):
             # check that the software and DB are same version before continuing
             dbmetafile = '/'.join([self.imagerootdir, "anchore_db_meta.json"])
             if not os.path.exists(dbmetafile):
-                FH=open(dbmetafile, 'w')
-                FH.write(json.dumps({}))
-                FH.close()
+                with open(dbmetafile, 'w') as OFH:
+                    OFH.write(json.dumps({}))
 
             update = False
 
-            FH=open(dbmetafile, 'r')
-            json_dict = json.loads(FH.read())
-            FH.close()
+            with open(dbmetafile, 'r') as FH:
+                json_dict = json.loads(FH.read())
 
             if 'anchore_version' not in json_dict:
                 json_dict['anchore_version'] = anchore_version_string
                 update = True
-            if 'anchore_db_version' not in json_dict:
-                json_dict['anchore_db_version'] = anchore_version_string
+            elif json_dict['anchore_version'] != anchore_version_string:
+                json_dict['anchore_version'] = anchore_version_string
                 update = True
-            elif json_dict['anchore_db_version'] < anchore_version_string:
+
+            if 'anchore_db_version' not in json_dict:
+                json_dict['anchore_db_version'] = anchore_db_version_string
+                update = True
+            elif json_dict['anchore_db_version'] != anchore_db_version_string:
                 # Check major version
                 local_db_version = json_dict['anchore_db_version']
                 db_version_tuple = tuple(local_db_version.split('.'))
-                code_version_tuple = tuple(anchore_version_string.split('.'))
+                code_version_tuple = tuple(anchore_db_version_string.split('.'))
                 if db_version_tuple[0] < code_version_tuple[0]:
-                    raise ValueError("Anchore DB version ("+local_db_version + ") " +
-                                     "is at least one major-version behind the Anchore software version (" + anchore_version_string + ") and cannot be automatically upgraded. Please downgrade Anchore to compatible version or remove your Anchore DB and start from a clean install. Find us on freenode channel #anchore for additional assistance.")
+                    raise ValueError("Anchore DB version ("+local_db_version + ") cannot be automatically upgraded to this Anchore software version (" + anchore_version_string + ") Please downgrade Anchore to compatible version or remove your Anchore DB and start from a clean install.")
+                else:
+                    json_dict['anchore_db_version'] = anchore_db_version_string
+                    update = True
 
             if update:
-                FH=open(dbmetafile, 'w')
-                FH.write(json.dumps(json_dict))
-                FH.close()
+                with open(dbmetafile, 'w') as OFH:
+                    OFH.write(json.dumps(json_dict))
 
         except ValueError as err:
             raise err
