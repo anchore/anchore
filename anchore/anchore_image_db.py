@@ -99,6 +99,9 @@ class AnchoreImageDB(object):
 
         self.initialized = True        
 
+    def get_version(self):
+        return(self.version)
+
     def check(self):
         return(self.initialized)
 
