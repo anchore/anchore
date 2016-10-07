@@ -61,7 +61,17 @@ def purge(dontask):
     try:
         #for i in nav.get_images():
         for i in imagelist:
+            imageId = None
             if contexts['anchore_db'].is_image_present(i):
+                imageId = i
+            else:
+                try:
+                    ret = anchore_utils.discover_imageId(i)
+                    imageId = ret.keys()[0]
+                except:
+                    imageId = None
+
+            if imageId:
                 dodelete = False
                 if dontask:
                     dodelete = True
@@ -77,7 +87,7 @@ def purge(dontask):
                 if dodelete:
                     try:
                         anchore_print("Deleting image '"+str(i)+"'")
-                        contexts['anchore_db'].delete_image(i)
+                        contexts['anchore_db'].delete_image(imageId)
                     except Exception as err:
                         raise err
     except Exception as err:
