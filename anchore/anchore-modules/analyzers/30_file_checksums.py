@@ -56,15 +56,6 @@ try:
                     pass
                 outfiles_md5[name] = csum
 
-                #                cmd = ["md5sum", thefile]
-                #                try:
-                #                    out = subprocess.check_output(cmd)
-                #                    (csum, other) = re.match("(\S*)\s*(\S*)", out.decode('utf8')).group(1, 2)
-                #                    outfiles_md5[name] = csum
-                #                except:
-                #                    outfiles_md5[name] = "DIRECTORY_OR_OTHER"
-
-
             csum = "DIRECTORY_OR_OTHER"
             try:
                 with open(thefile, 'r') as FH:
@@ -73,13 +64,6 @@ try:
                 pass
             outfiles_sha256[name] = csum
 
-            #            cmd = ["sha256sum", thefile]
-            #            try:
-            #                out = subprocess.check_output(cmd)
-            #                (csum, other) = re.match("(\S*)\s*(\S*)", out.decode('utf8')).group(1, 2)
-            #                outfiles_sha256[name] = csum
-            #            except:
-            #                outfiles_sha256[name] = "DIRECTORY_OR_OTHER"
         else:
             outfiles_md5[name] = "DIRECTORY_OR_OTHER"
             outfiles_sha256[name] = "DIRECTORY_OR_OTHER"
