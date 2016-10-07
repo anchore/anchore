@@ -413,14 +413,14 @@ def show():
         o = collections.OrderedDict()
         mymeta = {}
         mymeta.update(image.meta)
-        o['IMAGEID'] = mymeta.pop('imageId', "NA")
+        o['IMAGEID'] = mymeta.pop('imageId', "N/A")
         o['REPOTAGS'] = image.get_alltags_current()
         o['DISTRO'] = image.get_distro()
         o['DISTROVERS'] = image.get_distro_vers()
-        o['SHORTID'] = mymeta.pop('shortId', "NA")
-        o['PARENTID'] = mymeta.pop('parentId', "NA")
+        o['SHORTID'] = mymeta.pop('shortId', "N/A")
+        o['PARENTID'] = mymeta.pop('parentId', "N/A")
         o['BASEID'] = image.get_earliest_base()
-        o['IMAGETYPE'] = mymeta.pop('usertype', "NA")
+        o['IMAGETYPE'] = mymeta.pop('usertype', "N/A")
 
         for k in o.keys():
             if type(o[k]) is list:

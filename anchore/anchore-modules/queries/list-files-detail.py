@@ -54,9 +54,9 @@ try:
         if filedata['linkdst']:
             linkdst = filedata['linkdst']
         else:
-            linkdst = "NA"
+            linkdst = "N/A"
 
-        csum = "NA"
+        csum = "N/A"
         fname_dotprefix = "."+fname
         fname_slashpostfix = fname_dotprefix+"/"
         if fname in checksum_data:
@@ -66,7 +66,7 @@ try:
         elif fname_slashpostfix in checksum_data:
             csum = checksum_data[fname_slashpostfix]
         else:
-            csum = "NA"
+            csum = "N/A"
 
         outlist.append([config['meta']['shortId'], config['meta']['humanname'], fname, filedata['type'], str(filedata['size']), oct(stat.S_IMODE(filedata['mode'])), linkdst, csum])
 

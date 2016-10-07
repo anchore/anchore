@@ -54,8 +54,8 @@ for fid in config['params']:
                 if module_type in image_report['package_list']['pkgs.all']:
                     for pkg in image_report['file_checksums'][csumkey][module_type].keys():
                         status = image_report['file_checksums'][csumkey][module_type][pkg]
-                        ivers = ipkgs.pop(pkg, "NA")
-                        pvers = fpkgs.pop(pkg, "NA")
+                        ivers = ipkgs.pop(pkg, "N/A")
+                        pvers = fpkgs.pop(pkg, "N/A")
 
                         if status == 'VERSION_DIFF':
                             outlist.append([config['meta']['shortId'], config['meta']['humanname'], fimage.meta['shortId'], pkg, ivers, pvers])

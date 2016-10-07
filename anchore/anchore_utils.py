@@ -432,7 +432,7 @@ def print_result(config, result, outputmode=None):
 
     if outputmode == 'table' and tablemode == 'stdout':
         try:
-            width = int(subprocess.check_output(['stty', 'size']).split()[1]) - 10
+            width = int(subprocess.check_output(['stty', 'size'], stderr=subprocess.STDOUT).split()[1]) - 10
         except:
             width = 70
     else:
@@ -535,13 +535,13 @@ def apkg_get_all_pkgfiles(unpackdir):
         
     apkgs = {}                
     apkg = {
-        'version':"NA",
-        'sourcepkg':"NA",
-        'release':"NA",
-        'origin':"NA",
-        'arch':"NA",
-        'license':"NA",
-        'size':"NA"
+        'version':"N/A",
+        'sourcepkg':"N/A",
+        'release':"N/A",
+        'origin':"N/A",
+        'arch':"N/A",
+        'license':"N/A",
+        'size':"N/A"
     }
     thename = ""
     thepath = ""
@@ -562,13 +562,13 @@ def apkg_get_all_pkgfiles(unpackdir):
                 allfiles = allfiles + flist
             apkgs[thename]['files'] = allfiles
             apkg = {
-                'version':"NA",
-                'sourcepkg':"NA",
-                'release':"NA",
-                'origin':"NA",
-                'arch':"NA",
-                'license':"NA",
-                'size':"NA",
+                'version':"N/A",
+                'sourcepkg':"N/A",
+                'release':"N/A",
+                'origin':"N/A",
+                'arch':"N/A",
+                'license':"N/A",
+                'size':"N/A",
                 'type':"APKG"
             }
             allfiles = list()

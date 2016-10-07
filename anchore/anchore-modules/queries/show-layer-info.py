@@ -58,7 +58,7 @@ try:
                 
         dfileline = ' '.join(record['dockerfile_line'].split())
         if not dfileline:
-            dfileline = "NA"
+            dfileline = "N/A"
 
         dfileline = re.sub("^/bin/sh -c", "RUN", dfileline)
 

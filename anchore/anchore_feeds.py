@@ -319,7 +319,7 @@ def update_anchore_feedmeta(feedmeta, default_sublist=None):
     for feedrecord in feeds:
         feed = feedrecord['name']
         if feed not in feedmeta:
-            feedmeta[feed] = {'subscribed':False, 'description':"NA", 'groups':{}}
+            feedmeta[feed] = {'subscribed':False, 'description':"N/A", 'groups':{}}
             if default_sublist and feed in default_sublist:
                 feedmeta[feed]['subscribed'] = True
 

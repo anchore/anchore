@@ -958,9 +958,9 @@ class AnchoreImage(object):
         return (report)
 
     def get_dockerfile_contents(self):
-        ret = ["", "NA"]
+        ret = ["", "N/A"]
 
-        modestr = "NA"
+        modestr = "N/A"
         dbuf = ""
         if os.path.exists(self.anchore_imagedir + "/Dockerfile"):
             modestr = "Actual"

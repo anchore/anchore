@@ -119,7 +119,7 @@ class Analyzer(object):
                     with open(script, 'r') as FH:
                         csum = hashlib.md5(FH.read()).hexdigest()
                 except:
-                    csum = "NA"
+                    csum = "N/A"
 
                 # decide whether or not to run the analyzer
                 dorun = True

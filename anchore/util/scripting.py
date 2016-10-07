@@ -131,7 +131,7 @@ class ScriptSetExecutor:
                 csum = hashlib.md5(FH.read()).hexdigest()
                 FH.close()
             except:
-                csum = "NA"
+                csum = "N/A"
             ret[script] = csum
         return(ret)
 
@@ -164,7 +164,7 @@ class ScriptSetExecutor:
             try:
                 csum = currcsums[script]
             except:
-                csum = "NA"
+                csum = "N/A"
 
             if cmdline:
                 cmd = [script] + cmdline.split()
