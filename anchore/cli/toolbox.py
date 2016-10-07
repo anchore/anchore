@@ -32,18 +32,20 @@ def toolbox(anchore_config, ctx, image):
     ecode = 0
 
     imagelist = [image]
-    try:
-        try:
-            ret = anchore_utils.discover_imageIds(imagelist)
-        except ValueError as err:
-            raise err
-        else:
-            imagelist = ret.keys()
-    except Exception as err:
-        anchore_print_err("could not load any images")
-        sys.exit(1)
 
-    if ctx.invoked_subcommand != 'import':
+    if ctx.invoked_subcommand not in ['import', 'delete']:
+        try:
+            try:
+                ret = anchore_utils.discover_imageIds(imagelist)
+            except ValueError as err:
+                raise err
+            else:
+                imagelist = ret.keys()
+        except Exception as err:
+            anchore_print_err("could not load any images")
+            sys.exit(1)
+
+
         try:
             nav = navigator.Navigator(anchore_config=config, imagelist=imagelist, allimages=contexts['anchore_allimages'])
         except Exception as err:
@@ -56,29 +58,28 @@ def toolbox(anchore_config, ctx, image):
 def purge(dontask):
     ecode = 0
 
-    if not nav:
-        sys.exit(1)
-
     try:
-        for i in nav.get_images():
-            dodelete = False
-            if dontask:
-                dodelete = True
-            else:
-                try:
-                    answer = raw_input("Really delete image '"+str(i)+"'? (y/N)")
-                except:
-                    answer = "n"
-                if 'y' == answer.lower():
+        #for i in nav.get_images():
+        for i in imagelist:
+            if contexts['anchore_db'].is_image_present(i):
+                dodelete = False
+                if dontask:
                     dodelete = True
                 else:
-                    anchore_print("Skipping delete.")
-            if dodelete:
-                try:
-                    anchore_print("Deleting image '"+str(i)+"'")
-                    contexts['anchore_db'].delete_image(i)
-                except Exception as err:
-                    raise err
+                    try:
+                        answer = raw_input("Really delete image '"+str(i)+"'? (y/N)")
+                    except:
+                        answer = "n"
+                    if 'y' == answer.lower():
+                        dodelete = True
+                    else:
+                        anchore_print("Skipping delete.")
+                if dodelete:
+                    try:
+                        anchore_print("Deleting image '"+str(i)+"'")
+                        contexts['anchore_db'].delete_image(i)
+                    except Exception as err:
+                        raise err
     except Exception as err:
         anchore_print_err('operation failed')
         ecode = 1

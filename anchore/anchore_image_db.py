@@ -3,12 +3,15 @@ import re
 import os
 import shutil
 import time
+import logging
+
 import anchore_utils
 
 DEVNULL = open(os.devnull, 'wb')
 
 class AnchoreImageDB(object):
     _db_metadata_filename = 'anchore_db_meta.json'
+    _logger = logging.getLogger(__name__)
 
     def __del__(self):
         if self.initialized:
@@ -106,9 +109,8 @@ class AnchoreImageDB(object):
         return(self.initialized)
 
     def is_image_present(self, imageId, imagelist=None):
-        if not imagelist:
-            imagelist = self.get_image_list()
-        if imageId not in imagelist:
+        thefile = '/'.join([self.imagerootdir, imageId])
+        if not os.path.exists(thefile):
             return(False)
         return(True)
 
@@ -379,8 +381,12 @@ class AnchoreImageDB(object):
             return({})
 
         ret = {}
-        with open(thefile, 'r') as FH:
-            ret = json.loads(FH.read())
+        try:
+            with open(thefile, 'r') as FH:
+                ret = json.loads(FH.read())
+        except Exception as err:
+            self._logger.debug("image report json found ("+str(thefile)+"), but failed to load for imageId ("+str(imageId)+") - exception: " + str(err))
+            ret = {}
 
         return(ret)
 

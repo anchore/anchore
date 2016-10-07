@@ -12,11 +12,12 @@ from prettytable import PrettyTable
 import time
 import tarfile
 
-
 import logging
 
 import anchore_image_db
 import anchore_utils
+
+from anchore.util import contexts
 
 DEVNULL = open(os.devnull, 'wb')
 
@@ -39,6 +40,7 @@ class AnchoreImage(object):
                 pass
 
     def __init__(self, imagename, anchore_image_datadir, allimages, tmpdirroot="/tmp", dockerfile=None, docker_cli=None, anchore_db=None, docker_images=None, usertype=None):
+        self._logger.debug("initializing image: " + str(imagename))
         # all members
         self.allimages = allimages
         self.initialized = False
@@ -108,16 +110,22 @@ class AnchoreImage(object):
         # set up external contexts
         if docker_cli:
             self.docker_cli = docker_cli
+        elif 'docker_cli' in contexts and contexts['docker_cli']:
+            self.docker_cli = contexts['docker_cli']
         else:
             self.docker_cli = docker.Client(base_url='unix://var/run/docker.sock', timeout=300)
 
         if anchore_db:
             self.anchore_db = anchore_db
+        elif 'anchore_db' in contexts and contexts['anchore_db']:
+            self.anchore_db = contexts['anchore_db']
         else: 
             self.anchore_db = anchore_image_db.AnchoreImageDB(imagerootdir=self.anchore_image_datadir)
 
         if docker_images:
             self.docker_images = docker_images
+        elif 'docker_images' in contexts and contexts['docker_images']:
+            self.docker_images = contexts['docker_images']
         else: 
             self.docker_images = self.docker_cli.images(all=True)
 
@@ -641,9 +649,6 @@ class AnchoreImage(object):
 
         if os.path.exists(imagedir + "/squashed.tar"):
             return (True)
-
-        #if not self.anchore_layers:
-        #    return (False)
 
         if not os.path.exists(rootfsdir):
             os.makedirs(rootfsdir)

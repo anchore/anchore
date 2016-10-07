@@ -25,7 +25,7 @@ from configuration import AnchoreConfiguration
 from anchore.util import contexts, scripting
 import anchore_auth
 
-module_logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 def init_analyzer_cmdline(argv, name):
     ret = {}
@@ -346,10 +346,9 @@ def discover_imageId(name):
     # 2) check if 'name' or 'name:latest' is in docker images list repo/tags
     # 3) check anchoreDB
     # 4) check docker_inspect
-
     imageId = None
     try:
-
+        _logger.debug("looking for name ("+name+") in docker_images")
         iname = re.sub("sha256:", "", name)
         for dimageId in contexts['docker_images'].keys():
             i = contexts['docker_images'][dimageId]
@@ -373,12 +372,14 @@ def discover_imageId(name):
             ret[imageId] = repos
 
         if not imageId:
+            _logger.debug("trying to load name ("+name+") from anchoreDB")
             aimage = contexts['anchore_db'].load_image(name)
             if aimage:
                 imageId = name
                 ret[imageId] = aimage.pop('anchore_all_tags', [])
 
         if not imageId:
+            _logger.debug("searching for name ("+name+") in anchoreDB")
             ilist = get_imageIds_named(name)
             if len(ilist) == 1:
                 imageId = ilist[0]
@@ -388,6 +389,7 @@ def discover_imageId(name):
                 raise ValueError("Input image name '"+str(name)+"' is ambiguous in anchore:\n\tmatching imageIds: " + str(ilist))
 
         if not imageId:
+            _logger.debug("trying docker.inspect_image on name ("+name+")")
             docker_cli = contexts['docker_cli']
             if docker_cli:
                 try:
