@@ -914,24 +914,15 @@ def cve_scanimages(images, pkgmap, flavor, cve_data):
         vuln = v['Vulnerability']
 
         #print "cve-scan: VULN NAME CVE: " + vuln['Name']
-
-        doprint = False
-
-        if vuln['Name'] == 'CVE-2016-5417':
-            print "HELLO"
-            doprint = True
-
         if 'FixedIn' in vuln:
             for fixes in vuln['FixedIn']:
                 isvuln = False
                 vpkg = fixes['Name']
-                if doprint:
-                    print "cve-scan: Vulnerable Package: " + vpkg
+                #print "cve-scan: Vulnerable Package: " + vpkg
                 if vpkg in pkgmap:
                     for ivers in pkgmap[vpkg]['versions'].keys():
                         vvers = re.sub(r'^[0-9]*:', '', fixes['Version'])
-                        if doprint: 
-                            print "cve-scan: " + vpkg + "\n\tfixed vulnerability package version: " + vvers + "\n\timage package version: " + ivers
+                        #print "cve-scan: " + vpkg + "\n\tfixed vulnerability package version: " + vvers + "\n\timage package version: " + ivers
 
                         if flavor == 'RHEL':
                             if vvers != 'None':
@@ -945,8 +936,7 @@ def cve_scanimages(images, pkgmap, flavor, cve_data):
                                 isvuln = True
 
                         elif flavor == 'DEB':
-                            if doprint:
-                                print "cve-scan: VERSSS: " + ivers + " : " + vvers
+                            #print "cve-scan: VERS (image, vuln): " + ivers + " : " + vvers
 
                             if vvers != 'None':
                                 if ivers != vvers:
