@@ -37,7 +37,8 @@ def audit(anchore_config, image, imagefile, include_allanchore):
         except ValueError as err:
             raise err
         else:
-            imagelist = ret.keys()
+            #imagelist = ret.keys()
+            imagelist = ret
 
     except Exception as err:
         anchore_print_err("could not load input images")

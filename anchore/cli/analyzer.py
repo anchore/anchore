@@ -105,7 +105,8 @@ def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy
         except ValueError as err:
             raise err
         else:
-            imagelist = ret.keys()
+            #imagelist = ret.keys()
+            imagelist = ret
 
     except Exception as err:
         anchore_print_err("could not load any images")
@@ -279,7 +280,8 @@ def analyze(anchore_config, force, image, imagefile, include_allanchore, dockerf
         except ValueError as err:
             raise err
         else:
-            imagelist = ret.keys()
+            #imagelist = ret.keys()
+            imagelist = ret
 
     except Exception as err:
         anchore_print_err("could not load any images")

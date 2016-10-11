@@ -57,8 +57,10 @@ def init_analyzer_cmdline(argv, name):
     ret['imgid'] = argv[1]
 
     fullid = discover_imageId(argv[1])
-    if len(fullid.keys()) > 0:
-        ret['imgid_full'] = fullid.keys()[0]
+    #if len(fullid.keys()) > 0:
+    if fullid:
+        #ret['imgid_full'] = fullid.keys()[0]
+        ret['imgid_full'] = fullid
     else:
         ret['imgid_full'] = ret['imgid']
 
@@ -309,7 +311,8 @@ def discover_from_info(dockerfile_contents):
             fromid = fromline
         else:
             try:
-                fromid = discover_imageId(fromline).keys()[0]
+                #fromid = discover_imageId(fromline).keys()[0]
+                fromid = discover_imageId(fromline)
             except:
                 fromid = None
     return(fromline, fromid)
@@ -329,23 +332,25 @@ def get_imageIds_named(name):
     return(ret)
 
 def discover_imageIds(namelist):
-    ret = {}
+    ret = list()
     
     for name in namelist:
         result = discover_imageId(name)
-        ret.update(result)
+        #ret.update(result)
+        ret.append(result)
 
     return(ret)
 
 def discover_imageId(name):
 
-    ret = {}
+    ret = None
 
     # method -
     # 1) check if 'name' is in docker images list (key == imageId)
     # 2) check if 'name' or 'name:latest' is in docker images list repo/tags
     # 3) check anchoreDB
     # 4) check docker_inspect
+
     imageId = None
     try:
         _logger.debug("looking for name ("+name+") in docker_images")
@@ -354,29 +359,22 @@ def discover_imageId(name):
             i = contexts['docker_images'][dimageId]
             if iname == i['Id'] or iname == re.sub("sha256:", "", i['Id']):
                 imageId = re.sub("sha256:", "", i['Id'])
-                repotags = i['RepoTags']
                 break
             elif 'RepoTags' in i and i['RepoTags']:
                 for r in i['RepoTags']:
                     if name == r or name+":latest" == r:
                         imageId = re.sub("sha256:", "", i['Id'])
-                        repotags = i['RepoTags']
                         break
 
-        if imageId:
-            repos = []
-            if repotags:
-                for r in repotags:
-                    repos.append(r)
-
-            ret[imageId] = repos
+        if not imageId:
+            if contexts['anchore_db'].is_image_present(name):
+                imageId = name
 
         if not imageId:
             _logger.debug("trying to load name ("+name+") from anchoreDB")
             aimage = contexts['anchore_db'].load_image(name)
             if aimage:
                 imageId = name
-                ret[imageId] = aimage.pop('anchore_all_tags', [])
 
         if not imageId:
             _logger.debug("searching for name ("+name+") in anchoreDB")
@@ -384,7 +382,6 @@ def discover_imageId(name):
             if len(ilist) == 1:
                 imageId = ilist[0]
                 aimage = contexts['anchore_db'].load_image(imageId)
-                ret[imageId] = aimage.pop('anchore_all_tags', [])
             elif len(ilist) > 1:
                 raise ValueError("Input image name '"+str(name)+"' is ambiguous in anchore:\n\tmatching imageIds: " + str(ilist))
 
@@ -395,10 +392,6 @@ def discover_imageId(name):
                 try:
                     docker_data = docker_cli.inspect_image(name)
                     imageId = re.sub("sha256:", "", docker_data['Id'])
-                    repos = []
-                    for r in docker_data['RepoTags']:
-                        repos.append(r)
-                    ret[imageId] = repos
                 except Exception as err:
                     pass
                     
@@ -408,10 +401,10 @@ def discover_imageId(name):
     except Exception as err:
         raise err
 
-    if len(ret.keys()) <= 0:
+    if not imageId:
         raise ValueError("Input image name '"+str(name)+"' not found in local dockerhost or anchore DB.")
 
-    return(ret)
+    return(imageId)
 
 def print_result(config, result, outputmode=None):
     if not result:
@@ -716,6 +709,19 @@ def rpm_get_all_pkgfiles(unpackdir):
 
     return(rpmfiles)
 
+def get_distro_from_imageId(imageId):
+    meta = {
+        'DISTRO':None,
+        'DISTROVERS':None,
+        'LIKEDISTRO':None
+    }
+
+    anchore_analyzer_meta = load_analysis_output(imageId, 'analyzer_meta', 'analyzer_meta')
+    meta['DISTRO'] = anchore_analyzer_meta.pop('DISTRO', 'UNKNOWN')
+    meta['DISTROVERS'] = anchore_analyzer_meta.pop('DISTROVERS', 'UNKNOWN')
+    meta['LIKEDISTRO'] = anchore_analyzer_meta.pop('LIKEDISTRO', 'UNKNOWN')
+    return (meta)
+
 def get_distro_from_path(inpath):
 
     meta = {
@@ -829,6 +835,43 @@ def get_distro_flavor(distro, version, likedistro=None):
 
     return(ret)
 
+def cve_load_data_imageId(imageId, cve_data_context=None):
+    import anchore_feeds
+    cve_data = None
+    
+    distrometa = get_distro_from_imageId(imageId)
+
+    idistro = distrometa['DISTRO']
+    idistrovers = distrometa['DISTROVERS']
+
+    distrodict = get_distro_flavor(idistro, idistrovers)
+
+    distro = distrodict['distro']
+    distrovers = distrodict['version']
+    likedistro = distrodict['likedistro']
+    likeversion = distrodict['likeversion']
+    fulldistro = distrodict['distro']
+    fullversion = distrodict['fullversion']
+    
+    distrolist = [(distro,distrovers), (likedistro, likeversion), (fulldistro, fullversion)]
+    for f in distrolist:
+        dstr = ':'.join([f[0], f[1]])
+        if cve_data_context and dstr in cve_data_context:
+            cve_data = cve_data_context[dstr]
+            break
+        else:
+            feeddata = anchore_feeds.load_anchore_feed('vulnerabilities', ':'.join([f[0], f[1]]))
+            if feeddata['success']:
+                cve_data = feeddata['data']
+                if cve_data_context != None and dstr not in cve_data_context:
+                    cve_data_context[dstr] = cve_data
+                break
+
+    if not cve_data:
+        raise ValueError("cannot find CVE data associated with the input container distro: ("+str(distrolist)+")")
+
+    return (dstr, cve_data)
+
 def cve_load_data(image, cve_data_context=None):
     import anchore_feeds
     cve_data = None
@@ -864,12 +907,75 @@ def cve_load_data(image, cve_data_context=None):
 
     return (cve_data)
 
+def cve_scanimages(images, pkgmap, flavor, cve_data):
+    results = {}
+    for v in cve_data:
+        outel = {}
+        vuln = v['Vulnerability']
+
+        #print "cve-scan: VULN NAME CVE: " + vuln['Name']
+
+        doprint = False
+
+        if vuln['Name'] == 'CVE-2016-5417':
+            print "HELLO"
+            doprint = True
+
+        if 'FixedIn' in vuln:
+            for fixes in vuln['FixedIn']:
+                isvuln = False
+                vpkg = fixes['Name']
+                if doprint:
+                    print "cve-scan: Vulnerable Package: " + vpkg
+                if vpkg in pkgmap:
+                    for ivers in pkgmap[vpkg]['versions'].keys():
+                        vvers = re.sub(r'^[0-9]*:', '', fixes['Version'])
+                        if doprint: 
+                            print "cve-scan: " + vpkg + "\n\tfixed vulnerability package version: " + vvers + "\n\timage package version: " + ivers
+
+                        if flavor == 'RHEL':
+                            if vvers != 'None':
+                                fixfile = vpkg + "-" + vvers + ".arch.rpm"
+                                imagefile = vpkg + "-" + ivers + ".arch.rpm"
+                                (n1, v1, r1, e1, a1) = splitFilename(imagefile)
+                                (n2, v2, r2, e2, a2) = splitFilename(fixfile)
+                                if rpm.labelCompare(('1', v1, r1), ('1', v2, r2)) < 0:
+                                    isvuln = True
+                            else:
+                                isvuln = True
+
+                        elif flavor == 'DEB':
+                            if doprint:
+                                print "cve-scan: VERSSS: " + ivers + " : " + vvers
+
+                            if vvers != 'None':
+                                if ivers != vvers:
+                                    comp_rc = dpkg_compare_versions(ivers, 'lt', vvers)
+                                    if comp_rc == 0:
+                                        isvuln = True
+                            else:
+                                isvuln = True
+
+                        if isvuln:
+                            #print "cve-scan: Found vulnerable package: " + vpkg
+                            severity = url = description = 'Not Available'
+                            if 'Severity' in vuln:
+                                severity = vuln['Severity']
+                            if 'Link' in vuln:
+                                url = vuln['Link']
+                            if 'Description' in vuln:
+                                description = vuln['Description']
+
+                            outel = {'images':pkgmap[vpkg]['versions'][ivers], 'pkgName': vpkg, 'imageVers': ivers, 'fixVers': vvers, 'severity': severity, 'url': url, 'description': description}
+
+        if outel:
+            results[vuln['Name']] = outel
+
+    return(results)
+
 def cve_scanimage(cve_data, image):
     if not cve_data:
         return ({})
-
-    #all_packages = {}
-    #analysis_report = image.get_analysis_report().copy()
 
     all_packages = load_analysis_output(image.meta['imageId'], 'package_list', 'pkgs.all')
     pkgsplussource = load_analysis_output(image.meta['imageId'], 'package_list', 'pkgs_plus_source.all')
