@@ -241,12 +241,11 @@ class AnchoreImage(object):
         if self.docker_data:
             self.meta['imageId'] = self.docker_data['Id'].replace("sha256:", "", 1)
             self.meta['parentId'] = self.docker_data['Parent'].replace("sha256:", "", 1)
+            self.meta['shortparentId'] = self.meta['parentId'][0:12]
             if 'Size' in self.docker_data:
                 self.meta['sizebytes'] = str(self.docker_data['Size'])
 
-
         self.meta['shortId'] = self.meta['imageId'][0:12]
-        self.meta['shortparentId'] = self.meta['parentId'][0:12]
         self.meta['imagename'] = self.meta['imageId']
         self.meta['shortname'] = self.meta['imagename'][0:12]
         self.meta['humanname'] = self.get_human_name()
@@ -856,7 +855,7 @@ class AnchoreImage(object):
         else:
             imagedir = self.tmpdir
 
-        shortid = self.meta['shortId']
+        imageId = self.meta['imageId']
         imagetar = imagedir + "/image.tar"
 
         self.docleanup = docleanup
@@ -867,7 +866,7 @@ class AnchoreImage(object):
         # pull the image from docker and store/untar the tar
         if not os.path.exists(imagetar):
             FH = open(imagetar, 'w')
-            FH.write(self.docker_cli.get_image(shortid).data)
+            FH.write(self.docker_cli.get_image(imageId).data)
             FH.close()
             sout = subprocess.check_output(["tar", "-C", imagedir, "-x", "-f", imagetar], stderr=DEVNULL)
 
