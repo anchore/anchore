@@ -19,7 +19,7 @@ newparams = list()
 for name in config['params']:
     if name != 'all':
         try:
-            imageId = anchore.anchore_utils.discover_imageId(name).keys()[0]
+            imageId = anchore.anchore_utils.discover_imageId(name)
         except:
             imageId = name
     else:

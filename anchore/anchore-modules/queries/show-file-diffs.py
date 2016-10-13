@@ -37,7 +37,7 @@ for fid in config['params']:
             fimageId = image.get_earliest_base()
         else:
             try:
-                fimageId = anchore.anchore_utils.discover_imageId(fid).keys()[0]
+                fimageId = anchore.anchore_utils.discover_imageId(fid)
             except ValueError as err:
                 warns.append("Cannot lookup imageId specified as input parameter: " + fid)
 

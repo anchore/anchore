@@ -865,9 +865,18 @@ class AnchoreImage(object):
 
         # pull the image from docker and store/untar the tar
         if not os.path.exists(imagetar):
-            FH = open(imagetar, 'w')
-            FH.write(self.docker_cli.get_image(imageId).data)
-            FH.close()
+            import time
+            r = self.docker_cli.get_image(imageId)
+            chunk_size = 1024 * 100000
+            with open(imagetar, 'w') as OFH:
+                chunk = r.read(chunk_size)
+                while chunk:
+                    OFH.write(chunk)
+                    chunk = r.read(chunk_size)
+
+            #with open(imagetar, 'w') as OFH:
+            #    OFH.write(self.docker_cli.get_image(imageId).data)
+
             sout = subprocess.check_output(["tar", "-C", imagedir, "-x", "-f", imagetar], stderr=DEVNULL)
 
         # store some metadata and dockerfile if present

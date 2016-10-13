@@ -258,6 +258,33 @@ def delete_image(imageId):
     return(contexts['anchore_db'].delete_image(imageId))
 
 
+def is_intermediate_image(imageId, image_report=None):
+    if not image_report:
+        image_report = load_image_report(imageId)
+    
+    if image_report:
+        try:
+            if str(image_report['meta']['usertype']) in ['user', 'base', 'anchorebase', 'oldanchorebase']:
+                return(False)
+        except:
+            pass
+
+        try:
+            if image_report['anchore_all_tags'] or image_report['anchore_current_tags']:
+                return(False)
+        except:
+            pass
+
+        try:
+            if image_report['docker_data']['RepoTags']:
+                return(False)
+        except:
+            pass
+    else:
+        raise Exception("could not load input image from anchoreDB: " + str(imageId))
+
+    return(True)
+
 def make_anchoretmpdir(tmproot):
     import random
     tmpdir = '/'.join([tmproot, str(random.randint(0, 9999999)) + ".anchoretmp"])
