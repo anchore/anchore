@@ -118,6 +118,13 @@ class AnchoreImageDB(object):
         amanifest = self.load_analyzer_manifest(imageId)
         if not amanifest:
             return(False)
+        else:
+            for a in amanifest.keys():
+                try:
+                    if amanifest[a]['status'] != "SUCCESS":
+                        raise Exception("analyzer ("+str(a)+") not executes/failed")
+                except Exception as err:
+                    return(False)
         return(True)
 
     def get_image_list(self):

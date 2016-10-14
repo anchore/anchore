@@ -458,7 +458,8 @@ class AnchoreImage(object):
         return (False)
 
     def is_analyzed(self):
-        return os.path.exists(self.anchore_imagedir + "/analyzers.done")
+        return(self.anchore_db.is_image_analyzed(self.meta['imageId']))
+        #return os.path.exists(self.anchore_imagedir + "/analyzers.done")
 
     """ get_ routines """
 

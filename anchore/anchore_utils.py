@@ -112,7 +112,10 @@ def init_query_cmdline(argv, paramhelp):
     ret['imgid'] = images[0]
     if 'imgid' not in ret:
         print "ERROR: could not read imgid from input file"
-        raise Exception
+        raise Exception("ERROR: could not read imgid from input file")
+
+    if not is_image_analyzed(ret['imgid']):
+        raise Exception("imageId ("+str(ret['imgid'])+") is not analyzed or analysis failed")
 
     ret['image_report'] = contexts['anchore_db'].load_image_report(ret['imgid'])
 

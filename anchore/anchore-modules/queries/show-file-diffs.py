@@ -22,61 +22,64 @@ if len(config['params']) <= 0:
 
 outlist = list()
 warns = list()
-
 outlist.append(["Image_Id", "Repo_Tag", "Compare_Image_Id", "File", "Input_Image_File_Checksum","Compare_Image_Checksum"])
 
 allimages = {}
-image = anchore.anchore_image.AnchoreImage(config['imgid'], config['anchore_config']['image_data_store'], allimages)
-ipkgs = image.get_allfiles()
-hascontent = False
+imageId = config['imgid']
 
-for fid in config['params']:
-    try:
-        fimageId = False
-        if fid == 'base':
-            fimageId = image.get_earliest_base()
-        else:
-            try:
-                fimageId = anchore.anchore_utils.discover_imageId(fid)
-            except ValueError as err:
-                warns.append("Cannot lookup imageId specified as input parameter: " + fid)
+try:
+    image = anchore.anchore_image.AnchoreImage(imageId, config['anchore_config']['image_data_store'], allimages)
+    ipkgs = image.get_allfiles()
 
-        if fimageId:
-            fimage = anchore.anchore_image.AnchoreImage(fimageId, config['anchore_config']['image_data_store'], allimages)
+    for fid in config['params']:
+        try:
+            fimageId = False
+            if fid == 'base':
+                fimageId = image.get_earliest_base()
+            else:
+                try:
+                    fimageId = anchore.anchore_utils.discover_imageId(fid)
+                except ValueError as err:
+                    warns.append("Cannot lookup imageId specified as input parameter: " + fid)
 
-            image_report = anchore.anchore_utils.diff_images(image.meta['imageId'], fimage.meta['imageId'])
-            fpkgs = fimage.get_allfiles()
+            if fimageId:
+                if not anchore.anchore_utils.is_image_analyzed(fimageId):
+                    raise Exception("imageId ("+str(fimageId)+") is not analyzed or analysis failed")
 
-            csumkey = 'files.md5sums'
-            if 'files.sha256sums' in image_report['file_checksums']:
-                csumkey = 'files.sha256sums'
-            for module_type in ['base', 'extra', 'user']:
-                if module_type in image_report['package_list']['pkgs.all']:
-                    for pkg in image_report['file_checksums'][csumkey][module_type].keys():
-                        status = image_report['file_checksums'][csumkey][module_type][pkg]
-                        ivers = ipkgs.pop(pkg, "N/A")
-                        pvers = fpkgs.pop(pkg, "N/A")
+                fimage = anchore.anchore_image.AnchoreImage(fimageId, config['anchore_config']['image_data_store'], allimages)
+                image_report = anchore.anchore_utils.diff_images(image.meta['imageId'], fimage.meta['imageId'])
+                fpkgs = fimage.get_allfiles()
 
-                        if status == 'VERSION_DIFF':
-                            outlist.append([config['meta']['shortId'], config['meta']['humanname'], fimage.meta['shortId'], pkg, ivers, pvers])
-                            hascontent=True
-                        elif status == 'INIMG_NOTINBASE':
-                            outlist.append([config['meta']['shortId'], config['meta']['humanname'], fimage.meta['shortId'], pkg, ivers, "NOTINSTALLED"])
-                            hascontent=True
-                        elif status == 'INBASE_NOTINIMG':
-                            outlist.append([config['meta']['shortId'], config['meta']['humanname'], fimage.meta['shortId'], pkg, "NOTINSTALLED", pvers])
-                            hascontent=True
+                # do some checks
+                if not image_report or 'file_checksums' not in image_report:
+                    raise Exception("could not load file_checksums data after diff_images")
 
-    except Exception as err:
-        import traceback
-        traceback.print_exc()
-        print "WARN: " + str(err)
+                csumkey = 'files.md5sums'
+                if 'files.sha256sums' in image_report['file_checksums']:
+                    csumkey = 'files.sha256sums'
 
-if not hascontent:
-    pass
+                for module_type in ['base', 'extra', 'user']:
+                    if module_type in image_report['file_checksums'][csumkey]:
+                        for pkg in image_report['file_checksums'][csumkey][module_type].keys():
+                            status = image_report['file_checksums'][csumkey][module_type][pkg]
+                            ivers = ipkgs.pop(pkg, "N/A")
+                            pvers = fpkgs.pop(pkg, "N/A")
+
+                            if status == 'VERSION_DIFF':
+                                outlist.append([config['meta']['shortId'], config['meta']['humanname'], fimage.meta['shortId'], pkg, ivers, pvers])
+                            elif status == 'INIMG_NOTINBASE':
+                                outlist.append([config['meta']['shortId'], config['meta']['humanname'], fimage.meta['shortId'], pkg, ivers, "NOTINSTALLED"])
+                            elif status == 'INBASE_NOTINIMG':
+                                outlist.append([config['meta']['shortId'], config['meta']['humanname'], fimage.meta['shortId'], pkg, "NOTINSTALLED", pvers])
+
+        except Exception as err:
+            import traceback
+            traceback.print_exc()
+            warns.append("problem comparing image ("+str(imageId)+") with image ("+str(fid)+"): exception: " + str(err))
+except Exception as err:
+    warns.append("failed to run query: exception: " + str(err))
 
 anchore.anchore_utils.write_kvfile_fromlist(config['output'], outlist)
-
 if len(warns) > 0:
     anchore.anchore_utils.write_plainfile_fromlist(config['output_warns'], warns)
 
