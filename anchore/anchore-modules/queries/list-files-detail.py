@@ -24,11 +24,11 @@ if len(config['params']) <= 0:
     print "Query requires input: <directory prefix> <directory prefix> ..."
 
 outlist = list()
+warns = list()
 outlist.append(["Image_Id", "Repo_Tags", "Filename", "Type", "Size", "Mode", "Link_Dest", "Checksum"])
 
 try:
     # handle the good case, something is found resulting in data matching the required columns
-    allimages = {}
 
     detail_data = anchore.anchore_utils.load_analysis_output(config['imgid'], 'file_list', 'files.allinfo')
     checksum_data = anchore.anchore_utils.load_analysis_output(config['imgid'], 'file_checksums', 'files.sha256sums')
@@ -72,14 +72,13 @@ try:
 
 except Exception as err:
     # handle the case where something wrong happened
-    print "ERROR: " + str(err)
-
-# handle the no match case
-if len(outlist) < 1:
-    # outlist.append(["NOMATCH", "NOMATCH", "NOMATCH"])
-    pass
+    import traceback
+    traceback.print_exc()
+    warns.append("query threw an exception: " + str(err))
 
 anchore.anchore_utils.write_kvfile_fromlist(config['output'], outlist)
+if len(warns) > 0:
+    anchore.anchore_utils.write_plainfile_fromlist(config['output_warns'], warns)
 
 sys.exit(0)
 

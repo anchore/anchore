@@ -19,8 +19,8 @@ if not config:
 if len(config['params']) <= 0:
     print "Query requires input: <packageA> <packageB> ..."
 
-warns = list()
 outlist = list()
+warns = list()
 outlist.append(["Image_Id", "Repo_Tag", "Query_Param", "Package", "Version"])
 
 try:
@@ -43,7 +43,7 @@ try:
 except Exception as err:
     import traceback
     traceback.print_exc()
-    print "ERROR: " + str(err)
+    warns.append("query threw an exception: " + str(err))
 
 if len(outlist) < 2:
     pass
