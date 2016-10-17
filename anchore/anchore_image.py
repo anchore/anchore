@@ -30,11 +30,14 @@ class AnchoreImage(object):
     """ Constructors and Destructors"""
 
     def __del__(self):
+        self._logger.debug("destructor called: " + str(self.meta))
+
         if self.initialized:
             self.save_image()
 
         if self.tmpdir and self.docleanup and os.path.exists(self.tmpdir):
             try:
+                self._logger.debug("cleaning up tmpspace: " + str(self.tmpdir))
                 shutil.rmtree(self.tmpdir)
             except:
                 pass

@@ -1477,9 +1477,9 @@ def get_files_from_path(inpath):
         traceback.print_exc()
         print str(err)
         pass
-
-    os.fchdir(real_root)
-    os.chroot('.')
+    finally:
+        os.fchdir(real_root)
+        os.chroot('.')
 
     return(filemap, allfiles)
 
