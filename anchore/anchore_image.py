@@ -260,25 +260,25 @@ class AnchoreImage(object):
 
     def save_image(self):
         # Dockerfile handling
-        if self.dockerfile_contents:
-            if self.dockerfile_mode == 'Guessed':
-                anchore_utils.update_file_str(self.dockerfile_contents, self.anchore_imagedir + "/Dockerfile.guessed", backup=False)
-            elif self.dockerfile_mode == 'Actual':
-                anchore_utils.update_file_str(self.dockerfile_contents, self.anchore_imagedir + "/Dockerfile", backup=False)
-                if os.path.exists(self.anchore_imagedir + "/Dockerfile.guessed"):
-                    os.remove(self.anchore_imagedir + "/Dockerfile.guessed")
+#        if self.dockerfile_contents:
+#            if self.dockerfile_mode == 'Guessed':
+#                anchore_utils.update_file_str(self.dockerfile_contents, self.anchore_imagedir + "/Dockerfile.guessed", backup=False)
+#            elif self.dockerfile_mode == 'Actual':
+#                anchore_utils.update_file_str(self.dockerfile_contents, self.anchore_imagedir + "/Dockerfile", backup=False)
+#                if os.path.exists(self.anchore_imagedir + "/Dockerfile.guessed"):
+#                    os.remove(self.anchore_imagedir + "/Dockerfile.guessed")
 
         # Image output dir populate
-        if (True):
-            imageoutputdir = self.anchore_imagedir + "/image_output/image_info"
-            if not os.path.exists(imageoutputdir):
-                os.makedirs(imageoutputdir)
+#        if (True):
+#            imageoutputdir = self.anchore_imagedir + "/image_output/image_info"
+#            if not os.path.exists(imageoutputdir):
+#                os.makedirs(imageoutputdir)
 
-            anchore_utils.write_kvfile_fromdict(imageoutputdir + "/image.meta", self.meta)
+#            anchore_utils.write_kvfile_fromdict(imageoutputdir + "/image.meta", self.meta)
 
-            dfile = self.get_dockerfile()
-            if dfile:
-                shutil.copy(dfile, imageoutputdir + "/Dockerfile")
+#            dfile = self.get_dockerfile()
+#            if dfile:
+#                shutil.copy(dfile, imageoutputdir + "/Dockerfile")
 
         # generate and save image report
         report = self.generate_image_report()
@@ -379,15 +379,13 @@ class AnchoreImage(object):
         skiptraverse = False
         if os.path.exists(imagedir + "/repositories"):
             inputf = imagedir + "/repositories"
-            FH = open(inputf, 'r')
-            json_dict = json.loads(FH.read())
-            FH.close()
+            with open(inputf, 'r') as FH:
+                json_dict = json.loads(FH.read())
             l = json_dict[imagename]["latest"]
         elif (os.path.exists(imagedir + "/manifest.json")):
             inputf = imagedir + "/manifest.json"
-            FH = open(inputf, 'r')
-            json_dict = json.loads(FH.read())
-            FH.close()
+            with open(inputf, 'r') as FH:
+                json_dict = json.loads(FH.read())
             layerfiles = json_dict[0]["Layers"]
             for layer in layerfiles:
                 (l, tfile) = layer.split('/')
@@ -399,13 +397,12 @@ class AnchoreImage(object):
             while not done:
                 layers.append(l)
                 inputf = imagedir + "/" + l + "/json"
-                FH = open(inputf, 'r')
-                json_dict = json.loads(FH.read())
+                with open(inputf, 'r') as FH:
+                    json_dict = json.loads(FH.read())
                 if "parent" in json_dict:
                     l = json_dict["parent"]
                 else:
                     done = 1
-                    FH.close()
 
         self.anchore_layers = list(layers)
 
@@ -427,19 +424,8 @@ class AnchoreImage(object):
 
     def is_anchore_base(self):
         # returns true only if image is the current anchore base
-        if os.path.exists(self.anchore_image_datadir + "/analysis_mapping.json"):
-            FH = open(self.anchore_image_datadir + "/analysis_mapping.json", 'r')
-            latest_anchore_images = json.loads(FH.read())
-            FH.close()
-        else:
-            latest_anchore_images = self.docker_cli.images(all=True, filters={'dangling': False})
-
         if self.meta['usertype'] == 'anchorebase':
-            for i in latest_anchore_images:
-                patt = re.compile('.*' + self.meta['imageId'] + '.*')
-                if patt.match(i['Id']):
-                    return (True)
-            self.meta['usertype'] == 'oldanchorebase'
+            return(True)
         return (False)
 
     def was_anchore_base(self):
@@ -587,12 +573,12 @@ class AnchoreImage(object):
     def get_familytree(self):
         return (self.anchore_familytree)
 
-    def get_dockerfile(self):
-        if os.path.exists(self.anchore_imagedir + "/Dockerfile"):
-            return (self.anchore_imagedir + "/Dockerfile")
-        elif os.path.exists(self.anchore_imagedir + "/Dockerfile.guessed"):
-            return (self.anchore_imagedir + "/Dockerfile.guessed")
-        return (False)
+#    def get_dockerfile(self):
+#        if os.path.exists(self.anchore_imagedir + "/Dockerfile"):
+#            return (self.anchore_imagedir + "/Dockerfile")
+#        elif os.path.exists(self.anchore_imagedir + "/Dockerfile.guessed"):
+#            return (self.anchore_imagedir + "/Dockerfile.guessed")
+#        return (False)
 
     """ Utilities and report generators """
 
@@ -619,11 +605,10 @@ class AnchoreImage(object):
             self._logger.error("unable to run create container: " + self.meta['imageId'] + ": error: " + str(err))
             return(False)
         else:
-            FH=open(imagedir + "/squashed.tar", 'w')
-            tar = self.docker_cli.export(container.get('Id'))
-            while not tar.closed:
-                FH.write(tar.read(4096*16))
-            FH.close()
+            with open(imagedir + "/squashed.tar", 'w') as FH:
+                tar = self.docker_cli.export(container.get('Id'))
+                while not tar.closed:
+                    FH.write(tar.read(4096*16))
 
         try:
             self.docker_cli.remove_container(container=container.get('Id'), force=True)
@@ -769,7 +754,8 @@ class AnchoreImage(object):
         revlayer.reverse()
 
         excludesfile = '/'.join([imagedir, 'tarexcludes'])
-        open(excludesfile, 'w').close()
+        anchore_utils.touch_file(excludesfile)
+        #open(excludesfile, 'w').close()
 
         for l in revlayer:
             layertar = imagedir + "/" + l + "/layer.tar"
@@ -780,13 +766,12 @@ class AnchoreImage(object):
             self._logger.debug("cmd: " + ' '.join(tarcmd))
             allfiles = subprocess.check_output(tarcmd)
 
-            OFH=open(excludesfile, 'a')
-            for f in allfiles.splitlines():
-                if re.match('.*\.wh\..*', f):
-                    fsub = re.sub(r"\.wh\.", "", f)
-                    OFH.write(f + "\n")
-                    OFH.write(fsub + "\n")
-            OFH.close()
+            with open(excludesfile, 'a') as OFH:
+                for f in allfiles.splitlines():
+                    if re.match('.*\.wh\..*', f):
+                        fsub = re.sub(r"\.wh\.", "", f)
+                        OFH.write(f + "\n")
+                        OFH.write(fsub + "\n")
 
             tarcmd = ["tar", "-C", rootfsdir, "-X", excludesfile, "-x", "-v", "-f", layertar]
             self._logger.debug("cmd: " + ' '.join(tarcmd))
@@ -798,10 +783,9 @@ class AnchoreImage(object):
                 self._logger.warn("Command: " + ' '.join(tarcmd))
                 self._logger.warn("Info: " + str(err))
 
-            OFH=open(excludesfile, 'a')
-            for f in allfiles.splitlines():
-                OFH.write(f + "\n")
-            OFH.close()
+            with open(excludesfile, 'a') as OFH:
+                for f in allfiles.splitlines():
+                    OFH.write(f + "\n")
 
             newfile = excludesfile + "." + l
             shutil.copy(excludesfile, newfile)
@@ -927,17 +911,20 @@ class AnchoreImage(object):
         return (report)
 
     def get_dockerfile_contents(self):
-        ret = ["", "N/A"]
-
         modestr = "N/A"
         dbuf = ""
-        if os.path.exists(self.anchore_imagedir + "/Dockerfile"):
-            modestr = "Actual"
+        if self.dockerfile_contents:
             dbuf = self.dockerfile_contents
-            #dbuf = anchore_utils.read_plainfile_tostr(self.anchore_imagedir + "/Dockerfile")
-        else:
-            modestr = "Guessed"
-            dbuf = self.dockerfile_contents
-            #dbuf = self.discover_dockerfile_contents()
+        if self.dockerfile_mode:
+            modestr = self.dockerfile_mode
+
+#        if os.path.exists(self.anchore_imagedir + "/Dockerfile"):
+#            modestr = "Actual"
+#            dbuf = self.dockerfile_contents
+#            #dbuf = anchore_utils.read_plainfile_tostr(self.anchore_imagedir + "/Dockerfile")
+#        else:
+#            modestr = "Guessed"
+#            dbuf = self.dockerfile_contents
+#            #dbuf = self.discover_dockerfile_contents()
 
         return ([dbuf, modestr])

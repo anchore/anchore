@@ -122,11 +122,10 @@ def init_query_cmdline(argv, paramhelp):
     ret['images'] = images
 
     ret['dirs'] = {}
-    ret['dirs']['datadir'] = argv[2]
-
-    ret['dirs']['imgdir'] = '/'.join([ret['dirs']['datadir'], ret['imgid'], 'image_output'])
-    ret['dirs']['analyzerdir'] = '/'.join([ret['dirs']['datadir'], ret['imgid'], 'analyzer_output'])
-    ret['dirs']['gatesdir'] = '/'.join([ret['dirs']['datadir'], ret['imgid'], 'gates_output'])
+    #ret['dirs']['datadir'] = argv[2]
+    #ret['dirs']['imgdir'] = '/'.join([ret['dirs']['datadir'], ret['imgid'], 'image_output'])
+    #ret['dirs']['analyzerdir'] = '/'.join([ret['dirs']['datadir'], ret['imgid'], 'analyzer_output'])
+    #ret['dirs']['gatesdir'] = '/'.join([ret['dirs']['datadir'], ret['imgid'], 'gates_output'])
 
     ret['dirs']['outputdir'] = argv[3]
 

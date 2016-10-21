@@ -23,7 +23,7 @@ function init_query_cmdline {
 	return 1
     fi
     export DATADIR="$2"
-    export IMGDIR="$2/$IMGID/image_output"
+    #export IMGDIR="$2/$IMGID/image_output"
     export ANALYZERDIR="$2/$IMGID/analyzer_output"
     export GATESDIR="$2/$IMGID/gates_output"
 
@@ -35,7 +35,8 @@ function init_query_cmdline {
 	mkdir -p $OUTPUTDIR
     fi
 
-    for d in $DATADIR $IMGDIR $ANALYZERDIR $GATESDIR $OUTPUTDIR
+    #for d in $DATADIR $IMGDIR $ANALYZERDIR $GATESDIR $OUTPUTDIR
+    for d in $DATADIR $ANALYZERDIR $GATESDIR $OUTPUTDIR
     do
 	if [ ! -d "$d" ]; then
 	    echo "Cannot find dir: $d"
@@ -43,16 +44,16 @@ function init_query_cmdline {
 	fi
     done
 
-    if [ ! -f "$IMGDIR/image_info/image.meta" ]; then
-	echo "Cannot find image metadata file: $IMGDIR/image_info/image.meta"
-	return 1
-    fi
+#    if [ ! -f "$IMGDIR/image_info/image.meta" ]; then
+#	echo "Cannot find image metadata file: $IMGDIR/image_info/image.meta"
+#	return 1
+#    fi
 
-    while read -r key val
-    do
-	key=`echo $key | awk '{print toupper($0)}'`
-	export $key=$val
-    done < $IMGDIR/image_info/image.meta
+#    while read -r key val
+#    do
+#	key=`echo $key | awk '{print toupper($0)}'`
+#	export $key=$val
+#    done < $IMGDIR/image_info/image.meta
 
     export ANCHOREPARAMS="$4 $5 $6 $7 $8 $9 $10"
 

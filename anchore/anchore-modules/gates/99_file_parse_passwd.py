@@ -82,7 +82,7 @@ if len(config['params']) <= 0:
     sys.exit(0)
 
 imgid = config['imgid']
-outputdir = config['dirs']['outputdir']
+#outputdir = config['dirs']['outputdir']
 
 try:
     params = config['params']
@@ -93,7 +93,8 @@ except:
 outlist = list()
 
 # first, attempt to extract /etc/passwd
-dstdir = os.path.join(outputdir, 'extract_tmp')
+dstdir = anchore.anchore_utils.make_anchoretmpdir("/tmp")
+#dstdir = os.path.join(outputdir, 'extract_tmp')
 
 retlist = list()
 try:

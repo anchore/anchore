@@ -40,10 +40,9 @@ class Controller(object):
 
         self.policy_override = None
 
-    def read_policyfile(self, policyfile):
-        FH=open(policyfile, 'r')
+    def read_policy(self, policydata):
         policies = {}
-        for l in FH.readlines():
+        for l in policydata:
             l = l.strip()
             patt = re.compile('^\s*#')
 
@@ -65,7 +64,6 @@ class Controller(object):
                 policies[module][check]['action'] = action
                 policies[module][check]['params'] = modparams
 
-        FH.close()
         return(policies)
 
     def merge_policies(self, poldst, polsrc):
@@ -80,16 +78,18 @@ class Controller(object):
         
         return(polret)
 
-    def save_policyfile(self, policy, outpolicyfile):
-        FH=open(outpolicyfile, 'w')
+    def save_policy(self, imageId, policy):
+        outlist = list()
+
         for k in policy.keys():
             for c in policy[k].keys():
                 if policy[k][c]['params']:
                     outline = k + ":" + c + ":" + policy[k][c]['action'] + ":" + policy[k][c]['params']
                 else:
                     outline = k + ":" + c + ":" + policy[k][c]['action']
-                FH.writelines(outline + "\n")
-        FH.close()
+                outlist.append(outline)
+
+        self.anchoreDB.save_gate_policy(imageId, outlist)
         return(True)
 
     def get_images(self):
@@ -100,34 +100,30 @@ class Controller(object):
         # checks are in default), and save (if there is a diff after
         # the merge)
 
-        image_gatepol = image.anchore_imagedir + "/anchore_gate.policy"
+        policy_data = anchore_utils.read_plainfile_tolist(self.default_gatepol)
+        default_policies = self.read_policy(policy_data)
 
-        default_policies = self.read_policyfile(self.default_gatepol)
-        image_policies = False
-
-        if os.path.exists(image_gatepol):
-            image_policies = self.read_policyfile(image_gatepol)
+        policy_data = self.anchoreDB.load_gate_policy(image.meta['imageId'])
+        image_policies = self.read_policy(policy_data)
 
         if image_policies and default_policies:
             policies = self.merge_policies(image_policies, default_policies)
             if policies != image_policies:
-                self.save_policyfile(policies, image_gatepol)
+                self.save_policy(image.meta['imageId'], policies)
         else:
             policies = default_policies
-            self.save_policyfile(policies, image_gatepol)
+            self.save_policy(image.meta['imageId'], policies)
 
         return(policies)
 
     def load_whitelist(self, image):
         ret = {'ignore':[], 'enforce':[]}
 
-        whitelist = '/'.join([image.get_imagedir(), "/anchore_gate.whitelist"])
-        if not os.path.exists(whitelist):
+        data = self.anchoreDB.load_gate_whitelist(image.meta['imageId'])
+        if not data:
             return(ret)
 
-        FH=open(whitelist, 'r')
-        for l in FH.readlines():
-            l = l.strip()
+        for l in data:
             try:
                 if re.match("^#.*", l):
                     l = re.sub("^#", "", l)
@@ -138,18 +134,18 @@ class Controller(object):
                     ret['enforce'].append(json_dict)
             except:
                 pass
-        FH.close()        
+
         return(ret)
 
     def save_whitelist(self, image, loaded, latest):
         new = {'ignore':list(loaded['ignore']), 'enforce':loaded['enforce']}
 
-        whitelist = '/'.join([image.get_imagedir(), "/anchore_gate.whitelist"])
-        if not os.path.exists(whitelist):
-            FH=open(whitelist, 'w')
+        whitelist = self.anchoreDB.load_gate_whitelist(image.meta['imageId'])
+        if not whitelist:
+            outlist = list()
             for i in latest:
-                FH.write(json.dumps(i) + "\n\n")
-            FH.close()
+                outlist.append(json.dumps(i))
+            self.anchoreDB.save_gate_whitelist(image.meta['imageId'], outlist)
         else:
             newpol = False
             for i in latest:
@@ -160,12 +156,12 @@ class Controller(object):
 
             # write the new whitelist, adding any new policies
             if newpol:
-                FH=open(whitelist, 'w')
+                outlist = list()
                 for i in new['ignore']:
-                    FH.write("#"+json.dumps(i) + "\n\n")
+                    outlist.append("#"+json.dumps(i))
                 for i in new['enforce']:
-                    FH.write(json.dumps(i) + "\n\n")
-                FH.close()
+                    outlist.append(json.dumps(i))
+                self.anchoreDB.save_gate_whitelist(image.meta['imageId'], outlist)
         return(True)
 
     def evaluate_gates_results(self, image):
@@ -175,42 +171,42 @@ class Controller(object):
         policies_whitelist = self.load_whitelist(image)
 
         if self.policy_override:
-            policies = self.read_policyfile(self.policy_override)
+            policy_data = anchore_utils.read_plainfile_tolist(self.policy_override)
+            policies = self.read_policy(policy_data)
         else:
             policies = self.get_image_policies(image)
         for m in policies.keys():
-            opath = image.anchore_imagedir + "/gates_output/" + m
-            if os.path.exists(opath):
-                FH=open(opath, 'r')
-                for l in FH.readlines():
-                    l = l.strip()
-                    (k, v) = re.match('(\S*)\s*(.*)', l).group(1, 2)
-                    if k in policies[m]:
-                        r = {'imageId':image.meta['imageId'], 'check':m, 'trigger':k, 'output':v, 'action':policies[m][k]['action']}
-                        # this is where whitelist check should go
-                        if r not in policies_whitelist['ignore']:
-                            if policies[m][k]['action'] == 'STOP':
-                                final_gate_action = 'STOP'
-                            elif final_gate_action != 'STOP' and policies[m][k]['action'] == 'WARN':
-                                final_gate_action = 'WARN'
-                            ret.append(r)
-                        else:
-                            # whitelisted, skip evaluation
-                            pass
-                FH.close()
+            gdata = self.anchoreDB.load_gate_output(image.meta['imageId'], m)
+            for l in gdata:
+                (k, v) = re.match('(\S*)\s*(.*)', l).group(1, 2)
+                if k in policies[m]:
+                    r = {'imageId':image.meta['imageId'], 'check':m, 'trigger':k, 'output':v, 'action':policies[m][k]['action']}
+                    # this is where whitelist check should go
+                    if r not in policies_whitelist['ignore']:
+                        if policies[m][k]['action'] == 'STOP':
+                            final_gate_action = 'STOP'
+                        elif final_gate_action != 'STOP' and policies[m][k]['action'] == 'WARN':
+                            final_gate_action = 'WARN'
+                        ret.append(r)
+                    else:
+                        # whitelisted, skip evaluation
+                        pass
         
         self.save_whitelist(image, policies_whitelist, ret)
 
         ret.append({'imageId':image.meta['imageId'], 'check':'FINAL', 'trigger':'FINAL', 'output':"", 'action':final_gate_action})
         
         for i in ret:
-            if os.path.exists(image.get_imagedir() + "/gates_output/" + i['check'] + ".eval"):
-                os.remove(image.get_imagedir() + "/gates_output/" + i['check'] + ".eval")
+            self.anchoreDB.del_gate_eval_output(image.meta['imageId'], i['check'])
 
+        evals = {}
         for i in ret:
-            FH=open(image.get_imagedir() + "/gates_output/" + i['check'] + ".eval", 'a')
-            FH.write(i['trigger'] + " " + i['action'] + "\n")
-            FH.close()
+            if i['check'] not in evals:
+                evals[i['check']] = list()
+            evals[i['check']].append(' '.join([i['trigger'], i['action']]))
+
+        for i in evals.keys():
+            self.anchoreDB.save_gate_eval_output(image.meta['imageId'], i, evals[i])
 
         self.anchoreDB.save_gates_eval_report(image.meta['imageId'], ret)
         return(ret)
@@ -222,8 +218,8 @@ class Controller(object):
         imagename = image.meta['imageId']
         imagedir = image.anchore_imagedir
         gatesdir = '/'.join([self.config["scripts_dir"], "gates"])
-        outputdir = imagedir + "/gates_output"
         workingdir = '/'.join([self.config['anchore_data_dir'], 'querytmp'])
+        outputdir = workingdir
         
         if not self.force and os.path.exists(imagedir + "/gates.done"):
             self._logger.info(image.meta['shortId'] + ": evaluated.")
@@ -231,20 +227,16 @@ class Controller(object):
 
         self._logger.info(image.meta['shortId'] + ": evaluating policies ...")
         
-        if not os.path.exists(imagedir):
-            os.makedirs(imagedir)
-
-        if not os.path.exists(outputdir):
-            os.makedirs(outputdir)
-
-        if not os.path.exists(workingdir):
-            os.makedirs(workingdir)
+        for d in [outputdir, workingdir]:
+            if not os.path.exists(d):
+                os.makedirs(d)
 
         imgfile = '/'.join([workingdir, "queryimages." + str(random.randint(0, 99999999))])
         anchore_utils.write_plainfile_fromstr(imgfile, image.meta['imageId'])
 
         if self.policy_override:
-            policies = self.read_policyfile(self.policy_override)
+            policy_data = anchore_utils.read_plainfile_tolist(self.policy_override)
+            policies = self.read_policy(policy_data)
         else:
             policies = self.get_image_policies(image)
 
@@ -291,15 +283,9 @@ class Controller(object):
         # this routine reads the results of image gates and generates a formatted report
         report = {}
 
-        analysisdir = image.anchore_imagedir + "/gates_output/"
-        for d in os.listdir(analysisdir):
-            if re.match(".*\.eval$", d) or re.match(".*\.help$", d):
-                continue
-
-            if d not in report:
-                report[d] = list()
-
-            report[d] = anchore_utils.read_plainfile_tolist('/'.join([analysisdir, d]))
+        outputs = self.anchoreDB.list_gate_outputs(image.meta['imageId'])
+        for d in outputs:
+            report[d] = self.anchoreDB.load_gate_output(image.meta['imageId'], d)
 
         return(report)
 
@@ -378,19 +364,73 @@ class Controller(object):
         return(True)
 
     def updatepolicy(self, newpolicyfile):
-        newpol = self.read_policyfile(newpolicyfile)
+        policy_data = anchore_utils.read_plainfile_tolist(newpolicyfile)
+        newpol = self.read_policy(policy_data)
         for imageId in self.images:
             if imageId in self.allimages:
                 try:
                     image = self.allimages[imageId]
                     image_gatepol = image.anchore_imagedir + "/anchore_gate.policy"
-                    self.save_policyfile(newpol, image_gatepol)
+                    self.save_policyfile(imageId, newpol)
                 except Exception as err:
                     self._logger.error("failed to update policy for image ("+imageId+"). bailing out: " + str(err))
                     return(False)
         return(True)
 
     def edit_policy_file(self, editpolicy=False, whitelist=False):
+        ret = True
+
+        if not editpolicy and not whitelist:
+            # nothing to do
+            return(ret)
+
+        for imageId in self.images:
+            if editpolicy:
+                data = self.anchoreDB.load_gate_policy(imageId)
+            else:
+                data = self.anchoreDB.load_gate_whitelist(imageId)
+
+            if not data:
+                self._logger.info("Cannot find existing data to edit, skipping: " + str(imageId))
+            else:
+                tmpdir = anchore_utils.make_anchoretmpdir("/tmp")
+                try:
+                    thefile = os.path.join(tmpdir, "anchorepol."+imageId)
+                    anchore_utils.write_plainfile_fromlist(thefile, data)
+                    if "EDITOR" in os.environ:
+                        cmd = os.environ["EDITOR"].split()
+                        cmd.append(thefile)
+                        try:
+                            subprocess.check_output(cmd, shell=False)
+                        except:
+                            ret = False
+                    elif os.path.exists("/bin/vi"):
+                        try:
+                            rc = os.system("/bin/vi " + thefile)
+                            if rc:
+                                ret = False
+                        except:
+                            ret = False
+                    else:
+                        self._logger.info("Cannot find editor to use: please set the EDITOR environment variable and try again")
+                        break
+                        ret = False
+
+                    newdata = anchore_utils.read_plainfile_tolist(thefile)
+
+                    if editpolicy:
+                        self.anchoreDB.save_gate_policy(imageId, newdata)
+                    else:
+                        self.anchoreDB.save_gate_whitelist(imageId, newdata)
+                except Exception as err:
+                    pass
+                finally:
+                    if tmpdir:
+                        shutil.rmtree(tmpdir)
+
+        return(ret)
+
+    def edit_policy_file_orig(self, editpolicy=False, whitelist=False):
         ret = True
 
         if editpolicy:

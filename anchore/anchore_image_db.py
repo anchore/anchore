@@ -345,10 +345,24 @@ class AnchoreImageDB(object):
         thefile = thedir + "/gates_report.json"
         anchore_utils.update_file_jsonstr(json.dumps(report), thefile, False)
 
+    
     def load_gate_output(self, imageId, gate_name):
         thedir = os.path.join(self.imagerootdir, imageId, 'gates_output')
         thefile = os.path.join(thedir, gate_name)
         return(anchore_utils.read_plainfile_tolist(thefile))
+
+    def list_gate_outputs(self, imageId):
+        ret = list()
+        thedir = os.path.join(self.imagerootdir, imageId, 'gates_output')
+        if not os.path.exists(thedir):
+            return(ret)
+        for d in os.listdir(thedir):
+            if re.match(".*\.eval$", d) or re.match(".*\.help$", d):
+                continue
+
+            if d not in ret:
+                ret.append(d)
+        return(ret)
 
     def save_gate_output(self, imageId, gate_name, data):
         thedir = os.path.join(self.imagerootdir, imageId, 'gates_output')
@@ -364,6 +378,19 @@ class AnchoreImageDB(object):
         thefile = os.path.join(thedir, "gates_info.json")
         rc = anchore_utils.update_file_jsonstr(json.dumps(gate_help), thefile)
         return(rc)
+
+    def save_gate_eval_output(self, imageId, gate_name, data):
+        thedir = os.path.join(self.imagerootdir, imageId, "gates_output")
+        if not os.path.exists(thedir):
+            os.makedirs(thedir)
+        thefile = os.path.join(thedir, gate_name+".eval")
+        return(anchore_utils.write_plainfile_fromlist(thefile, data))
+
+    def del_gate_eval_output(self, imageId, gate_name):
+        thefile = os.path.join(self.imagerootdir, imageId, "gates_output", imageId, gate_name)
+        if os.path.exists(thefile):
+            os.remove(thefile)
+        return(True)
 
     def load_gates_eval_report(self, imageId):
         thefile = self.imagerootdir + "/" + imageId + "/reports/gates_eval_report.json"
@@ -381,6 +408,28 @@ class AnchoreImageDB(object):
             os.makedirs(thedir)
         thefile = thedir + "/gates_eval_report.json"
         anchore_utils.update_file_jsonstr(json.dumps(report), thefile, False)
+
+    def save_gate_policy(self, imageId, data):
+        thedir = os.path.join(self.imagerootdir, imageId)
+        if not os.path.exists(thedir):
+            os.makedirs(thedir)
+        thefile = os.path.join(thedir, "anchore_gate.policy")
+        return(anchore_utils.write_plainfile_fromlist(thefile, data))
+
+    def load_gate_policy(self, imageId):
+        thefile = os.path.join(self.imagerootdir, imageId, 'anchore_gate.policy')
+        return(anchore_utils.read_plainfile_tolist(thefile))
+
+    def load_gate_whitelist(self, imageId):
+        thefile = os.path.join(self.imagerootdir, imageId, 'anchore_gate.whitelist')
+        return(anchore_utils.read_plainfile_tolist(thefile))
+
+    def save_gate_whitelist(self, imageId, data):
+        thedir = os.path.join(self.imagerootdir, imageId)
+        if not os.path.exists(thedir):
+            os.makedirs(thedir)
+        thefile = os.path.join(thedir, 'anchore_gate.whitelist')
+        return(anchore_utils.write_plainfile_fromlist(thefile, data))
 
     def load_image_report(self, imageId):
         thefile = self.imagerootdir + "/" + imageId + "/reports/image_report.json"

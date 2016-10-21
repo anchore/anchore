@@ -26,8 +26,7 @@ outlist.append(["Image_Id", "Repo_Tag", "Distro", "Version"])
 try:
     # handle the good case, something is found resulting in data matching the required columns
 
-    ametafile = '/'.join([config['dirs']['analyzerdir'], 'analyzer_meta/analyzer_meta'])
-    distrodict = anchore.anchore_utils.read_kvfile_todict(ametafile)
+    distrodict = anchore.anchore_utils.get_distro_from_imageId(config['imgid'])
 
     tags = "none"
     if config['meta']['humanname']:
