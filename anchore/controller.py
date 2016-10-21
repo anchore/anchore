@@ -353,14 +353,8 @@ class Controller(object):
     def rmpolicy(self):
         for imageId in self.images:
             if imageId in self.allimages:
-                image = self.allimages[imageId]
-                image_gatepol = image.anchore_imagedir + "/anchore_gate.policy"
-                if os.path.exists(image_gatepol):
-                    try:
-                        os.remove(image_gatepol)
-                    except Exception as err:
-                        self._logger.error("failed to remove policy for image ("+imageId+").  bailing out: " + str(err))
-                        return(False)
+                self.anchoreDB.del_gate_policy(imageId)
+
         return(True)
 
     def updatepolicy(self, newpolicyfile):
@@ -369,9 +363,7 @@ class Controller(object):
         for imageId in self.images:
             if imageId in self.allimages:
                 try:
-                    image = self.allimages[imageId]
-                    image_gatepol = image.anchore_imagedir + "/anchore_gate.policy"
-                    self.save_policyfile(imageId, newpol)
+                    self.save_policy(imageId, newpol)
                 except Exception as err:
                     self._logger.error("failed to update policy for image ("+imageId+"). bailing out: " + str(err))
                     return(False)
@@ -429,45 +421,3 @@ class Controller(object):
                         shutil.rmtree(tmpdir)
 
         return(ret)
-
-    def edit_policy_file_orig(self, editpolicy=False, whitelist=False):
-        ret = True
-
-        if editpolicy:
-            polfile = "anchore_gate.policy"
-        elif whitelist:
-            polfile = "anchore_gate.whitelist"
-        else:
-            # nothing to do
-            return(ret)
-
-        for imageId in self.images:
-            image = self.allimages[imageId]            
-            policies = self.get_image_policies(image)        
-
-            thefile = '/'.join([image.anchore_imagedir, polfile])
-                
-            if not os.path.exists(thefile):
-                self._logger.info("Cannot find file to edit, skipping: " + str(thefile))
-            else:
-                if "EDITOR" in os.environ:
-                    cmd = os.environ["EDITOR"].split()
-                    cmd.append(thefile)
-                    try:
-                        subprocess.check_output(cmd, shell=False)
-                    except:
-                        ret = False
-                elif os.path.exists("/bin/vi"):
-                    try:
-                        rc = os.system("/bin/vi " + thefile)
-                        if rc:
-                            ret = False
-                    except:
-                        ret = False
-                else:
-                    self._logger.info("Cannot find editor to use: please set the EDITOR environment variable and try again")
-                    break
-                    ret = False
-
-        return(ret)
-

@@ -389,7 +389,10 @@ class AnchoreImageDB(object):
     def del_gate_eval_output(self, imageId, gate_name):
         thefile = os.path.join(self.imagerootdir, imageId, "gates_output", imageId, gate_name)
         if os.path.exists(thefile):
-            os.remove(thefile)
+            try:
+                os.remove(thefile)
+            except:
+                pass
         return(True)
 
     def load_gates_eval_report(self, imageId):
@@ -409,6 +412,10 @@ class AnchoreImageDB(object):
         thefile = thedir + "/gates_eval_report.json"
         anchore_utils.update_file_jsonstr(json.dumps(report), thefile, False)
 
+    def load_gate_policy(self, imageId):
+        thefile = os.path.join(self.imagerootdir, imageId, 'anchore_gate.policy')
+        return(anchore_utils.read_plainfile_tolist(thefile))
+
     def save_gate_policy(self, imageId, data):
         thedir = os.path.join(self.imagerootdir, imageId)
         if not os.path.exists(thedir):
@@ -416,9 +423,13 @@ class AnchoreImageDB(object):
         thefile = os.path.join(thedir, "anchore_gate.policy")
         return(anchore_utils.write_plainfile_fromlist(thefile, data))
 
-    def load_gate_policy(self, imageId):
+    def del_gate_policy(self, imageId):
         thefile = os.path.join(self.imagerootdir, imageId, 'anchore_gate.policy')
-        return(anchore_utils.read_plainfile_tolist(thefile))
+        try:
+            os.remove(thefile)
+        except:
+            pass
+        return(True)
 
     def load_gate_whitelist(self, imageId):
         thefile = os.path.join(self.imagerootdir, imageId, 'anchore_gate.whitelist')
