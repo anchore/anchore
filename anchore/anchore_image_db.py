@@ -458,6 +458,16 @@ class AnchoreImageDB(object):
         return(ret)
 
     def save_image_report(self, imageId, report):
+        # populate image metadata
+        thedir = os.path.join(self.imagerootdir, imageId, "image_output", "image_info")
+        if not os.path.exists(thedir):
+            os.makedirs(thedir)
+
+        thefile = os.path.join(thedir, "image.meta")
+        if 'meta' in report:
+            anchore_utils.write_kvfile_fromdict(thefile, report['meta'])
+
+        # save the report itself
         date = str(int(time.time()))
         thedir = self.imagerootdir + "/" + imageId + "/reports/"
         if not os.path.exists(thedir):
