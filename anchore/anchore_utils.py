@@ -153,7 +153,7 @@ def anchore_common_context_setup(config):
 
         dimages = {}
         try:
-            contexts['docker_cli'] = docker.Client(base_url=config['docker_conn'], timeout=int(config['docker_conn_timeout']))
+            contexts['docker_cli'] = docker.Client(base_url=config['docker_conn'], version='auto', timeout=int(config['docker_conn_timeout']))
             testconn = contexts['docker_cli'].version()
             docker_images = contexts['docker_cli'].images(all=True)
             for i in docker_images:

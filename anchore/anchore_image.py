@@ -115,7 +115,7 @@ class AnchoreImage(object):
         elif 'docker_cli' in contexts and contexts['docker_cli']:
             self.docker_cli = contexts['docker_cli']
         else:
-            self.docker_cli = docker.Client(base_url='unix://var/run/docker.sock', timeout=300)
+            self.docker_cli = docker.Client(base_url='unix://var/run/docker.sock', version='auto', timeout=300)
 
         if anchore_db:
             self.anchore_db = anchore_db
