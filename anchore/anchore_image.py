@@ -129,8 +129,8 @@ class AnchoreImage(object):
         elif 'docker_images' in contexts and contexts['docker_images']:
             self.docker_images = contexts['docker_images']
         else: 
-            self.docker_images = self.docker_cli.images(all=True)
-
+            self.docker_images = anchore_utils.get_docker_images(self.docker_cli)
+            
         # set up metadata about the image from anchoreDB and docker
         if not self.load_image(dockerfile):
             raise Exception("could not load image information from Docker or AnchoreDB")
@@ -205,17 +205,15 @@ class AnchoreImage(object):
 
     def load_image_from_docker(self):
         try:
-            idata = {}
             ddata = {}
             hdata = {}
             Id = None
 
             # first get a list of docker images and search for the input image
-            dimages = self.docker_images
-            if self.meta['imageId'] in dimages:
-                idata = dimages[self.meta['imageId']]
+            if self.meta['imageId'] not in self.docker_images.keys():
+                self.docker_images = anchore_utils.get_docker_images(self.docker_cli)
 
-            if idata:
+            if self.meta['imageId'] in self.docker_images.keys():
                 ddata = self.docker_cli.inspect_image(self.meta['imageId'])
                 hdata = self.docker_cli.history(self.meta['imageId'])
 

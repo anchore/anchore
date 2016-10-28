@@ -148,6 +148,19 @@ def init_query_cmdline(argv, paramhelp):
 
     return (ret)
 
+def get_docker_images(cli):
+    ret = {}
+    if not cli:
+        return(ret)
+
+    docker_images = cli.images(all=True)
+    for i in docker_images:
+        if 'Id' in i:
+            Id = re.sub("sha256:", "", i['Id'])
+            ret[Id] = i
+
+    return(ret)
+
 def anchore_common_context_setup(config):
     if 'docker_cli' not in contexts or not contexts['docker_cli']:
 
@@ -155,12 +168,7 @@ def anchore_common_context_setup(config):
         try:
             contexts['docker_cli'] = docker.Client(base_url=config['docker_conn'], version='auto', timeout=int(config['docker_conn_timeout']))
             testconn = contexts['docker_cli'].version()
-            docker_images = contexts['docker_cli'].images(all=True)
-            for i in docker_images:
-                if 'Id' in i:
-                    Id = re.sub("sha256:", "", i['Id'])
-                    dimages[Id] = i
-                    
+            dimages = get_docker_images(contexts['docker_cli']) 
         except Exception as err:
             contexts['docker_cli']=None
 

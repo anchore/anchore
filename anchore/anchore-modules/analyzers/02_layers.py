@@ -29,9 +29,9 @@ if not os.path.exists(outputdir):
 output = list()
 
 try:
-
-    if os.path.exists(os.path.join(unpackdir, "docker_history.json")):
-        with open(os.path.join(unpackdir, "docker_history.json"), 'r') as FH:
+    hfile = os.path.join(unpackdir, "docker_history.json")
+    if os.path.exists(hfile):
+        with open(hfile, 'r') as FH:
             history = json.loads(FH.read())
 
         for record in history:
@@ -42,8 +42,12 @@ try:
             clean_createdBy = re.sub(r"^/bin/sh -c #\(nop\) ", "", record['CreatedBy'])
             line = {'layer':clean_layer, 'dockerfile_line':clean_createdBy, 'layer_sizebytes':str(record['Size'])}
             output.append(line)
-except:
-    pass
+    else:
+        raise Exception("anchore failed to provide file '"+str(hfile)+"': cannot create layer info analyzer output")
+except Exception as err:
+    import traceback
+    traceback.print_exc()
+    raise err
 
 ofile = os.path.join(outputdir, 'layers_to_dockerfile')
 anchore.anchore_utils.write_kvfile_fromdict(ofile, {'dockerfile_to_layer_map':json.dumps(output)})
