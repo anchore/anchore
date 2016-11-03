@@ -379,7 +379,7 @@ def unsubscribe_anchore_feed(feed):
 
     return(success, msg)
 
-def load_anchore_feed(feed, group):
+def load_anchore_feed(feed, group, ensure_unique=False):
     basedir = contexts['anchore_config']['feeds_dir']
     ret = {'success':False, 'msg':"", 'data':list()}
     datameta = {}
@@ -395,13 +395,29 @@ def load_anchore_feed(feed, group):
             datadir = os.path.join(basedir, feed, group)
         
         if datameta and 'datafiles' in datameta:
-            for datafile in datameta['datafiles']:
+            unique_hash = {}
+            for datafile in sorted(datameta['datafiles']):
                 thefile = os.path.join(datadir, datafile)
                 with open(thefile, 'r') as FH:
                     thelist = json.loads(FH.read())
+                if ensure_unique:
+                    for el in thelist:
+                        if isinstance(el, dict) and len(el.keys()) == 1:
+                            elkey = el.keys()[0]
+                            if elkey in unique_hash:
+                                print "FOUND DUP: " + str(elkey)
+                            unique_hash[elkey] = el
+
                 ret['data'] = ret['data'] + thelist
                 ret['success'] = True
                 ret['msg'] = "success"
+
+            if ret['success'] and ensure_unique:                
+                ret['data'] = unique_hash.values()
+                
+                #for k in unique_hash.keys():
+                #    ret['data'] = ret['data'] + [unique_hash[k]]
+                                        
         else:
             ret['msg'] = "no data exists for given feed/group ("+str(feed)+"/"+str(group)+")"
             
@@ -431,8 +447,8 @@ def handle_anchore_feed_pre(feed):
                 ret = rc
     return(ret, msg)
 
-
 def handle_anchore_feed_post(feed, group):
+    basedir = contexts['anchore_config']['feeds_dir']
     ret = True
     msg = ""
     if feed == 'imagedata':

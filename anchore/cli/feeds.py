@@ -69,7 +69,6 @@ def list(showgroups):
             result['Subscribed'] = subscribed
 
         anchore_print(result, do_formatting=True)
-
     except Exception as err:
         anchore_print_err('operation failed')
         ecode = 1
