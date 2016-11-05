@@ -30,8 +30,6 @@ if not os.path.exists(outputdir):
 meta = anchore.anchore_utils.get_distro_from_path('/'.join([unpackdir, "rootfs"]))
 distrodict = anchore.anchore_utils.get_distro_flavor(meta['DISTRO'], meta['DISTROVERS'], meta['LIKEDISTRO'])
 
-#sys.exit(1)
-
 if distrodict['flavor'] not in ['RHEL', 'DEB', 'BUSYB', 'ALPINE']:
     sys.exit(0)
 

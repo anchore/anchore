@@ -310,7 +310,7 @@ class Navigator(object):
 
             except Exception as err:
                 self._logger.error("Query output handling failed: ")
-                self._logger.error("\tCommand: " + ' '.join(cmd))
+                self._logger.error("\tCommand: " + str(cmd))
                 self._logger.error("\tException: " + str(err))
                 success = False
         finally:
@@ -342,8 +342,11 @@ class Navigator(object):
             paths = list()
             paths.append('/'.join([self.config['scripts_dir'], "queries"]))
             paths.append('/'.join([self.config['scripts_dir'], "multi-queries"]))
-            paths.append('/'.join([self.config['anchore_data_dir'], "user-scripts", 'queries']))
-            paths.append('/'.join([self.config['anchore_data_dir'], "user-scripts", 'multi-queries']))
+
+            if self.config['user_scripts_dir']:
+                paths.append('/'.join([self.config['user_scripts_dir'], 'queries']))
+                paths.append('/'.join([self.config['user_scripts_dir'], 'multi-queries']))
+
             if self.config['extra_scripts_dir']:
                 paths.append('/'.join([self.config['extra_scripts_dir'], 'queries']))
                 paths.append('/'.join([self.config['extra_scripts_dir'], 'multi-queries']))

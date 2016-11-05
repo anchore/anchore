@@ -89,6 +89,7 @@ class Analyzer(object):
                     scripts['base'].append(script)
 
         for override in overrides:
+            scripts[override] = list()
             if self.config[override]:
                 opath = os.path.join(self.config[override], 'analyzers')
                 if os.path.exists(opath):
@@ -101,7 +102,6 @@ class Analyzer(object):
     def run_analyzers(self, image):
         success = True
         analyzers = self.list_analyzers()
-
         imagename = image.meta['imagename']
         outputdir = image.anchore_imagedir
         shortid = image.meta['shortId']
@@ -113,7 +113,9 @@ class Analyzer(object):
         outputdirs = {}
         torun = list()
         skip = False
-        for atype in ['user_scripts_dir', 'extra_scripts_dir', 'base']:
+        atypes = ['user_scripts_dir', 'extra_scripts_dir', 'base']
+
+        for atype in atypes:
             for script in analyzers[atype]:
                 try:
                     with open(script, 'r') as FH:

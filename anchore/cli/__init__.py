@@ -95,10 +95,12 @@ anchore gate --image nginx:latest
 @click.option('--json', is_flag=True, help='Output formatted json to stdout.')
 @click.option('--plain', is_flag=True, help='Output formatted scriptable text to stdout.')
 @click.option('--html', is_flag=True, help='Output formatted HTML table to stdout.')
+@click.option('--config-override', help='Override an anchore configuration option (can be used multiple times).', metavar='<config_opt>=<config_value>', multiple=True)
+
 @click.version_option(version=anchore_version)
 @click.pass_context
 @extended_help_option(extended_help=main_extended_help)
-def main_entry(ctx, verbose, debug, quiet, json, plain, html):
+def main_entry(ctx, verbose, debug, quiet, json, plain, html, config_override):
     """
     Anchore is a tool to analyze, query, and curate container images. The options at this top level
     control stdout and stderr verbosity and format.
@@ -131,9 +133,22 @@ def main_entry(ctx, verbose, debug, quiet, json, plain, html):
     # Load the config into the context object
     logfile = None
     debug_logfile = None
+
     try:
         try:
-            args = {'verbose': verbose, 'debug': debug, 'json': json, 'plain': plain, 'html': html, 'quiet': quiet}
+            config_overrides = {}
+            if config_override:
+                for el in config_override:
+                    try:
+                        (key, val) = el.split('=')
+                        if not key or not val:
+                            raise Exception("could not split by '='")
+                        config_overrides[key] = val
+                    except:
+                        click.echo("Error: specified --config_override param cannot be parsed (should be <config_opt>=<value>): " + str(el))
+                        exit(1)
+
+            args = {'verbose': verbose, 'debug': debug, 'json': json, 'plain': plain, 'html': html, 'quiet': quiet, 'config_overrides':config_overrides}
             anchore_conf = AnchoreConfiguration(cliargs=args)
         except Exception as err:
             click.echo("Error setting up/reading Anchore configuration", err=True)

@@ -55,15 +55,15 @@ class AnchoreConfiguration (object):
         'anchore_token_url':DEFAULT_ANCHORE_TOKEN_URL,
         'anchore_auth_conn_timeout':DEFAULT_ANCHORE_AUTH_CONN_TIMEOUT,
         'anchore_auth_max_retries':DEFAULT_ANCHORE_AUTH_MAX_RETRIES,
-        'vulnerabilities': {
-            'url': 'https://service-data.anchore.com/vulnerabilities.tar.gz',
-        },
-        'analysis': {
-            'url': 'https://service-data.anchore.com/analysis_db.tar.gz',
-        },
-        'images': {
-            'docker_conn': 'unix://var/run/docker.sock'
-        }
+#        'vulnerabilities': {
+#            'url': 'https://service-data.anchore.com/vulnerabilities.tar.gz',
+#        },
+#        'analysis': {
+#            'url': 'https://service-data.anchore.com/analysis_db.tar.gz',
+#        },
+#        'images': {
+#            'docker_conn': 'unix://var/run/docker.sock'
+#        }
     }
 
     def __init__(self, cliargs=None):
@@ -87,6 +87,11 @@ class AnchoreConfiguration (object):
                 # store CLI arguments
                 self.cliargs = cliargs
 
+            if 'config_overrides' in self.cliargs and self.cliargs['config_overrides']:
+                for override_key in self.cliargs['config_overrides']:
+                    if override_key in self.data:
+                        self.data[override_key] = self.cliargs['config_overrides'][override_key]
+
             if not os.path.exists(self.data['anchore_data_dir']):
                 os.makedirs(self.data['anchore_data_dir'])
 
@@ -108,8 +113,11 @@ class AnchoreConfiguration (object):
             
             if not os.path.exists(self.data['user_scripts_dir']):
                 os.makedirs(self.data['user_scripts_dir'])
-                for d in ['analyzers', 'gates', 'queries', 'multi-queries', 'shell-utils']:
-                    os.makedirs(os.path.join(self.data['user_scripts_dir'], d))
+        
+            for d in ['analyzers', 'gates', 'queries', 'multi-queries', 'shell-utils']:
+                thedir = os.path.join(self.data['user_scripts_dir'], d)
+                if not os.path.exists(thedir):
+                    os.makedirs(thedir)
 
             dc = filecmp.dircmp(os.path.join(self.data['scripts_dir'], 'shell-utils'), os.path.join(self.data['user_scripts_dir'], 'shell-utils'))
             for f in dc.left_only + dc.diff_files:
