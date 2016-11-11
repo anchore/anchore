@@ -206,11 +206,11 @@ def anchore_common_context_setup(config):
 
 # anchoreDB pass through functions
 
-def load_files_tarfile(imageId):
-    return(contexts['anchore_db'].load_files_tarfile(imageId))
+def load_files_tarfile(imageId, namespace):
+    return(contexts['anchore_db'].load_files_tarfile(imageId, namespace))
 
-def load_files_metadata(imageId):
-    return(contexts['anchore_db'].load_files_metadata(imageId))
+def load_files_metadata(imageId, namespace):
+    return(contexts['anchore_db'].load_files_metadata(imageId, namespace))
 
 def save_files(imageId, namespace, rootfsdir, files):
     return(contexts['anchore_db'].save_files(imageId, namespace, rootfsdir, files))
