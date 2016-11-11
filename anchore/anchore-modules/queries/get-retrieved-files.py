@@ -17,22 +17,16 @@ def get_retrieved_file(imgid, srcfile, dstdir):
     if srcfile == 'all':
         extractall = True
 
-    stored_data_tarfile = anchore.anchore_utils.load_analysis_output(imgid, 'retrieve_files', 'file_cache')
+    stored_data_tarfile = anchore.anchore_utils.load_files_tarfile(imgid, 'retrieve_files')
     if stored_data_tarfile:
-        tar = tarfile.open(fileobj=stored_data_tarfile, mode='r:gz', format=tarfile.PAX_FORMAT)
-        for f in tar.getmembers():
-            if re.match(".*stored_files.tar.gz", f.name):
-                data = tar.extractfile(f)
-                filetar = tarfile.open(fileobj=data, mode='r:gz', format=tarfile.PAX_FORMAT)
-                for ff in filetar.getmembers():
-                    patt = re.match("imageroot("+re.escape(srcfile)+")", ff.name)
-                    if extractall or patt:
-                        filetar.extract(ff, dstdir)
-                        scrubbed_name = re.sub("imageroot", "", ff.name)
-                        ret.append([scrubbed_name, os.path.join(dstdir, ff.name)])
-                filetar.close()
-        tar.close()
-        stored_data_tarfile.close()
+        filetar = tarfile.open(stored_data_tarfile, mode='r:gz', format=tarfile.PAX_FORMAT)
+        for ff in filetar.getmembers():
+            patt = re.match("imageroot("+re.escape(srcfile)+")", ff.name)
+            if extractall or patt:
+                filetar.extract(ff, dstdir)
+                scrubbed_name = re.sub("imageroot", "", ff.name)
+                ret.append([scrubbed_name, os.path.join(dstdir, ff.name)])
+        filetar.close()
     return(ret)
 
 # main routine

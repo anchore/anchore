@@ -12,13 +12,6 @@ import tarfile
 
 import anchore.anchore_utils
 
-def tarfilter(member):
-    subber = re.sub("^/*", "", rootfsdir)
-    subber = re.sub("/*$", "", subber)
-    finalstr = '/'.join(['imageroot', re.sub("^"+re.escape(subber)+"/*", "", member.name)])
-    member.name = finalstr
-    return(member)
-
 analyzer_name = "retrieve_files"
 
 try:
@@ -45,20 +38,36 @@ if len(files_to_get) <= 0:
     print "No configuration found in analyzer_config.yaml for analyzer '"+analyzer_name+", skipping"
     sys.exit(0)
 
-if not os.path.exists('/'.join([outputdir, "file_cache"])):
-    os.makedirs('/'.join([outputdir, "file_cache"]))
-
 outputdata = {}
-tar = tarfile.open('/'.join([outputdir, 'file_cache', 'stored_files.tar.gz']), mode='w:gz', format=tarfile.PAX_FORMAT)
+storefiles = list()
 for f in files_to_get:
     thefile = '/'.join([unpackdir, 'rootfs', f])
     if os.path.exists(thefile):
-        print "INFO: storing file: " + str(thefile)
         outputdata[f] = thefile
-        tar.add(thefile, filter=tarfilter)
+        storefiles.append(thefile)
     else:
-        print "WARN: could not find file ("+str(thefile)+") in image: skipping retrieve"
-tar.close()
+        pass
+
+try:
+    anchore.anchore_utils.save_files(imgid, analyzer_name, rootfsdir, storefiles)
+except Exception as err:
+    print "ERROR: unable to store files - exception: " + str(err)
+    outputdata = {}
+    
+#if not os.path.exists('/'.join([outputdir, "file_cache"])):
+#    os.makedirs('/'.join([outputdir, "file_cache"]))
+
+#outputdata = {}
+#tar = tarfile.open('/'.join([outputdir, 'file_cache', 'stored_files.tar.gz']), mode='w:gz', format=tarfile.PAX_FORMAT)
+#for f in files_to_get:
+#    thefile = '/'.join([unpackdir, 'rootfs', f])
+#    if os.path.exists(thefile):
+#        print "INFO: storing file: " + str(thefile)
+#        outputdata[f] = thefile
+#        tar.add(thefile, filter=tarfilter)
+#    else:
+#        print "WARN: could not find file ("+str(thefile)+") in image: skipping retrieve"
+#tar.close()
 
 if outputdata:
     ofile = os.path.join(outputdir, 'file_cache.all')

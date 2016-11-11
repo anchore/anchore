@@ -32,32 +32,17 @@ imgid = config['meta']['shortId']
 
 try:
     # handle the good case, something is found resulting in data matching the required columns
-    import tarfile, io
-    
-    stored_data_tarfile = anchore.anchore_utils.load_analysis_output(config['imgid'], 'retrieve_files', 'file_cache')
-    if stored_data_tarfile:
-        tar = tarfile.open(fileobj=stored_data_tarfile, mode='r:gz', format=tarfile.PAX_FORMAT)
-        for f in tar.getmembers():
-            if re.match(".*stored_files.tar.gz", f.name):
-                data = tar.extractfile(f)
-                filetar = tarfile.open(fileobj=data, mode='r:gz', format=tarfile.PAX_FORMAT)
-                for ff in filetar.getmembers():
-                    scrubbed_name = re.sub("imageroot", "", ff.name)
-                    outlist.append([imgid, tags, scrubbed_name, str(ff.size)])
-                filetar.close()
-        tar.close()
-        stored_data_tarfile.close()
+    stored_files = anchore.anchore_utils.load_files_metadata(config['imgid'], 'retrieve_files')
+    for f in stored_files.keys():
+        scrubbed_name = re.sub("imageroot", "", f)
+        scrubbed_size = str(stored_files[f]['size'])
+        outlist.append([imgid, tags, scrubbed_name, scrubbed_size])
 except Exception as err:
     # handle the case where something wrong happened
     warns.append("Unable to load stored files data - try re-analyzing image")
     import traceback
     traceback.print_exc()
     print str(err)
-
-# handle the no match case
-if len(outlist) < 1:
-    #outlist.append(["NOMATCH", "NOMATCH", "NOMATCH"])
-    pass
 
 anchore.anchore_utils.write_kvfile_fromlist(config['output'], outlist)
 if len(warns) > 0:

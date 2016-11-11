@@ -4,6 +4,7 @@ import os
 import shutil
 import time
 import logging
+import tarfile
 
 import anchore_utils
 
@@ -496,3 +497,50 @@ class AnchoreImageDB(object):
             report['tag_history'].append([date, report['anchore_current_tags']])
 
         anchore_utils.update_file_jsonstr(json.dumps(report), thefile, False)
+
+    def save_files(self, imageId, namespace, rootfsdir, files):
+        def tarfilter(member):
+            subber = re.sub("^/*", "", rootfsdir)
+            subber = re.sub("/*$", "", subber)
+            finalstr = '/'.join(['imageroot', re.sub("^"+re.escape(subber)+"/*", "", member.name)])
+            member.name = finalstr
+            return(member)
+
+        thedir = os.path.join(self.imagerootdir, imageId, "file_store", namespace)
+        if not os.path.exists(thedir):
+            os.makedirs(thedir)
+
+        tar = tarfile.open('/'.join([thedir, 'stored_files.tar.gz']), mode='w:gz', format=tarfile.PAX_FORMAT)
+        for thefile in files:
+            if os.path.exists(thefile):
+                print "INFO: storing file: " + str(thefile)
+                tar.add(thefile, filter=tarfilter)
+            else:
+                print "WARN: could not find file ("+str(thefile)+") in image: skipping store"
+        tar.close()
+        return(True)
+
+    def load_files_tarfile(self, imageId, namespace):
+        thedir = os.path.join(self.imagerootdir, imageId, "file_store", namespace)
+        thefile = os.path.join(thedir, 'stored_files.tar.gz')
+        if not os.path.exists(thefile):
+            thefile = os.path.join(self.imagerootdir, imageId, 'analyzer_output', namespace, 'file_cache', 'stored_files.tar.gz')
+
+        if not os.path.exists(thefile):
+            return(False)
+        return(thefile)
+
+    def load_files_metadata(self, imageId, namespace):
+        thedir = os.path.join(self.imagerootdir, imageId, "file_store", namespace)
+        thefile = os.path.join(thedir, 'stored_files.tar.gz')
+        if not os.path.exists(thefile):
+            thefile = os.path.join(self.imagerootdir, imageId, 'analyzer_output', namespace, 'file_cache', 'stored_files.tar.gz')
+
+        if not os.path.exists(thefile):
+            allfiles = {}
+        else:
+            allfiles = anchore_utils.get_files_from_tarfile(thefile)
+
+        return(allfiles)
+
+

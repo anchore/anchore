@@ -41,8 +41,12 @@ def init_analyzer_cmdline(argv, name):
     ret['analyzer_config'] = None
     anchore_analyzer_configfile = '/'.join([anchore_conf.config_dir, 'analyzer_config.yaml'])
     if os.path.exists(anchore_analyzer_configfile):
-        with open(anchore_analyzer_configfile, 'r') as FH:
-            anchore_analyzer_config = yaml.safe_load(FH.read())
+        try:
+            with open(anchore_analyzer_configfile, 'r') as FH:
+                anchore_analyzer_config = yaml.safe_load(FH.read())
+        except Exception as err:
+            print "ERROR: could not parse the analyzer_config.yaml - exception: " + str(err)
+            raise err
 
         if anchore_analyzer_config and name in anchore_analyzer_config:
             ret['analyzer_config'] = anchore_analyzer_config[name]
@@ -201,6 +205,15 @@ def anchore_common_context_setup(config):
     return(True)
 
 # anchoreDB pass through functions
+
+def load_files_tarfile(imageId):
+    return(contexts['anchore_db'].load_files_tarfile(imageId))
+
+def load_files_metadata(imageId):
+    return(contexts['anchore_db'].load_files_metadata(imageId))
+
+def save_files(imageId, namespace, rootfsdir, files):
+    return(contexts['anchore_db'].save_files(imageId, namespace, rootfsdir, files))
 
 def save_gate_output(imageId, gate_name, data):
     return(contexts['anchore_db'].save_gate_output(imageId, gate_name, data))
@@ -1394,10 +1407,11 @@ def get_files_from_tarfile(intarfile):
                     fullpath = os.path.normpath('/'.join(srcpath + dstlist))
                 finfo['fullpath'] = fullpath
 
-            if finfo['name'] in allfiles:
-                allfiles[finfo['name']] = allfiles[finfo['name']] + [finfo]
-            else:
-                allfiles[finfo['name']] = [finfo]
+            allfiles[finfo['name']] = finfo
+#            if finfo['name'] in allfiles:
+#                allfiles[finfo['name']] = allfiles[finfo['name']] + [finfo]
+#            else:
+#                allfiles[finfo['name']] = [finfo]
 
         tar.close()
     except:
