@@ -530,6 +530,14 @@ class AnchoreImageDB(object):
             return(False)
         return(thefile)
 
+    def load_files_namespaces(self, imageId):
+        namespaces = list()
+        thedir = os.path.join(self.imagerootdir, imageId, "file_store")
+        if os.path.exists(thedir):
+            for d in os.listdir(thedir):
+                namespaces.append(d)
+        return(namespaces)
+
     def load_files_metadata(self, imageId, namespace):
         thedir = os.path.join(self.imagerootdir, imageId, "file_store", namespace)
         thefile = os.path.join(thedir, 'stored_files.tar.gz')

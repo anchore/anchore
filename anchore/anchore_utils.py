@@ -212,6 +212,9 @@ def load_files_tarfile(imageId, namespace):
 def load_files_metadata(imageId, namespace):
     return(contexts['anchore_db'].load_files_metadata(imageId, namespace))
 
+def load_files_namespaces(imageId):
+    return(contexts['anchore_db'].load_files_namespaces(imageId))
+
 def save_files(imageId, namespace, rootfsdir, files):
     return(contexts['anchore_db'].save_files(imageId, namespace, rootfsdir, files))
 
@@ -475,12 +478,12 @@ def print_result(config, result, outputmode=None):
 
     if outputmode == 'table' and tablemode == 'stdout':
         try:
-            width = int(subprocess.check_output(['stty', 'size'], stderr=subprocess.STDOUT).split()[1]) - 10
+            width = int(subprocess.check_output(['stty', 'size'], stderr=open(os.devnull, 'w')).split()[1]) - 10
         except:
             width = 70
     else:
         width = 9999999
-
+    
     if outputmode == 'json':
         print json.dumps(result)
     else:

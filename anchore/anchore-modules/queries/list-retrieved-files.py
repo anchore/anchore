@@ -23,7 +23,7 @@ if len(config['params']) <= 0:
 
 warns = list()
 outlist = list()
-outlist.append(["Image_Id", "Repo_Tags", "Stored_Filename", "Stored_File_Size_Bytes"])
+outlist.append(["Image_Id", "Repo_Tags", "Stored_Namespace", "Stored_Filename", "Stored_File_Size_Bytes"])
 
 tags = "none"
 if config['meta']['humanname']:
@@ -32,11 +32,13 @@ imgid = config['meta']['shortId']
 
 try:
     # handle the good case, something is found resulting in data matching the required columns
-    stored_files = anchore.anchore_utils.load_files_metadata(config['imgid'], 'retrieve_files')
-    for f in stored_files.keys():
-        scrubbed_name = re.sub("imageroot", "", f)
-        scrubbed_size = str(stored_files[f]['size'])
-        outlist.append([imgid, tags, scrubbed_name, scrubbed_size])
+    namespaces = anchore.anchore_utils.load_files_namespaces(config['imgid'])
+    for namespace in namespaces:
+        stored_files = anchore.anchore_utils.load_files_metadata(config['imgid'], namespace)
+        for f in stored_files.keys():
+            scrubbed_name = re.sub("imageroot", "", f)
+            scrubbed_size = str(stored_files[f]['size'])
+            outlist.append([imgid, tags, namespace, scrubbed_name, scrubbed_size])
 except Exception as err:
     # handle the case where something wrong happened
     warns.append("Unable to load stored files data - try re-analyzing image")

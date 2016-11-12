@@ -11,22 +11,34 @@ import anchore.anchore_utils
 def get_retrieved_file(imgid, srcfile, dstdir):
     ret = list()
 
-    dstdir = os.path.join(dstdir, imgid)
-
     extractall = False
     if srcfile == 'all':
         extractall = True
 
-    stored_data_tarfile = anchore.anchore_utils.load_files_tarfile(imgid, 'retrieve_files')
-    if stored_data_tarfile:
-        filetar = tarfile.open(stored_data_tarfile, mode='r:gz', format=tarfile.PAX_FORMAT)
+    thedstdir = os.path.join(dstdir, imgid)
+
+    tarfiles = list()
+    namespaces = anchore.anchore_utils.load_files_namespaces(imgid)
+    if namespaces:
+        for namespace in namespaces:
+            stored_data_tarfile = anchore.anchore_utils.load_files_tarfile(imgid, namespace)
+            if stored_data_tarfile:
+                tarfiles.append(stored_data_tarfile)
+    else:
+        stored_data_tarfile = anchore.anchore_utils.load_files_tarfile(imgid, 'retrieve_files')
+        if stored_data_tarfile:
+            tarfiles.append(stored_data_tarfile)
+
+    for thetarfile in tarfiles:
+        filetar = tarfile.open(thetarfile, mode='r:gz', format=tarfile.PAX_FORMAT)
         for ff in filetar.getmembers():
             patt = re.match("imageroot("+re.escape(srcfile)+")", ff.name)
             if extractall or patt:
-                filetar.extract(ff, dstdir)
+                filetar.extract(ff, thedstdir)
                 scrubbed_name = re.sub("imageroot", "", ff.name)
-                ret.append([scrubbed_name, os.path.join(dstdir, ff.name)])
+                ret.append([scrubbed_name, os.path.join(thedstdir, ff.name)])
         filetar.close()
+    
     return(ret)
 
 # main routine
@@ -64,7 +76,7 @@ try:
             dstname = ret[1]
             outlist.append([imgid, tags, srcname, dstname])
     else:
-        warns.append("Could not find source file '"+str(srcfile)+"' in image's stored files")
+        warns.append("Could not find any stored files matching input '"+str(srcfile)+"' in image's stored files")
 
 except Exception as err:
     # handle the case where something wrong happened
