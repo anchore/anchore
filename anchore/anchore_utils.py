@@ -717,6 +717,21 @@ def dpkg_get_all_pkgfiles(unpackdir):
 def rpm_get_all_packages(unpackdir):
     rpms = {}
     try:
+        sout = subprocess.check_output(['chroot', unpackdir + '/rootfs', 'rpm', '--queryformat', '%{NAME} %{VERSION} %{RELEASE} %{ARCH}\n', '-qa'], stderr=subprocess.STDOUT)
+        for l in sout.splitlines():
+            l = l.strip()
+            l = l.decode('utf8')
+            (name, vers, rel, arch) = re.match('(\S*)\s*(\S*)\s*(\S*)\s*(.*)', l).group(1, 2, 3, 4)
+            rpms[name] = {'version':vers, 'release':rel, 'arch':arch}
+    except Exception as err:
+        print err.output
+        raise ValueError("could not get package list from RPM database: " + str(err))
+
+    return(rpms)
+
+def rpm_get_all_packages_orig(unpackdir):
+    rpms = {}
+    try:
         rpm.addMacro("_dbpath", unpackdir + "/rootfs/var/lib/rpm")
         ts = rpm.TransactionSet()
         mi = ts.dbMatch()
@@ -726,18 +741,32 @@ def rpm_get_all_packages(unpackdir):
             rpms[h['name']] = {'version':h['version'], 'release':h['release'], 'arch':h['arch']}
     except:
         try:
-            sout = subprocess.check_output(['chroot', unpackdir + '/rootfs', 'rpm', '--queryformat', '%{NAME} %{VERSION} %{RELEASE} %{ARCH}\n', '-qa'])
+            sout = subprocess.check_output(['chroot', unpackdir + '/rootfs', 'rpm', '--queryformat', '%{NAME} %{VERSION} %{RELEASE} %{ARCH}\n', '-qa'], stderr=subprocess.STDOUT)
             for l in sout.splitlines():
                 l = l.strip()
                 l = l.decode('utf8')
                 (name, vers, rel, arch) = re.match('(\S*)\s*(\S*)\s*(\S*)\s*(.*)', l).group(1, 2, 3, 4)
                 rpms[name] = {'version':vers, 'release':rel, 'arch':arch}
-        except:
+        except Exception as err:
             raise ValueError("could not get package list from RPM database: " + str(err))
 
     return(rpms)
 
 def rpm_get_all_pkgfiles(unpackdir):
+    rpmfiles = {}
+
+    try:
+        sout = subprocess.check_output(['chroot', unpackdir + '/rootfs', 'rpm', '-qal'])
+        for l in sout.splitlines():
+            l = l.strip()
+            l = l.decode('utf8')
+            rpmfiles[l] = True
+    except Exception as err:
+        raise ValueError("could not get file list from RPM database: " + str(err))
+
+    return(rpmfiles)
+
+def rpm_get_all_pkgfiles_orig(unpackdir):
     rpmfiles = {}
 
     try:
@@ -864,7 +893,8 @@ def get_distro_flavor(distro, version, likedistro=None):
         ret['likedistro'] = 'centos'
 
     if ret['flavor'] == 'Unknown' and likedistro:
-        for distro in likedistro:
+        likedistros = likedistro.split(',')
+        for distro in likedistros:
             if distro in ['centos', 'rhel']:
                 ret['flavor'] = "RHEL"
                 ret['likedistro'] = 'centos'
