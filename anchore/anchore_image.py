@@ -115,7 +115,10 @@ class AnchoreImage(object):
         elif 'docker_cli' in contexts and contexts['docker_cli']:
             self.docker_cli = contexts['docker_cli']
         else:
-            self.docker_cli = docker.Client(base_url='unix://var/run/docker.sock', version='auto', timeout=300)
+            try:
+                self.docker_cli = docker.Client(base_url='unix://var/run/docker.sock', version='auto', timeout=300)
+            except Exception as err:
+                self._logger.warn("could not establish connection with docker, some operations (analyze) may fail: exception: " + str(err))
 
         if anchore_db:
             self.anchore_db = anchore_db
@@ -257,27 +260,6 @@ class AnchoreImage(object):
         return (True)
 
     def save_image(self):
-        # Dockerfile handling
-#        if self.dockerfile_contents:
-#            if self.dockerfile_mode == 'Guessed':
-#                anchore_utils.update_file_str(self.dockerfile_contents, self.anchore_imagedir + "/Dockerfile.guessed", backup=False)
-#            elif self.dockerfile_mode == 'Actual':
-#                anchore_utils.update_file_str(self.dockerfile_contents, self.anchore_imagedir + "/Dockerfile", backup=False)
-#                if os.path.exists(self.anchore_imagedir + "/Dockerfile.guessed"):
-#                    os.remove(self.anchore_imagedir + "/Dockerfile.guessed")
-
-        # Image output dir populate
-#        if (True):
-#            imageoutputdir = self.anchore_imagedir + "/image_output/image_info"
-#            if not os.path.exists(imageoutputdir):
-#                os.makedirs(imageoutputdir)
-
-#            anchore_utils.write_kvfile_fromdict(imageoutputdir + "/image.meta", self.meta)
-
-#            dfile = self.get_dockerfile()
-#            if dfile:
-#                shutil.copy(dfile, imageoutputdir + "/Dockerfile")
-
         # generate and save image report
         report = self.generate_image_report()
         self.anchore_db.save_image_report(self.meta['imageId'], report)
@@ -571,13 +553,6 @@ class AnchoreImage(object):
     def get_familytree(self):
         return (self.anchore_familytree)
 
-#    def get_dockerfile(self):
-#        if os.path.exists(self.anchore_imagedir + "/Dockerfile"):
-#            return (self.anchore_imagedir + "/Dockerfile")
-#        elif os.path.exists(self.anchore_imagedir + "/Dockerfile.guessed"):
-#            return (self.anchore_imagedir + "/Dockerfile.guessed")
-#        return (False)
-
     """ Utilities and report generators """
 
     def squash(self, imagedir=None):
@@ -835,6 +810,10 @@ class AnchoreImage(object):
         return (True)
 
     def unpack(self, docleanup=True, destdir=None):
+        # need docker to be up and running for this
+        if not self.docker_cli:
+            raise Exception("docker cli is not initialized - docker needs to be up and running before containers can be analyzed.")
+
         # create the work dir
         if destdir:
             imagedir = destdir + "/" + str(random.randint(0, 9999999)) + ".anchoretmp"
@@ -915,14 +894,5 @@ class AnchoreImage(object):
             dbuf = self.dockerfile_contents
         if self.dockerfile_mode:
             modestr = self.dockerfile_mode
-
-#        if os.path.exists(self.anchore_imagedir + "/Dockerfile"):
-#            modestr = "Actual"
-#            dbuf = self.dockerfile_contents
-#            #dbuf = anchore_utils.read_plainfile_tostr(self.anchore_imagedir + "/Dockerfile")
-#        else:
-#            modestr = "Guessed"
-#            dbuf = self.dockerfile_contents
-#            #dbuf = self.discover_dockerfile_contents()
 
         return ([dbuf, modestr])
