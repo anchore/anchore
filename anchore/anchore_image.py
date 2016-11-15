@@ -125,7 +125,8 @@ class AnchoreImage(object):
         elif 'anchore_db' in contexts and contexts['anchore_db']:
             self.anchore_db = contexts['anchore_db']
         else: 
-            self.anchore_db = anchore_image_db.AnchoreImageDB(imagerootdir=self.anchore_image_datadir)
+            #self.anchore_db = anchore_image_db.AnchoreImageDBFS(imagerootdir=self.anchore_image_datadir)
+            self.anchore_db = anchore_image_db.load(driver="anchore_image_db_fs", config={'imagerootdir':self.anchore_image_datadir})
 
         if docker_images:
             self.docker_images = docker_images
