@@ -36,7 +36,9 @@ def anchore_auth_init(username, password, auth_file, client_info_url, token_url,
         anchore_auth['password'] = password
         anchore_auth_invalidate(anchore_auth)
 
-    anchore_auth_save(anchore_auth, auth_file)
+    if not anchore_auth_save(anchore_auth, auth_file):
+        _logger.error("could not save authentication details ("+auth_file+")")
+        return(False)
 
     return(anchore_auth)
 

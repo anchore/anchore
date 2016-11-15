@@ -185,7 +185,8 @@ def anchore_common_context_setup(config):
         contexts['anchore_db'] = anchore_image_db.AnchoreImageDB(imagerootdir=config['image_data_store'])
 
     if 'anchore_auth' not in contexts or not contexts['anchore_auth']:
-        aafile = os.path.join(config['anchore_data_dir'], "conf", "anchore_auth.json")
+        #aafile = os.path.join(config['anchore_data_dir'], "conf", "anchore_auth.json")
+        aafile = os.path.join(config.config_dir, "anchore_auth.json")
         username = config.DEFAULT_ANON_ANCHORE_USERNAME
         password = config.DEFAULT_ANON_ANCHORE_PASSWORD
         if os.path.exists(aafile):
