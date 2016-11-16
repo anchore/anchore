@@ -10,7 +10,7 @@ import anchore.anchore_utils
 # main routine
 
 try:
-    config = anchore.anchore_utils.init_query_cmdline(sys.argv, "params: <image ID to compare to> <another image ID> ...\nhelp: use 'base' for comparison against base image")
+    config = anchore.anchore_utils.init_query_cmdline(sys.argv, "params: <image ID to compare to> <another image ID> exclude=</some/path> exclude=</some/other/path> ...\nhelp: use 'base' as an imageId for comparison against base image, and exclude=</some/path> to exclude results that begin with the supplied path string")
 except:
     sys.exit(1)
 
@@ -19,6 +19,16 @@ if not config:
 
 if len(config['params']) <= 0:
     config['params'] = ['base']
+
+fids = list()
+excludes = list()
+for p in config['params']:
+    try:
+        (key, value) = p.split('=')
+        if key == 'exclude':
+            excludes.append(value)
+    except:
+        fids.append(p)
 
 outlist = list()
 warns = list()
@@ -31,7 +41,7 @@ try:
     image = anchore.anchore_image.AnchoreImage(imageId, config['anchore_config']['image_data_store'], allimages)
     ipkgs = image.get_allfiles()
 
-    for fid in config['params']:
+    for fid in fids:
         try:
             fimageId = False
             if fid == 'base':
@@ -61,6 +71,16 @@ try:
                 for module_type in ['base', 'extra', 'user']:
                     if module_type in image_report['file_checksums'][csumkey]:
                         for pkg in image_report['file_checksums'][csumkey][module_type].keys():
+
+                            skip = False
+                            for e in excludes:
+                                if re.match("^"+e, pkg):
+                                    skip = True
+                                    break
+
+                            if skip:
+                                continue
+
                             status = image_report['file_checksums'][csumkey][module_type][pkg]
                             ivers = ipkgs.pop(pkg, "N/A")
                             pvers = fpkgs.pop(pkg, "N/A")
