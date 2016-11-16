@@ -12,7 +12,6 @@ import anchore_image_db_base
 def load(config={}):
     return(AnchoreImageDB_FS(config=config))
 
-#class AnchoreImageDB(anchore_image_db_base.AnchoreImageDB):
 class AnchoreImageDB_FS(anchore_image_db_base.AnchoreImageDB):
     _db_metadata_filename = 'anchore_db_meta.json'
 
@@ -20,7 +19,40 @@ class AnchoreImageDB_FS(anchore_image_db_base.AnchoreImageDB):
         anchore_image_db_base.AnchoreImageDB.__init__(self, config)
         if not self.config:
             raise Exception("invalid config passed to driver init")
-        imagerootdir = config['imagerootdir']
+
+        try:
+            dbconfig = config['anchore_db_driver_config']
+            try:
+                dbdir = dbconfig['db_dir']
+            except:
+                dbdir = None
+        except:
+            dbdir = None
+            dbconfig = None
+
+        try:
+            basedir = config['anchore_data_dir']
+        except:
+            basedir = None
+
+        try:
+            olddatadir = config['image_data_store']
+        except:
+            olddatadir = None
+
+        if dbdir and basedir:
+            # try to construct a dir off the db config options
+            if not os.path.isabs(dbdir):
+                imagerootdir = os.path.join(basedir, dbdir)
+            else:
+                imagerootdir = dbdir
+        elif olddatadir:
+            # use the old method
+            imagerootdir = olddatadir
+        else:
+            imagerootdir = None
+
+        self._logger.debug("using directory for anchore image data: " + str(imagerootdir))
 
         self.imagerootdir = imagerootdir
         

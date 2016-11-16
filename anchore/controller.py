@@ -10,7 +10,6 @@ import shutil
 
 from anchore import anchore_utils
 import logging
-import anchore_image_db
 
 from anchore.util import scripting, contexts
 

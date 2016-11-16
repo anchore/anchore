@@ -2,7 +2,7 @@ import sys
 import click
 
 from anchore.cli.common import build_image_list, anchore_print, anchore_print_err, extended_help_option
-from anchore import navigator, anchore_image_db, anchore_utils
+from anchore import navigator, anchore_utils
 from anchore.util import contexts
 
 config = {}

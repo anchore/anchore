@@ -2,13 +2,17 @@
 
 #
 # anchore_data_dir: <default is $HOME/.anchore/>
+#
 # anchore_db_driver: 'anchore_image_db_fs'
+# anchore_db_driver_config:
+#   # only applicable to the 'anchore_image_db_fs' driver (default driver), path is relative to anchore_data_dir unless it is set to an abs path
+#   db_dir: 'data/'
 #
 # tmpdir: '/tmp'
 # log_file: '/var/log/anchore.log'
 # debug_log_file: '/var/log/anchore_debug.log'
 #
-# image_data_store: 'data/'
+# image_data_store: 'data/'  # deprecated but still works - should use the anchore_db_driver_config + db_dir settings above to control location of anchore data
 #
 # docker_conn: 'unix://var/run/docker.sock'
 # docker_conn_timeout: '120'

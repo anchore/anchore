@@ -8,7 +8,6 @@ import hashlib
 import time
 import logging
 
-import anchore_image_db
 import controller
 from anchore import anchore_utils
 from anchore.util import scripting

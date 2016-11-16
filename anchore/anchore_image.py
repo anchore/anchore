@@ -14,7 +14,6 @@ import tarfile
 
 import logging
 
-import anchore_image_db
 import anchore_utils
 
 from anchore.util import contexts
@@ -832,7 +831,13 @@ class AnchoreImage(object):
         # pull the image from docker and store/untar the tar
         if not os.path.exists(imagetar):
             import time
-            r = self.docker_cli.get_image(imageId)
+            try:
+                r = self.docker_cli.get_image(imageId)
+            except:
+                try:
+                    r = self.docker_cli.get_image("sha256:"+imageId)
+                except:
+                    raise
             chunk_size = 1024 * 100000
             with open(imagetar, 'w') as OFH:
                 chunk = r.read(chunk_size)
