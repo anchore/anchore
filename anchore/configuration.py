@@ -31,6 +31,7 @@ class AnchoreConfiguration (object):
     DEFAULT_ANCHORE_AUTH_MAX_RETRIES = 3
     DEFAULT_ANCHORE_FEEDS_CONN_TIMEOUT = 10
     DEFAULT_ANCHORE_FEEDS_MAX_RETRIES = 3
+    DEFAULT_ANCHORE_DB_DRIVER = "anchore_image_db_fs"
 
     try:
         DEFAULT_EXTRASCRIPTS_DIR = resource_filename("anchore-modules", "/")
@@ -39,6 +40,7 @@ class AnchoreConfiguration (object):
 
     DEFAULTS = {
         'anchore_data_dir': DEFAULT_ANCHORE_DATA_DIR,
+        'anchore_db_driver': DEFAULT_ANCHORE_DB_DRIVER,
         'feeds_dir': 'feeds',
         'feeds_url': DEFAULT_ANCHORE_FEEDS_URL,
         'feeds_conn_timeout': DEFAULT_ANCHORE_FEEDS_CONN_TIMEOUT,

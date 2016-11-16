@@ -408,7 +408,6 @@ def show():
     if not nav:
         sys.exit(1)
 
-    print "MEH: " + str(contexts['anchore_db'].get_version())
     ecode = 0
     try:
         image=contexts['anchore_allimages'][imagelist[0]]

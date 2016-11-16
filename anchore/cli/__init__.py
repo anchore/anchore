@@ -227,7 +227,7 @@ def anchore_pre_flight_check(ctx):
         # check DB readiness
         try:
             #db = anchore.anchore_image_db.anchore_image_db_fs.AnchoreImageDBFS(imagerootdir=config['image_data_store'])
-            db = anchore.anchore_image_db.load(driver="anchore_image_db_fs", config={'imagerootdir':config['image_data_store']})
+            db = anchore.anchore_image_db.load(driver=config['anchore_db_driver'], config={'imagerootdir':config['image_data_store']})
         except Exception as err:
             anchore_print_err("Could not set up connection to Anchore DB")
             return(False)

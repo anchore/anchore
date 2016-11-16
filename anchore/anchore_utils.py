@@ -183,7 +183,7 @@ def anchore_common_context_setup(config):
 
     if 'anchore_db' not in contexts or not contexts['anchore_db']:
         #contexts['anchore_db'] = anchore_image_db.anchore_image_db_fs.AnchoreImageDBFS(imagerootdir=config['image_data_store'])
-        contexts['anchore_db'] = anchore_image_db.load(driver="anchore_image_db_fs", config={'imagerootdir':config['image_data_store']})
+        contexts['anchore_db'] = anchore_image_db.load(driver=config['anchore_db_driver'], config={'imagerootdir':config['image_data_store']})
 
     if 'anchore_auth' not in contexts or not contexts['anchore_auth']:
         #aafile = os.path.join(config['anchore_data_dir'], "conf", "anchore_auth.json")

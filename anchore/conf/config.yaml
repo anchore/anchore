@@ -2,13 +2,13 @@
 
 #
 # anchore_data_dir: <default is $HOME/.anchore/>
+# anchore_db_driver: 'anchore_image_db_fs'
 #
 # tmpdir: '/tmp'
 # log_file: '/var/log/anchore.log'
 # debug_log_file: '/var/log/anchore_debug.log'
 #
 # image_data_store: 'data/'
-# resource_cache: ''
 #
 # docker_conn: 'unix://var/run/docker.sock'
 # docker_conn_timeout: '120'
@@ -22,9 +22,3 @@
 # feeds_conn_timeout: '10'
 # feeds_conn_max_retries: '3'
 #
-# vulnerabilities:
-#   url: 'https://service-data.anchore.com/vulnerabilities.tar.gz'
-# analysis:
-#   url: 'https://service-data.anchore.com/analysis_db.tar.gz'
-# images:
-#   docker_conn: 'unix://var/run/docker.sock'

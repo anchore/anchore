@@ -9,7 +9,11 @@ import tarfile
 from anchore import anchore_utils
 import anchore_image_db_base
 
-class AnchoreImageDB(anchore_image_db_base.AnchoreImageDB):
+def load(config={}):
+    return(AnchoreImageDB_FS(config=config))
+
+#class AnchoreImageDB(anchore_image_db_base.AnchoreImageDB):
+class AnchoreImageDB_FS(anchore_image_db_base.AnchoreImageDB):
     _db_metadata_filename = 'anchore_db_meta.json'
 
     def __init__(self, config={}):
@@ -18,7 +22,6 @@ class AnchoreImageDB(anchore_image_db_base.AnchoreImageDB):
             raise Exception("invalid config passed to driver init")
         imagerootdir = config['imagerootdir']
 
-        self._logger.debug("MEH: derived: " + str(self.initialized))
         self.imagerootdir = imagerootdir
         
         try:
