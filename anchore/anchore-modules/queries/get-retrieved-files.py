@@ -38,6 +38,10 @@ def get_retrieved_file(imgid, srcfile, dstdir):
                 scrubbed_name = re.sub("imageroot", "", ff.name)
                 ret.append([scrubbed_name, os.path.join(thedstdir, ff.name)])
         filetar.close()
+
+    if namespaces:
+        for namespace in namespaces:
+            anchore.anchore_utils.del_files_cache(imgid)
     
     return(ret)
 

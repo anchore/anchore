@@ -224,6 +224,9 @@ def load_analyzer_config(anchore_conf_dir):
 
 # anchoreDB pass through functions
 
+def del_files_cache(imageId, namespace=None):
+    return(contexts['anchore_db'].del_files_cache(imageId, namespace=None))
+
 def load_files_tarfile(imageId, namespace):
     return(contexts['anchore_db'].load_files_tarfile(imageId, namespace))
 
@@ -1246,23 +1249,13 @@ def update_file_str(buf, outfile, backup=False):
     src = buf
     if not os.path.exists(outfile):
         write_plainfile_fromstr(outfile, src)
-        #FH = open(outfile, 'w')
-        #FH.write(src)
-        #FH.close()
     else:
         dst = read_plainfile_tostr(outfile)
-        #FH = open(outfile, 'r')
-        #dst = FH.read()
-        #FH.close()
         if src != dst:
             if backup:
                 hfile = outfile + "." + str(int(time.time()))
                 os.rename(outfile, hfile)
             write_plainfile_fromstr(outfile, src)
-            #FH = open(outfile, 'w')
-            #FH.write(src)
-            #FH.close()
-
     return (True)
 
 

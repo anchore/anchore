@@ -566,3 +566,6 @@ class AnchoreImageDB_FS(anchore_image_db_base.AnchoreImageDB):
             allfiles = anchore_utils.get_files_from_tarfile(thefile)
 
         return(allfiles)
+
+    def del_files_cache(self, imageId, namespace):
+        return(True)

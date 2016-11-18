@@ -205,3 +205,7 @@ class AnchoreImageDB(object):
         self._logger.debug("AnchoreDB: parent unimplemented: driver has not implemented this anchoreDB operation")
         return(True)
 
+    def del_files_cache(self, imageId, namespace):
+        self._logger.debug("AnchoreDB: parent unimplemented: driver has not implemented this anchoreDB operation")
+        return(True)
+
