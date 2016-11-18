@@ -8,6 +8,8 @@ def load(driver=None, config={}):
             break
         except Exception as err:
             # didn't find the driver, yet
+            #import traceback
+            #traceback.print_exc()
             pass
             
     if not dbobj:

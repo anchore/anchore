@@ -44,16 +44,18 @@ function init_query_cmdline {
 	fi
     done
 
-    if [ ! -f "$IMGDIR/image_info/image.meta" ]; then
-	echo "Cannot find image metadata file: $IMGDIR/image_info/image.meta"
-	return 1
-    fi
+#    if [ ! -f "$IMGDIR/image_info/image.meta" ]; then
+#	echo "Cannot find image metadata file: $IMGDIR/image_info/image.meta"
+#	return 1
+#    fi
 
-    while read -r key val
-    do
-	key=`echo $key | awk '{print toupper($0)}'`
-	export $key=$val
-    done < $IMGDIR/image_info/image.meta
+#    while read -r key val
+#    do
+#	key=`echo $key | awk '{print toupper($0)}'`
+#	export $key=$val
+#    done < $IMGDIR/image_info/image.meta
+
+    export `anchore toolbox --image ${IMGID} show`
 
     export ANCHOREPARAMS="$4 $5 $6 $7 $8 $9 $10"
 

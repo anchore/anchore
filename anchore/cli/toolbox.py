@@ -419,6 +419,7 @@ def show():
         o['REPOTAGS'] = image.get_alltags_current()
         o['DISTRO'] = image.get_distro()
         o['DISTROVERS'] = image.get_distro_vers()
+        o['HUMANNAME'] = mymeta.pop('humanname', "N/A")
         o['SHORTID'] = mymeta.pop('shortId', "N/A")
         o['PARENTID'] = mymeta.pop('parentId', "N/A")
         o['BASEID'] = image.get_earliest_base()

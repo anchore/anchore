@@ -19,8 +19,8 @@ fi
 PARAMS=($ANCHOREPARAMS)
 
 # run the query
-OUTPUT="$OUTPUTDIR/$NAME"
-
+OUTPUT="${OUTPUTDIR}/${NAME}"
+OUTPUTWARNS="${OUTPUTDIR}/${NAME}.WARNS"
 GREPSTR="^PADDING"
 for p in ${PARAMS[*]}
 do
@@ -32,8 +32,9 @@ do
 done
 
 PKGFILE="$ANALYZERDIR/file_list/files.all"
+echo "Image_Id Repo_Tag File Permission"  > $OUTPUT
 if [ -f "$PKGFILE" ]; then
-    echo "Image_Id Repo_Tag File Permission"  > $OUTPUT
+
     if [ -z "$SHORTID" -o -z "$HUMANNAME" ]; then
 	export SHORTID="Unknown"
 	export HUMANNAME="Unknown"
@@ -42,8 +43,9 @@ if [ -f "$PKGFILE" ]; then
 
     cat $PKGFILE | grep -E "($GREPSTR)" | awk -v shortid="$SHORTID" -v humanname="$HUMANNAME" '{print shortid " " humanname " " $0}' >> $OUTPUT
 
+else
+    echo "${SHORTID} (${HUMANNAME}) could not find any files from analysis - please check analysis output for this image" > $OUTPUTWARNS
 fi
 
-cp $OUTPUT /tmp/jj
 # all is well, exit 0
 exit 0

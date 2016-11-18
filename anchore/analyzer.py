@@ -107,6 +107,34 @@ class Analyzer(object):
         imagedir = None
 
         analyzer_status = self.anchoreDB.load_analyzer_manifest(image.meta['imageId'])
+        
+        analyzer_config = {}
+        analyzer_config_csum = None
+        try:
+            analyzer_config, analyzer_config_csum = anchore_utils.load_analyzer_config(self.config.config_dir)
+        except:
+            pass
+
+        if 'analyzer_config_csum' in analyzer_status:
+            try:
+                if analyzer_status['analyzer_config_csum']['csum'] != analyzer_config_csum:
+                    self._logger.debug("anchore analyzer config has been updating, forcing re-analysis")
+                    self.force = True
+                    analyzer_status['analyzer_config_csum']['csum'] = analyzer_config_csum
+            except:
+                pass
+        else:
+            script = 'analyzer_config_csum'
+            analyzer_status[script] = {}
+            analyzer_status[script]['command'] = "ANALYZER_CONFIG_META"
+            analyzer_status[script]['returncode'] = 0
+            analyzer_status[script]['output'] = ""
+            analyzer_status[script]['outputdir'] = ""
+            analyzer_status[script]['atype'] = 'base'
+            analyzer_status[script]['csum'] = analyzer_config_csum
+            analyzer_status[script]['timestamp'] = time.time()
+            analyzer_status[script]['status'] = 'SUCCESS'
+            
 
         results = {}
         outputdirs = {}

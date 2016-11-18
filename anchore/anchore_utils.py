@@ -12,6 +12,7 @@ import docker
 import io
 import tarfile
 import urllib
+import hashlib
 
 from stat import *
 from prettytable import PrettyTable
@@ -204,6 +205,22 @@ def anchore_common_context_setup(config):
         contexts['anchore_config'] = config
 
     return(True)
+
+def load_analyzer_config(anchore_conf_dir):
+    anchore_analyzer_config = {}
+    csum = None
+
+    anchore_analyzer_configfile = '/'.join([anchore_conf_dir, 'analyzer_config.yaml'])
+    if os.path.exists(anchore_analyzer_configfile):
+        try:
+            with open(anchore_analyzer_configfile, 'r') as FH:
+                adata = FH.read()
+                csum = hashlib.md5(adata).hexdigest()
+                anchore_analyzer_config = yaml.safe_load(adata)
+        except Exception as err:
+            raise err
+
+    return(anchore_analyzer_config, csum)
 
 # anchoreDB pass through functions
 
