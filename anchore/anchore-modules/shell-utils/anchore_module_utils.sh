@@ -23,9 +23,9 @@ function init_query_cmdline {
 	return 1
     fi
     export DATADIR="$2"
-    export IMGDIR="$2/$IMGID/image_output"
-    export ANALYZERDIR="$2/$IMGID/analyzer_output"
-    export GATESDIR="$2/$IMGID/gates_output"
+#    export IMGDIR="$2/$IMGID/image_output"
+#    export ANALYZERDIR="$2/$IMGID/analyzer_output"
+#    export GATESDIR="$2/$IMGID/gates_output"
 
     if [ -z "$3" ]; then
 	return 1
@@ -35,8 +35,9 @@ function init_query_cmdline {
 	mkdir -p $OUTPUTDIR
     fi
 
-    #for d in $DATADIR $IMGDIR $ANALYZERDIR $GATESDIR $OUTPUTDIR
-    for d in $DATADIR $ANALYZERDIR $GATESDIR $OUTPUTDIR
+
+#    for d in $DATADIR $ANALYZERDIR $GATESDIR $OUTPUTDIR
+    for d in $DATADIR $OUTPUTDIR
     do
 	if [ ! -d "$d" ]; then
 	    echo "Cannot find dir: $d"
@@ -55,7 +56,10 @@ function init_query_cmdline {
 #	export $key=$val
 #    done < $IMGDIR/image_info/image.meta
 
-    export `anchore toolbox --image ${IMGID} show`
+    anchore toolbox --image ${IMGID} show > ${OUTPUTDIR}/image.env 2>/dev/null
+    if [ -f "${OUTPUTDIR}/image.env" -a -s "${OUTPUTDIR}/image.env" ]; then
+	export `cat ${OUTPUTDIR}/image.env`
+    fi
 
     export ANCHOREPARAMS="$4 $5 $6 $7 $8 $9 $10"
 
