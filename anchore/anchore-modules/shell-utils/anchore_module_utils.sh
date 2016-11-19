@@ -23,9 +23,9 @@ function init_query_cmdline {
 	return 1
     fi
     export DATADIR="$2"
-#    export IMGDIR="$2/$IMGID/image_output"
-#    export ANALYZERDIR="$2/$IMGID/analyzer_output"
-#    export GATESDIR="$2/$IMGID/gates_output"
+    export IMGDIR="$2/$IMGID/image_output"
+    export ANALYZERDIR="$2/$IMGID/analyzer_output"
+    export GATESDIR="$2/$IMGID/gates_output"
 
     if [ -z "$3" ]; then
 	return 1
@@ -36,8 +36,8 @@ function init_query_cmdline {
     fi
 
 
-#    for d in $DATADIR $ANALYZERDIR $GATESDIR $OUTPUTDIR
-    for d in $DATADIR $OUTPUTDIR
+    for d in $DATADIR $ANALYZERDIR $GATESDIR $OUTPUTDIR
+#    for d in $DATADIR $OUTPUTDIR
     do
 	if [ ! -d "$d" ]; then
 	    echo "Cannot find dir: $d"
