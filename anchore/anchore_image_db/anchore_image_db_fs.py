@@ -654,8 +654,9 @@ class AnchoreImageDB_FS(anchore_image_db_base.AnchoreImageDB):
         ret = {}
         basedir = self.feedrootdir
         thefile = os.path.join(basedir, feed, group, datafilename)
+
         if os.path.exists(thefile):
             with open(thefile, 'r') as FH:
-                ret = json.loads(OFH.read().decode('utf8'))
+                ret = json.loads(FH.read().decode('utf8'))
 
         return(ret)
