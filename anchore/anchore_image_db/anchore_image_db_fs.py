@@ -24,10 +24,13 @@ class AnchoreImageDB_FS(anchore_image_db_base.AnchoreImageDB):
             dbconfig = config['anchore_db_driver_config']
             try:
                 dbdir = dbconfig['db_dir']
+                feeddir = dbconfig['feed_dir']
             except:
                 dbdir = None
+                feeddir = None
         except:
             dbdir = None
+            feeddir = None
             dbconfig = None
 
         try:
@@ -40,6 +43,12 @@ class AnchoreImageDB_FS(anchore_image_db_base.AnchoreImageDB):
         except:
             olddatadir = None
 
+        try:
+            oldfeeddir = config['feeds_dir']
+        except:
+            oldfeeddir = None
+
+        # for image data
         if dbdir and basedir:
             # try to construct a dir off the db config options
             if not os.path.isabs(dbdir):
@@ -52,13 +61,32 @@ class AnchoreImageDB_FS(anchore_image_db_base.AnchoreImageDB):
         else:
             imagerootdir = None
 
+        # for feeds
+        if feeddir and basedir:
+            # try to construct a dir off the db config options
+            if not os.path.isabs(feeddir):
+                feedrootdir = os.path.join(basedir, feeddir)
+            else:
+                feedrootdir = feeddir
+        elif oldfeeddir:
+            # use the old method
+            feedrootdir = oldfeeddir
+        else:
+            feedrootdir = None
+
         self._logger.debug("using directory for anchore image data: " + str(imagerootdir))
+        self._logger.debug("using directory for anchore feed data: " + str(feedrootdir))
 
         self.imagerootdir = imagerootdir
+        self.feedrootdir = feedrootdir
         
         try:
-            if not os.path.exists(self.imagerootdir):
-                raise Exception("anchore DB: image root dir does not exist "+str(imagerootdir))
+            for d in [self.imagerootdir, self.feedrootdir]:
+                if not os.path.exists(d):
+                    try:
+                        os.makedirs(d)
+                    except:
+                        raise Exception("anchore DB: data dir does not exist and cannot be created "+str(d))
 
             # check that the software and DB are same version before continuing
             dbmetafile = '/'.join([self.imagerootdir, "anchore_db_meta.json"])
@@ -569,3 +597,65 @@ class AnchoreImageDB_FS(anchore_image_db_base.AnchoreImageDB):
 
     def del_files_cache(self, imageId, namespace):
         return(True)
+
+    def load_feedmeta(self):
+        ret = {}
+
+        basedir = self.feedrootdir
+        feedfile = os.path.join(basedir, "feedmeta.json")
+        feedmeta = {}
+        if os.path.exists(feedfile):
+            with open(feedfile, 'r') as FH:
+                ret = json.loads(FH.read())
+
+        return(ret)
+
+    def save_feedmeta(self, feedmeta):
+        basedir = self.feedrootdir
+        feedfile = os.path.join(basedir, "feedmeta.json")
+        if feedmeta:
+            with open(feedfile, 'w') as OFH:
+                OFH.write(json.dumps(feedmeta))
+            return(True)
+        return(False)
+
+    def create_feed(self, feed):
+        basedir = self.feedrootdir
+        thedir = os.path.join(basedir, feed)
+        if not os.path.exists(thedir):
+            os.makedirs(thedir)
+        return(True)
+
+    def create_feedgroup(self, feed, group):
+        basedir = self.feedrootdir
+        thedir = os.path.join(basedir, feed, group)
+        if not os.path.exists(thedir):
+            os.makedirs(thedir)
+        return(True)
+    
+    def delete_feed(self, feed):
+        basedir = self.feedrootdir
+        thedir = os.path.join(basedir, feed)
+        if os.path.exists(thedir):
+            shutil.rmtree(thedir)
+
+    def save_feed_group_data(self, feed, group, datafilename, data):
+        basedir = self.feedrootdir
+        thefile = os.path.join(basedir, feed, group, datafilename)
+
+        jsondata = json.dumps(data).encode('utf8')
+
+        with open(thefile, 'w') as OFH:
+            OFH.write(jsondata)
+
+        return(True)
+
+    def load_feed_group_data(self, feed, group, datafilename):
+        ret = {}
+        basedir = self.feedrootdir
+        thefile = os.path.join(basedir, feed, group, datafilename)
+        if os.path.exists(thefile):
+            with open(thefile, 'r') as FH:
+                ret = json.loads(OFH.read().decode('utf8'))
+
+        return(ret)
