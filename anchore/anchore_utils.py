@@ -224,6 +224,9 @@ def load_analyzer_config(anchore_conf_dir):
 
 # anchoreDB pass through functions
 
+def is_image_analyzed(imageId):
+    return(contexts['anchore_db'].is_image_analyzed(imageId))
+
 def del_files_cache(imageId, namespace=None):
     return(contexts['anchore_db'].del_files_cache(imageId, namespace=None))
 
@@ -410,7 +413,6 @@ def discover_imageIds(namelist):
     
     for name in namelist:
         result = discover_imageId(name)
-        #ret.update(result)
         ret.append(result)
 
     return(ret)
@@ -428,19 +430,25 @@ def discover_imageId(name):
     imageId = None
     try:
         _logger.debug("looking for name ("+name+") in docker_images")
-        iname = re.sub("sha256:", "", name)
-        for dimageId in contexts['docker_images'].keys():
-            i = contexts['docker_images'][dimageId]
-            if iname == i['Id'] or iname == re.sub("sha256:", "", i['Id']):
-                imageId = re.sub("sha256:", "", i['Id'])
-                break
-            elif 'RepoTags' in i and i['RepoTags']:
-                for r in i['RepoTags']:
-                    if name == r or name+":latest" == r:
-                        imageId = re.sub("sha256:", "", i['Id'])
-                        break
+        if name in contexts['docker_images'].keys():
+            imageId = name
+        
+        if not imageId:
+            _logger.debug("looking for alternative names ("+name+") in docker_images")
+            iname = re.sub("sha256:", "", name)
+            for dimageId in contexts['docker_images'].keys():
+                i = contexts['docker_images'][dimageId]
+                if iname == i['Id'] or iname == re.sub("sha256:", "", i['Id']):
+                    imageId = re.sub("sha256:", "", i['Id'])
+                    break
+                elif 'RepoTags' in i and i['RepoTags']:
+                    for r in i['RepoTags']:
+                        if name == r or name+":latest" == r:
+                            imageId = re.sub("sha256:", "", i['Id'])
+                            break
 
         if not imageId:
+            _logger.debug("looking for name ("+name+") in anchoreDB")
             if contexts['anchore_db'].is_image_present(name):
                 imageId = name
 

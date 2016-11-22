@@ -167,7 +167,8 @@ class AnchoreImageDB_FS(anchore_image_db_base.AnchoreImageDB):
             for a in amanifest.keys():
                 try:
                     if amanifest[a]['status'] != "SUCCESS":
-                        raise Exception("analyzer ("+str(a)+") not executes/failed")
+                        self._logger.error("analyzer ("+str(a)+") not executed/failed")
+                        return(False)
                 except Exception as err:
                     return(False)
         return(True)

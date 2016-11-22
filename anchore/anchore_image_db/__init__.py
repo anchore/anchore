@@ -6,11 +6,11 @@ def load(driver=None, config={}):
             c = getattr(module, driver)
             dbobj = c.load(config=config)
             break
-        except Exception as err:
-            # didn't find the driver, yet
-            #import traceback
-            #traceback.print_exc()
+        except AttributeError as err:
+            # didn't find the driver, yet            
             pass
+        except Exception as err:
+            raise err
             
     if not dbobj:
         raise Exception ("DB driver not found: " + str(driver))
