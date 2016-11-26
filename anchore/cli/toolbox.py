@@ -137,7 +137,7 @@ def setup_module_dev(destdir):
     ecode = 0
     try:
         anchore_print("Anchore Module Development Environment\n")
-        helpstr = "This tool has set up and environment that represents what anchore will normally set up before running and analyzer, gate and/or query module.  Each section below includes some information along with a string that you can use to help develop your own anchore modules.\n"
+        helpstr = "This tool has set up an environment that represents what anchore will normally set up before running an analyzer, gate and/or query module.  Each section below includes some information along with a string that you can use to help develop your own anchore modules.\n"
         anchore_print(fill(helpstr, 80))
         anchore_print("")
 
