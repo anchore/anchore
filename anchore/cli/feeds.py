@@ -1,13 +1,9 @@
 import sys
-import os
-import re
-import json
-import getpass
 import click
 
 from anchore.cli.common import anchore_print, anchore_print_err
-from anchore.util import contexts
-from anchore import anchore_utils, anchore_auth, anchore_feeds
+from anchore import anchore_auth, anchore_feeds
+from anchore.anchore_utils import contexts
 
 config = {}
 
@@ -49,7 +45,10 @@ def list(showgroups):
         result = {}
         subscribed = {}
         available = {}
+        unavailable = {}
+        current_user_data = contexts['anchore_auth']['user_info']
         feedmeta = anchore_feeds.load_anchore_feedmeta()
+
         for feed in feedmeta.keys():
             if feedmeta[feed]['subscribed']:
                 subscribed[feed] = {}
@@ -58,15 +57,28 @@ def list(showgroups):
                     subscribed[feed]['groups'] = feedmeta[feed]['groups'].keys()
 
             else:
-                available[feed] = {}
-                available[feed]['description'] = feedmeta[feed]['description']
-                if showgroups:
-                    available[feed]['groups'] = feedmeta[feed]['groups'].keys()
+                if current_user_data:
+                    tier = int(current_user_data['tier'])
+                else:
+                    tier = 0
+
+                if int(feedmeta[feed]['access_tier']) > tier:
+                    collection = unavailable
+                else:
+                    collection = available
+
+                collection[feed] = {}
+
+                collection[feed]['description'] = feedmeta[feed]['description']
+                if showgroups and collection == available:
+                    collection[feed]['groups'] = feedmeta[feed]['groups'].keys()
 
         if available:
             result['Available'] = available
         if subscribed:
             result['Subscribed'] = subscribed
+        if unavailable:
+            result['Unavailable/Insufficient Access Tier'] = unavailable
 
         anchore_print(result, do_formatting=True)
     except Exception as err:
@@ -83,9 +95,15 @@ def sub(feednames):
     """
 
     ecode = 0
+    current_user_data = contexts.get('anchore_auth', {}).get('user_info', None)
+    if not current_user_data:
+        current_user_tier = 0
+    else:
+        current_user_tier = int(current_user_data['tier'])
+
     try:
         for feed in feednames:
-            rc, msg = anchore_feeds.subscribe_anchore_feed(feed)
+            rc, msg = anchore_feeds.subscribe_anchore_feed(feed, current_user_tier)
             if not rc:
                 ecode = 1
                 anchore_print_err(msg)
