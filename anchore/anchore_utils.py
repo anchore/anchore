@@ -430,14 +430,35 @@ def discover_imageId(name):
     imageId = None
     try:
         _logger.debug("looking for name ("+name+") in docker_images")
-        if name in contexts['docker_images'].keys():
+
+        name_variants = []
+        name_variants.append(name)
+
+#        cleanname = name
+#        for pre in ["", "sha256:", "docker.io/"]:
+#            cleanname = re.sub("^"+pre, "", cleanname)
+#            for post in ["", ":latest"]:
+#                cleanname = re.sub(post+"$", "", cleanname)
+
+#        for pre in ["", "sha256:", "docker.io/"]:
+#            for post in ["", ":latest"]:
+#                newname = pre+cleanname+post
+#                if newname not in name_variants:
+#                    name_variants.append(newname)
+
+        try:
+            docker_images = contexts['docker_images']
+        except:
+            docker_images = {}
+
+        if name in docker_images.keys():
             imageId = name
-        
+
         if not imageId:
             _logger.debug("looking for alternative names ("+name+") in docker_images")
             iname = re.sub("sha256:", "", name)
-            for dimageId in contexts['docker_images'].keys():
-                i = contexts['docker_images'][dimageId]
+            for dimageId in docker_images.keys():
+                i = docker_images[dimageId]
                 if iname == i['Id'] or iname == re.sub("sha256:", "", i['Id']):
                     imageId = re.sub("sha256:", "", i['Id'])
                     break
@@ -446,26 +467,34 @@ def discover_imageId(name):
                         if name == r or name+":latest" == r:
                             imageId = re.sub("sha256:", "", i['Id'])
                             break
+                        elif "docker.io/"+name == r or "docker.io/"+name+":latest" == r:
+                            imageId = re.sub("sha256:", "", i['Id'])
+                            break
 
         if not imageId:
             _logger.debug("looking for name ("+name+") in anchoreDB")
-            if contexts['anchore_db'].is_image_present(name):
-                imageId = name
+            for iname in name_variants:
+                if contexts['anchore_db'].is_image_present(iname):
+                    imageId = name
+                    break
 
         if not imageId:
             _logger.debug("trying to load name ("+name+") from anchoreDB")
-            aimage = contexts['anchore_db'].load_image(name)
-            if aimage:
-                imageId = name
+            for iname in name_variants:
+                aimage = contexts['anchore_db'].load_image(iname)
+                if aimage:
+                    imageId = name
+                    break
 
         if not imageId:
             _logger.debug("searching for name ("+name+") in anchoreDB")
-            ilist = get_imageIds_named(name)
-            if len(ilist) == 1:
-                imageId = ilist[0]
-                aimage = contexts['anchore_db'].load_image(imageId)
-            elif len(ilist) > 1:
-                raise ValueError("Input image name '"+str(name)+"' is ambiguous in anchore:\n\tmatching imageIds: " + str(ilist))
+            for iname in name_variants:
+                ilist = get_imageIds_named(iname)
+                if len(ilist) == 1:
+                    imageId = ilist[0]
+                    #aimage = contexts['anchore_db'].load_image(imageId)
+                elif len(ilist) > 1:
+                    raise ValueError("Input image name '"+str(iname)+"' is ambiguous in anchore:\n\tmatching imageIds: " + str(ilist))
 
         if not imageId:
             _logger.debug("trying docker.inspect_image on name ("+name+")")
@@ -503,7 +532,6 @@ def print_result(config, result, outputmode=None):
         else:
             outputmode = 'table'
             tablemode = 'stdout'
-
 
     if outputmode == 'table' and tablemode == 'stdout':
         try:
