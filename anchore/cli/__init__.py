@@ -195,6 +195,7 @@ main_entry.add_command(analyzer.gate)
 main_entry.add_command(toolbox.toolbox)
 main_entry.add_command(login.login)
 main_entry.add_command(login.logout)
+main_entry.add_command(login.whoami)
 main_entry.add_command(feeds.feeds)
 
 def anchore_pre_flight_check(ctx):

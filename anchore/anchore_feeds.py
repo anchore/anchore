@@ -13,8 +13,9 @@ from anchore.util import contexts
 # network operations
 _logger = logging.getLogger(__name__)
 
+
 def get_feed_list():
-    ret = {'success':False, 'status_code':1, 'text':""}
+    ret = {'success': False, 'status_code': 1, 'text': ""}
 
     feedurl = contexts['anchore_config']['feeds_url']
     feed_timeout = contexts['anchore_config']['feeds_conn_timeout']
@@ -27,7 +28,8 @@ def get_feed_list():
 
     done = False
     while not done:
-        record = anchore.anchore_auth.anchore_auth_get(contexts['anchore_auth'], url, timeout=feed_timeout, retries=feed_maxretries)
+        record = anchore.anchore_auth.anchore_auth_get(contexts['anchore_auth'], url, timeout=feed_timeout,
+                                                       retries=feed_maxretries)
         ret.update(record)
         if record['success']:
             data = json.loads(record['text'])
@@ -35,18 +37,19 @@ def get_feed_list():
                 retlist = retlist + data['feeds']
 
                 if 'next_token' in data and data['next_token']:
-                    url = baseurl + "?next_token="+data['next_token']
+                    url = baseurl + "?next_token=" + data['next_token']
                 else:
-                    done=True
+                    done = True
             else:
-                done=True
+                done = True
         else:
-            done=True
+            done = True
 
-    return(retlist, ret)
+    return (retlist, ret)
+
 
 def get_group_list(feed):
-    ret = {'success':False, 'status_code':1, 'text':""}
+    ret = {'success': False, 'status_code': 1, 'text': ""}
 
     feedurl = contexts['anchore_config']['feeds_url']
     feed_timeout = contexts['anchore_config']['feeds_conn_timeout']
@@ -59,26 +62,27 @@ def get_group_list(feed):
 
     done = False
     while not done:
-        record = anchore.anchore_auth.anchore_auth_get(contexts['anchore_auth'], url, timeout=feed_timeout, retries=feed_maxretries)
+        record = anchore.anchore_auth.anchore_auth_get(contexts['anchore_auth'], url, timeout=feed_timeout,
+                                                       retries=feed_maxretries)
         ret.update(record)
         if record['success']:
             data = json.loads(record['text'])
             retlist = retlist + data['groups']
             if 'next_token' in data and data['next_token']:
-                url = baseurl + "?next_token="+data['next_token']
+                url = baseurl + "?next_token=" + data['next_token']
             else:
-                done=True
+                done = True
         else:
-            done=True
-    return(retlist, record)
-    
+            done = True
+    return (retlist, record)
 
-def get_group_data(feed, group, since="1970-01-01"):    
+
+def get_group_data(feed, group, since="1970-01-01"):
     feedurl = contexts['anchore_config']['feeds_url']
     feed_timeout = contexts['anchore_config']['feeds_conn_timeout']
     feed_maxretries = contexts['anchore_config']['feeds_max_retries']
 
-    baseurl = '/'.join([feedurl, feed, group, "?since="+since])
+    baseurl = '/'.join([feedurl, feed, group, "?since=" + since])
     url = baseurl
 
     updatetime = int(time.time())
@@ -86,43 +90,47 @@ def get_group_data(feed, group, since="1970-01-01"):
     ret = list()
     last_token = ""
     success = True
-    done=False
+    done = False
     while not done:
         _logger.debug("data group url: " + str(url))
-        record = anchore.anchore_auth.anchore_auth_get(contexts['anchore_auth'], url, timeout=feed_timeout, retries=feed_maxretries)
+        record = anchore.anchore_auth.anchore_auth_get(contexts['anchore_auth'], url, timeout=feed_timeout,
+                                                       retries=feed_maxretries)
         if record['success']:
             data = json.loads(record['text'])
             if 'data' in data:
                 ret = ret + data['data']
                 if 'next_token' in data and data['next_token']:
-                    url = baseurl + "&next_token="+data['next_token']
+                    url = baseurl + "&next_token=" + data['next_token']
                     if last_token == data['next_token']:
-                        done=True
+                        done = True
                     last_token = data['next_token']
                 else:
-                    done=True
+                    done = True
             else:
                 success = False
-                done=True
+                done = True
         else:
             success = False
-            done=True
-    return(success, ret)
+            done = True
+    return (success, ret)
+
 
 def create_feed(feed):
     if not feed:
-        return(False)
+        return (False)
 
-    return(contexts['anchore_db'].create_feed(feed))
+    return (contexts['anchore_db'].create_feed(feed))
+
 
 def create_feedgroup(feed, group):
     if not feed or not group:
-        return(False)
-        
-    return(contexts['anchore_db'].create_feedgroup(feed, group))
+        return (False)
+
+    return (contexts['anchore_db'].create_feedgroup(feed, group))
+
 
 def sync_feedmeta(default_sublist=['vulnerabilities']):
-    ret = {'success':False, 'text':"", 'status_code':1}
+    ret = {'success': False, 'text': "", 'status_code': 1}
 
     try:
         feedmeta = load_anchore_feedmeta()
@@ -154,7 +162,7 @@ def sync_feedmeta(default_sublist=['vulnerabilities']):
                             feedmeta[feed]['groups'][group] = {}
 
                         feedmeta[feed]['groups'][group].update(grouprecord)
-                        
+
                         rc = create_feedgroup(feed, group)
                 else:
                     ret['text'] = "WARN: cannot get list of groups from feed: " + str(feed)
@@ -164,8 +172,8 @@ def sync_feedmeta(default_sublist=['vulnerabilities']):
 
         else:
             ret['text'] = "cannot get list of feeds from service\nMessage from server: " + record['text']
-            return(False, ret)
-        
+            return (False, ret)
+
         save_anchore_feedmeta(feedmeta)
 
     except Exception as err:
@@ -173,18 +181,21 @@ def sync_feedmeta(default_sublist=['vulnerabilities']):
         traceback.print_exc()
         _logger.debug("exception: " + str(err))
         ret['text'] = "exception: " + str(err)
-        return(False, ret)
+        return (False, ret)
 
-    return(True, ret)
+    return (True, ret)
+
 
 def feed_group_data_exists(feed, group, datafile):
     feedmeta = load_anchore_feedmeta()
-    if feed in feedmeta.keys() and group in feedmeta[feed]['groups'].keys() and 'datafiles' in feedmeta[feed]['groups'][group] and datafile in feedmeta[feed]['groups'][group]['datafiles']:
-        return(True)
-    return(False)
+    if feed in feedmeta.keys() and group in feedmeta[feed]['groups'].keys() and 'datafiles' in feedmeta[feed]['groups'][
+        group] and datafile in feedmeta[feed]['groups'][group]['datafiles']:
+        return (True)
+    return (False)
+
 
 def sync_feeds(force_since=None):
-    ret = {'success':False, 'text':"", 'status_code':1}
+    ret = {'success': False, 'text': "", 'status_code': 1}
 
     feedmeta = load_anchore_feedmeta()
 
@@ -192,7 +203,7 @@ def sync_feeds(force_since=None):
     try:
         for feed in feedmeta.keys():
             if feedmeta[feed]['subscribed']:
-                _logger.info("syncing data for subscribed feed ("+str(feed)+") ...")
+                _logger.info("syncing data for subscribed feed (" + str(feed) + ") ...")
                 groups = feedmeta[feed]['groups'].keys()
                 if groups:
                     for group in groups:
@@ -214,7 +225,7 @@ def sync_feeds(force_since=None):
                         since = time.strftime("%Y-%m-%d", time.gmtime(sincets))
                         now = time.strftime("%Y-%m-%d", time.gmtime(updatetime))
 
-                        datafilename = "data_"+since+"_to_"+now+".json"
+                        datafilename = "data_" + since + "_to_" + now + ".json"
                         if feed_group_data_exists(feed, group, datafilename):
                             _logger.info("\tskipping group data: " + str(group) + ": already synced")
                         else:
@@ -231,11 +242,12 @@ def sync_feeds(force_since=None):
                                 # finally, do any post download feed/group handler actions
                                 rc, msg = handle_anchore_feed_post(feed, group)
                             else:
-                                _logger.warn("\t\tWARN: failed to download feed/group data ("+str(feed)+"/"+str(group)+"): check --debug output and/or try again") 
+                                _logger.warn("\t\tWARN: failed to download feed/group data (" + str(feed) + "/" + str(
+                                    group) + "): check --debug output and/or try again")
                             rc, msg = handle_anchore_feed_post(feed, group)
 
             else:
-                _logger.info("skipping data sync for unsubscribed feed ("+str(feed)+") ...")            
+                _logger.info("skipping data sync for unsubscribed feed (" + str(feed) + ") ...")
 
         ret['status_code'] = 0
         ret['success'] = True
@@ -244,22 +256,23 @@ def sync_feeds(force_since=None):
         traceback.print_exc()
         _logger.debug("exception: " + str(err))
         ret['text'] = "ERROR: " + str(err)
-        return(False, ret)
+        return (False, ret)
 
     if not save_anchore_feedmeta(feedmeta):
         ret['text'] = "\t\tWARN: failed to store metadata on synced feed data"
 
-    return(True, ret)
+    return (True, ret)
 
 
 def check():
     if not load_anchore_feedmeta():
-        return(False, "feeds are not initialized: please run 'anchore feeds sync' and try again")
-    
-    if not load_anchore_feeds_list():
-        return(False, "feeds list is empty: please run 'anchore feeds sync' and try again")
+        return (False, "feeds are not initialized: please run 'anchore feeds sync' and try again")
 
-    return(True, "success")
+    if not load_anchore_feeds_list():
+        return (False, "feeds list is empty: please run 'anchore feeds sync' and try again")
+
+    return (True, "success")
+
 
 def load_anchore_feeds_list():
     ret = []
@@ -267,7 +280,8 @@ def load_anchore_feeds_list():
     if feedmeta:
         ret = feedmeta.values()
 
-    return(ret)
+    return (ret)
+
 
 def load_anchore_feed_groups_list(feed):
     ret = []
@@ -276,7 +290,8 @@ def load_anchore_feed_groups_list(feed):
         if feed in feedmeta.keys():
             ret = feedmeta[feed]['groups'].values()
 
-    return(ret)
+    return (ret)
+
 
 def load_anchore_feed_group_datameta(feed, group):
     ret = {}
@@ -285,29 +300,37 @@ def load_anchore_feed_group_datameta(feed, group):
         if feed in feedmeta.keys() and group in feedmeta[feed]['groups'].keys():
             ret = feedmeta[feed]['groups'][group]
 
-    return(ret)
+    return (ret)
+
 
 def load_anchore_feedmeta():
-    return(contexts['anchore_db'].load_feedmeta())
+    return (contexts['anchore_db'].load_feedmeta())
+
 
 def save_anchore_feedmeta(feedmeta):
-    return(contexts['anchore_db'].save_feedmeta(feedmeta))
+    return (contexts['anchore_db'].save_feedmeta(feedmeta))
 
-def subscribe_anchore_feed(feed):
+
+def subscribe_anchore_feed(feed, user_tier=0):
     success = True
     msg = str(feed) + ": subscribed."
 
     feedmeta = load_anchore_feedmeta()
     if feed in feedmeta:
-        if not feedmeta[feed]['subscribed']:
-            feedmeta[feed]['subscribed'] = True
-            if not save_anchore_feedmeta(feedmeta):
-                msg = str(feed) + ": failed to subscribe to feed (check debug output)."
-                success = False
+        if user_tier >= int(feedmeta[feed]['access_tier']):
+            if not feedmeta[feed]['subscribed']:
+                feedmeta[feed]['subscribed'] = True
+                if not save_anchore_feedmeta(feedmeta):
+                    msg = str(feed) + ": failed to subscribe to feed (check debug output)."
+                    success = False
+        else:
+            msg = 'Current user does not have sufficient access tier to subscribe to feed {0}. Current tier is {1}, must be {2} to access feed'.format(feed, user_tier, feedmeta[feed]['access_tier'])
+            success = False
     else:
-        msg = "cannot find specified feed ("+str(feed)+"): please review the feeds list and try again"
+        msg = "cannot find specified feed (" + str(feed) + "): please review the feeds list and try again"
         success = False
-    return(success, msg)
+    return (success, msg)
+
 
 def unsubscribe_anchore_feed(feed):
     success = True
@@ -321,30 +344,33 @@ def unsubscribe_anchore_feed(feed):
                 msg = str(feed) + ": failed to unsubscribe to feed (check debug output)."
                 success = False
     else:
-        msg = "cannot find specified feed ("+str(feed)+"): please review the feeds list and try again"
+        msg = "cannot find specified feed (" + str(feed) + "): please review the feeds list and try again"
         success = False
 
-    return(success, msg)
+    return (success, msg)
+
 
 def save_anchore_feed_group_data(feed, group, datafile, data):
-    return(contexts['anchore_db'].save_feed_group_data(feed, group, datafile, data))
+    return (contexts['anchore_db'].save_feed_group_data(feed, group, datafile, data))
+
 
 def load_anchore_feed_group_data(feed, group, datafile):
-    return(contexts['anchore_db'].load_feed_group_data(feed, group, datafile))
+    return (contexts['anchore_db'].load_feed_group_data(feed, group, datafile))
+
 
 def load_anchore_feed(feed, group, ensure_unique=False):
-    ret = {'success':False, 'msg':"", 'data':list()}
+    ret = {'success': False, 'msg': "", 'data': list()}
     datameta = {}
     doupdate = False
     feedmeta = load_anchore_feedmeta()
     if not feedmeta:
         ret['msg'] = "feed data does not exist: please sync feed data"
     elif feed in feedmeta and not feedmeta[feed]['subscribed']:
-        ret['msg'] = "not currently subscribed to feed ("+str(feed)+"): please subscribe, sync, and try again"
+        ret['msg'] = "not currently subscribed to feed (" + str(feed) + "): please subscribe, sync, and try again"
     else:
         if feed in feedmeta and group in feedmeta[feed]['groups']:
             datameta = feedmeta[feed]['groups'][group]
-        
+
         if datameta and 'datafiles' in datameta:
             unique_hash = {}
             for datafile in sorted(datameta['datafiles']):
@@ -361,23 +387,26 @@ def load_anchore_feed(feed, group, ensure_unique=False):
                 ret['success'] = True
                 ret['msg'] = "success"
 
-            if ret['success'] and ensure_unique:                
+            if ret['success'] and ensure_unique:
                 ret['data'] = unique_hash.values()
-                                        
+
         else:
-            ret['msg'] = "no data exists for given feed/group ("+str(feed)+"/"+str(group)+")"
-            
-    return(ret)
+            ret['msg'] = "no data exists for given feed/group (" + str(feed) + "/" + str(group) + ")"
+
+    return (ret)
+
 
 def delete_anchore_feed(feed):
     feedmeta = load_anchore_feedmeta()
     if feed in feedmeta.keys():
         if not feedmeta[feed]['subscribed']:
-            return(contexts['anchore_db'].delete_feed(feed))
+            return (contexts['anchore_db'].delete_feed(feed))
         else:
-            _logger.warn("skipping delete of feed that is marked as subscribed - please unsubscribe first and then retry the delete")
+            _logger.warn(
+                "skipping delete of feed that is marked as subscribed - please unsubscribe first and then retry the delete")
 
-    return(True)
+    return (True)
+
 
 # TODO wip
 def handle_anchore_feed_pre(feed):
@@ -389,7 +418,8 @@ def handle_anchore_feed_pre(feed):
             if not feedmeta[feed]['subscribed']:
                 rc, msg = subscribe_anchore_feed(feed)
                 ret = rc
-    return(ret, msg)
+    return (ret, msg)
+
 
 def handle_anchore_feed_post(feed, group):
     ret = True
@@ -423,5 +453,4 @@ def handle_anchore_feed_post(feed, group):
         # no handler
         pass
 
-    return(ret, msg)
-
+    return (ret, msg)
