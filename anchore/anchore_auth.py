@@ -261,6 +261,7 @@ def anchore_auth_get(anchore_auth, url, timeout=None, retries=None):
                 elif r.status_code == 403:
                     success = True
                     ret['success'] = False
+                    ret['err_msg'] = 'Access denied, check your access tier'
 
                 ret['status_code'] = r.status_code
                 ret['text'] = r.text
