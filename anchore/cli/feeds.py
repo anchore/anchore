@@ -1,5 +1,8 @@
 import sys
 import click
+import time
+import calendar
+import datetime
 
 from anchore.cli.common import anchore_print, anchore_print_err
 from anchore import anchore_auth, anchore_feeds
@@ -34,12 +37,53 @@ def feeds(anchore_config):
         anchore_print_err(emsg)
         sys.exit(1)
 
+@feeds.command(name='show', short_help='Show detailed info on a specific feed')
+@click.argument('feed')
+def show(feed):
+    """
+    Show detailed feed information
+
+    """
+    ecode = 0
+    try:
+        feedmeta = anchore_feeds.load_anchore_feedmeta()
+        if feed in feedmeta:
+            result = {}
+            groups = feedmeta[feed].get('groups',{}).values()
+            result['name'] = feed
+            result['access_tier'] = int(feedmeta[feed].get('access_tier'))
+            result['description'] = feedmeta[feed].get('description')
+            result['groups'] = {}
+            if 'subscribed' not in feedmeta[feed]:
+                result['subscribed'] = False
+            else:
+                result['subscribed'] = feedmeta[feed]['subscribed']
+
+            for g in groups:
+                result['groups'][g['name']] = {
+                    'access_tier': int(g.get('access_tier')),
+                    'description': g.get('description'),
+                    'last_update': datetime.datetime.fromtimestamp(g.get('last_update')).isoformat() if 'last_update' in g else 'None',
+                    'prev_update': datetime.datetime.fromtimestamp(g.get('prev_update')).isoformat() if 'prev_update' in g else 'None'
+                }
+
+            anchore_print(result, do_formatting=True)
+        else:
+            anchore_print_err('Unknown feed name. Valid feeds can be seen withe the "list" command')
+            ecode = 1
+    except Exception as err:
+        anchore_print_err('operation failed')
+        ecode = 1
+
+    sys.exit(ecode)
+
 @feeds.command(name='list', short_help="List all feeds.")
 @click.option('--showgroups', help='Along with the feed, show all groups within the feed.', is_flag=True)
 def list(showgroups):
     """
     Show list of Anchore data feeds.
     """
+
     ecode = 0
     try:
         result = {}

@@ -111,6 +111,8 @@ def get_group_data(feed, group, since="1970-01-01"):
                 done = True
         else:
             success = False
+            if record and 'err_msg' in record:
+                ret = record.get('err_msg')
             done = True
     return (success, ret)
 
@@ -242,8 +244,14 @@ def sync_feeds(force_since=None):
                                 # finally, do any post download feed/group handler actions
                                 rc, msg = handle_anchore_feed_post(feed, group)
                             else:
+                                if data and isinstance(data, str):
+                                    err_msg = data
+                                else:
+                                    err_msg = ''
+
                                 _logger.warn("\t\tWARN: failed to download feed/group data (" + str(feed) + "/" + str(
-                                    group) + "): check --debug output and/or try again")
+                                    group) + "): err msg: {}. check --debug output and/or try again".format(err_msg))
+
                             rc, msg = handle_anchore_feed_post(feed, group)
 
             else:
