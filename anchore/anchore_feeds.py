@@ -247,10 +247,10 @@ def sync_feeds(force_since=None):
                                 if data and isinstance(data, str):
                                     err_msg = data
                                 else:
-                                    err_msg = ''
+                                    err_msg = 'check --debug output and/or try again'
 
                                 _logger.warn("\t\tWARN: failed to download feed/group data (" + str(feed) + "/" + str(
-                                    group) + "): err msg: {}. check --debug output and/or try again".format(err_msg))
+                                    group) + "): {}".format(err_msg))
 
                             rc, msg = handle_anchore_feed_post(feed, group)
 
