@@ -848,6 +848,118 @@ def rpm_get_all_pkgfiles_orig(unpackdir):
 
     return(rpmfiles)
 
+def npm_parse_meta(npm):
+
+    record = {}
+
+    name = npm.pop('name', None)
+    if not name:
+        return(record)
+
+    lics = list()
+    versions = list()
+    latest = None
+    origins = list()
+    sourcepkg = None
+
+    npmtime = npm.pop('time', None)
+    npmdesc = npm.pop('description', None)
+    npmdisttags = npm.pop('dist-tags', None)
+    npmkeywords = npm.pop('keywords', None)
+
+
+    npmlicense = npm.pop('license', None)
+    npmversions = npm.pop('versions', None)
+    npmversion = npm.pop('version', None)
+    npmauthor = npm.pop('author', None)
+    npmmaintainers = npm.pop('maintainers', None)
+    npmrepository = npm.pop('repository', None)
+    npmhomepage= npm.pop('homepage', None)
+
+    if npmlicense:
+        if isinstance(npmlicense, basestring):
+            lics.append(npmlicense)
+        elif isinstance(npmlicense, dict):
+            for ktype in ['type', 'name', 'license', 'sourceType']:
+                lic = npmlicense.pop(ktype, None)
+                if lic:
+                    lics.append(lic)
+        elif isinstance(npmlicense, list):
+            for lentry in npmlicense:
+                if isinstance(lentry, basestring):
+                    lics.append(lentry)
+                elif isinstance(lentry, dict):
+                    for ktype in ['type', 'name', 'license', 'sourceType']:
+                        lic = lentry.pop(ktype, None)
+                        if lic:
+                            lics.append(lic)
+        else:
+            print "unknown type (" + str(name) + "): " + str(type(npmlicense))
+
+
+    if npmversions:
+        if isinstance(npmversions, dict):
+            versions = npmversions.keys()
+            for v in npmversions:
+                if npmversions[v] == 'latest':
+                    latest = v
+        elif isinstance(npmversions, list):
+            versions = npmversions
+    elif npmversion:
+        versions.append(npmversion)
+
+    astring = None
+    if npmauthor:
+        if isinstance(npmauthor, basestring):
+            astring = npmauthor
+        elif isinstance(npmauthor, dict):
+            aname = npmauthor.pop('name', None)
+            aurl = npmauthor.pop('url', None)
+            if aname:
+                astring = aname
+                if aurl:
+                    astring += " ("+aurl+")"
+        else:
+            print "unknown type (" + str(name) + "): "+ str(type(npmauthor))
+
+    elif npmmaintainers:
+        for m in npmmaintainers:
+            aname = m.pop('name', None)
+            aemail = m.pop('email', None)
+            if aname:
+                astring = aname
+                if aemail:
+                    astring += " ("+aemail+")"
+
+    if astring:
+        origins.append(astring)
+
+    if npmrepository:
+        if isinstance(npmrepository, dict):
+            sourcepkg = npmrepository.pop('url', None)
+        elif isinstance(npmrepository, basestring):
+            sourcepkg = npmrepository
+        else:
+            print "unknown type (" + str(name) + "): " + str(type(npmrepository))
+
+    elif npmhomepage:
+        if isinstance(npmhomepage, basestring):
+            sourcepkg = npmhomepage
+
+    if not lics:
+        print "WARN: ("+name+") no lics: " + str(npm)
+    if not versions:
+        print "WARN: ("+name+") no versions: " + str(npm)
+    if not origins:
+        print "WARN: ("+name+") no origins: " + str(npm)
+    if not sourcepkg:
+        print "WARN: ("+name+") no sourcepkg: " + str(npm)
+
+    if name:
+        record[name] = {'name':name, 'lics':lics, 'versions':versions, 'latest':latest, 'origins':origins, 'sourcepkg':sourcepkg}
+
+    return(record)
+
 def get_distro_from_imageId(imageId):
     meta = {
         'DISTRO':None,

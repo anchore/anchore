@@ -10,7 +10,6 @@ import rpm
 import subprocess
 
 import anchore.anchore_utils
-anchore_modules = __import__("anchore-modules.anchore_modules_utils")
 
 analyzer_name = "package_list"
 
@@ -46,7 +45,7 @@ try:
             thefile = '/'.join([unpackdir, 'rootfs', tfile])
             with open(thefile, 'r') as FH:
                 pdata = json.loads(FH.read().decode('utf8'))
-                precord = anchore_modules.anchore_modules_utils.parse_npm_meta(pdata)
+                precord = anchore.anchore_utils.npm_parse_meta(pdata)
                 for k in precord.keys():
                     record = precord[k]
                     pkglist[tfile] = json.dumps(record)

@@ -8,7 +8,6 @@ import json
 import traceback
 
 import anchore.anchore_utils
-anchore_modules = __import__("anchore-modules.anchore_modules_utils")
 
 # main routine
 
