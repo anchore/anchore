@@ -26,7 +26,7 @@ if len(config['params']) <= 0:
 outlist = list()
 warns = list()
 
-outlist.append(["Image_Id", "Repo_Tags", "Package_Name", "Version", "Type", "Origin", "Source", "License", "Location"])
+outlist.append(["Image_Id", "Repo_Tags", "Package_Name", "Version", "Origin", "Source", "License", "Location"])
 
 try:
     # handle the good case, something is found resulting in data matching the required columns
@@ -69,7 +69,7 @@ try:
         if not source:
             source = 'N/A'
 
-        outlist.append([config['meta']['shortId'], config['meta']['humanname'], name, version, 'NPM', origin, source, lic, location])
+        outlist.append([config['meta']['shortId'], config['meta']['humanname'], name, version, origin, source, lic, location])
 
 except Exception as err:
     # handle the case where something wrong happened
