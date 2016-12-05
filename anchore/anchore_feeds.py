@@ -408,7 +408,18 @@ def delete_anchore_feed(feed):
     feedmeta = load_anchore_feedmeta()
     if feed in feedmeta.keys():
         if not feedmeta[feed]['subscribed']:
-            return (contexts['anchore_db'].delete_feed(feed))
+            try:
+                for group in feedmeta[feed]['groups'].keys():
+                    feedmeta[feed]['groups'][group].pop('datafiles', [])
+                    feedmeta[feed]['groups'][group].pop('last_update', 0)
+                    feedmeta[feed]['groups'][group].pop('prev_update', 0)
+
+                save_anchore_feedmeta(feedmeta)
+                contexts['anchore_db'].delete_feed(feed)
+            except Exception as err:
+                _logger.warn("could not complete delete of feed - message from service: " + str(err))
+
+            return (True)
         else:
             _logger.warn(
                 "skipping delete of feed that is marked as subscribed - please unsubscribe first and then retry the delete")
