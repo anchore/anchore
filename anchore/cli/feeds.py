@@ -63,8 +63,7 @@ def show(feed):
                 result['groups'][g['name']] = {
                     'access_tier': int(g.get('access_tier')),
                     'description': g.get('description'),
-                    'last_update': datetime.datetime.fromtimestamp(g.get('last_update')).isoformat() if 'last_update' in g else 'None',
-                    'prev_update': datetime.datetime.fromtimestamp(g.get('prev_update')).isoformat() if 'prev_update' in g else 'None'
+                    'last_sync': datetime.datetime.fromtimestamp(g.get('last_update')).isoformat() if 'last_update' in g else 'None'
                 }
 
             anchore_print(result, do_formatting=True)
