@@ -72,7 +72,7 @@ except Exception as err:
     traceback.print_exc()
     print "ERROR: could not scan image for CVEs: " + str(err)
     outlist = list()
-    outlist.append("UNSUPPORTEDDISTRO Cannot load CVE data for image distro to perform scan.")
+    outlist.append("UNSUPPORTEDDISTRO Cannot load CVE data for image distro to perform scan. Message from service: "+str(err))
     anchore.anchore_utils.save_gate_output(imgid, gate_name, outlist)
     sys.exit(0)
 

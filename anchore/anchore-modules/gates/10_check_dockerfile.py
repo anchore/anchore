@@ -10,27 +10,27 @@ gate_name = "DOCKERFILECHECK"
 triggers = {
     'EXPOSE':
     {
-        'description':'triggers if this happens',
+        'description':'triggers if Dockerfile is EXPOSEing ports that are not in ALLOWEDPORTS, or are in DENIEDPORTS',
         'params':'ALLOWEDPORTS,DENIEDPORTS'
     },
     'NOFROM':
     {
-        'description':'triggers if that happens',
+        'description':'triggers if there is no FROM line specified in the Dockerfile',
         'params':'None'
     },
     'FROMSCRATCH':
     {
-        'description':'triggers if that happens',
+        'description':'triggers the FROM line specified "scratch" as the parent',
         'params':'None'
     },
     'NOTAG':
     {
-        'description':'triggers if that happens',
+        'description':'triggers if the FROM container specifies a repo but no explicit, non-latest tag ',
         'params':'None'
     },
     'SUDO':
     {
-        'description':'triggers if that happens',
+        'description':'triggers if the Dockerfile contains operations running with sudo',
         'params':'None'
     }
 }
