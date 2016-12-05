@@ -652,7 +652,7 @@ class AnchoreImageDB_FS(anchore_image_db_base.AnchoreImageDB):
         return(True)
 
     def load_feed_group_data(self, feed, group, datafilename):
-        ret = {}
+        ret = []
         basedir = self.feedrootdir
         thefile = os.path.join(basedir, feed, group, datafilename)
 
