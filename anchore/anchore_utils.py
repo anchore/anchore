@@ -1153,6 +1153,8 @@ def cve_load_data(image, cve_data_context=None):
                 if cve_data_context != None and dstr not in cve_data_context:
                     cve_data_context[dstr] = cve_data
                 break
+            else:
+                raise ValueError(str(feeddata['msg']))
 
     if not cve_data:
         raise ValueError("cannot find CVE data associated with the input container distro: ("+str(distrolist)+")")
