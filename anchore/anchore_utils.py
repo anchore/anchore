@@ -686,7 +686,12 @@ def apkg_get_all_pkgfiles(unpackdir):
                 thename = v
                 apkg['name'] = v
             elif k == 'V':
-                (vers, rel) = re.match("(\S*)-(\S*)", v).group(1, 2)
+                vpatt = re.match("(\S*)-(\S*)", v)
+                if vpatt:
+                    (vers, rel) = vpatt.group(1, 2)
+                else:
+                    vers = v
+                    rel = "N/A"
                 apkg['version'] = vers
                 apkg['release'] = rel
             elif k == 'm':
@@ -1141,6 +1146,7 @@ def cve_load_data(image, cve_data_context=None):
     fullversion = distrodict['fullversion']
     
     distrolist = [(distro,distrovers), (likedistro, likeversion), (fulldistro, fullversion)]
+
     for f in distrolist:
         dstr = ':'.join([f[0], f[1]])
         if cve_data_context and dstr in cve_data_context:
@@ -1153,8 +1159,6 @@ def cve_load_data(image, cve_data_context=None):
                 if cve_data_context != None and dstr not in cve_data_context:
                     cve_data_context[dstr] = cve_data
                 break
-            else:
-                raise ValueError(str(feeddata['msg']))
 
     if not cve_data:
         raise ValueError("cannot find CVE data associated with the input container distro: ("+str(distrolist)+")")
