@@ -1,6 +1,6 @@
 # Anchore 
 
-[<img src="https://anchore.io/service/badges/image/f017354b717234ebfe1cf1c5d538ddc8618f3ab0d8c67e290cf37f578093d121" />](https://anchore.io/image/dockerhub/f017354b717234ebfe1cf1c5d538ddc8618f3ab0d8c67e290cf37f578093d121?repo=anchore%2Fcli&tag=latest#overview)
+<a style="margin:0;padding:0;text-decoration-none;color:transparent;" href="https://anchore.io/image/dockerhub/f017354b717234ebfe1cf1c5d538ddc8618f3ab0d8c67e290cf37f578093d121?repo=anchore%2Fcli&tag=latest#overview" target="_blank" ><img src="https://anchore.io/service/badges/image/f017354b717234ebfe1cf1c5d538ddc8618f3ab0d8c67e290cf37f578093d121" /></a>
 
 
 Anchore is a container inspection and analytics platform to enable
