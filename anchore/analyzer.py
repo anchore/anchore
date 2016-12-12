@@ -164,7 +164,10 @@ class Analyzer(object):
                         if not imagedir:
                             self._logger.info(image.meta['shortId'] + ": analyzing ...")                            
                             imagedir = image.unpack()
-
+                            if not imagedir:
+                                self._logger.error("could not unpack image")
+                                return(False)
+                            
                         outputdir = tempfile.mkdtemp(dir=imagedir)
                         cmdline = ' '.join([imagename, self.config['image_data_store'], outputdir, imagedir])
                         cmdstr = script + " " + cmdline

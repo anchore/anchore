@@ -190,8 +190,11 @@ class Navigator(object):
         for imageId in self.images:
             image = self.allimages[imageId]
             outdir = image.unpack(docleanup=False, destdir=destdir)
-            self._logger.debug("Unpacked image " + image.meta['shortId'] + " in " + outdir)
-            ret[imageId] = outdir
+            if not outdir:
+                self._logger.warn("failed to unpack image ("+str(imageId)+")")
+            else:
+                self._logger.debug("Unpacked image " + image.meta['shortId'] + " in " + outdir)
+                ret[imageId] = outdir
         return(ret)
 
     def run(self):

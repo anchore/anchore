@@ -90,6 +90,7 @@ class AnchoreImage(object):
         # some contexts
         self.anchore_db = None
         self.docker_images = None
+        self.anchore_config = None
 
         # do some setup
         # set up imageId
@@ -133,6 +134,9 @@ class AnchoreImage(object):
             self.docker_images = contexts['docker_images']
         else: 
             self.docker_images = anchore_utils.get_docker_images(self.docker_cli)
+
+        if 'anchore_config' in contexts and contexts['anchore_config']:
+            self.anchore_config = contexts['anchore_config']
             
         # set up metadata about the image from anchoreDB and docker
         if not self.load_image(dockerfile):
@@ -353,6 +357,9 @@ class AnchoreImage(object):
             return (True)
 
         imagedir = self.unpack()
+        if not imagedir:
+            self._logger.error("failed to unpack image")
+            return(False)
 
         l = imagename
 
@@ -556,9 +563,30 @@ class AnchoreImage(object):
     """ Utilities and report generators """
 
     def squash(self, imagedir=None):
-        return(self.squash_docker_export(imagedir))
-        #return(self.squash_tarcmd_reverse(imagedir))
-        #return(self.squash_tarfile_reverse(imagedir))
+
+        driver = "docker_export"
+        try:
+            if self.anchore_config:
+                driver = self.anchore_config['squash_driver']
+        except:
+            pass
+            
+        if driver not in ['docker_export', 'tarcmd_reverse', 'tarfile_reverse']:
+            self._logger.error("invalid squash driver ("+str(driver)+") specified - please review configuration or reset to default by unsetting 'squash_driver'")
+            return(False)
+
+        if driver == 'docker_export':
+            self._logger.debug("running with docker_export driver")
+            return(self.squash_docker_export(imagedir))
+        elif driver == 'tarcmd_reverse':
+            self._logger.debug("running with tarcmd_reverse driver")
+            return(self.squash_tarcmd_reverse(imagedir))
+        elif driver == 'tarfile_reverse':
+            self._logger.debug("running with tarfile_reverse driver")
+            return(self.squash_tarfile_reverse(imagedir))
+
+        self._logger.warn("no operation defined / squash driver found - returning success but no operation performed")
+        retrun(True)
 
     def squash_docker_export(self, imagedir=None):
         if not imagedir:
@@ -589,7 +617,7 @@ class AnchoreImage(object):
             self._logger.error("unable to delete (cleanup) temporary container - proceeding but zombie container may be left in docker: " + str(err))
 
         self.squashtar = imagedir + "/squashed.tar"
-
+        
         tarcmd = ["tar", "-C", rootfsdir, "-x", "-f", self.squashtar]
         try:
             subprocess.check_output(tarcmd)
@@ -872,7 +900,10 @@ class AnchoreImage(object):
         os.remove(imagetar)
 
         # squash the image layers into unpacked rootfs
-        self.squash(imagedir)
+        rc = self.squash(imagedir)
+        if not rc:
+            self._logger.error("image squash operation failed")
+            return(False)
 
         return (imagedir)
 

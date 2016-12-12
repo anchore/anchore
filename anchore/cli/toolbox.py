@@ -115,9 +115,13 @@ def unpack(destdir):
     try:
         anchore_print("Unpacking images: " + ' '.join(nav.get_images()))
         result = nav.unpack(destdir=destdir)
-        for imageId in result:
-            anchore_print("Unpacked image: " + imageId)
-            anchore_print("Unpack directory: "+ result[imageId])
+        if not result:
+            anchore_print_err("no images unpacked")
+            ecode = 1
+        else:
+            for imageId in result:
+                anchore_print("Unpacked image: " + imageId)
+                anchore_print("Unpack directory: "+ result[imageId])
     except:
         anchore_print_err("operation failed")
         ecode = 1
@@ -151,6 +155,9 @@ def setup_module_dev(destdir):
         anchore_print("")
 
         result = nav.unpack(destdir=destdir)
+        if not result:
+            raise Exception("unable to unpack input image")
+
         for imageId in result:
             unpackdir = result[imageId]
 
