@@ -556,8 +556,8 @@ class AnchoreImage(object):
     """ Utilities and report generators """
 
     def squash(self, imagedir=None):
-        #return(self.squash_docker_export(imagedir))
-        return(self.squash_tarcmd_reverse(imagedir))
+        return(self.squash_docker_export(imagedir))
+        #return(self.squash_tarcmd_reverse(imagedir))
         #return(self.squash_tarfile_reverse(imagedir))
 
     def squash_docker_export(self, imagedir=None):
@@ -575,7 +575,7 @@ class AnchoreImage(object):
         try:
             container = self.docker_cli.create_container(self.meta['imageId'], 'true')
         except Exception as err:
-            self._logger.error("unable to run create container: " + self.meta['imageId'] + ": error: " + str(err))
+            self._logger.error("unable to run create container for exporting: " + str(self.meta['imageId']) + ": error: " + str(err))
             return(False)
         else:
             with open(imagedir + "/squashed.tar", 'w') as FH:
@@ -586,10 +586,19 @@ class AnchoreImage(object):
         try:
             self.docker_cli.remove_container(container=container.get('Id'), force=True)
         except:
-            pass
+            self._logger.error("unable to delete (cleanup) temporary container - proceeding but zombie container may be left in docker: " + str(err))
 
         self.squashtar = imagedir + "/squashed.tar"
-        subprocess.check_output(["tar", "-C", rootfsdir, "-x", "-f", self.squashtar])
+
+        tarcmd = ["tar", "-C", rootfsdir, "-x", "-f", self.squashtar]
+        try:
+            subprocess.check_output(tarcmd)
+        except Exception as err:
+            self._logger.error("Error: Untar of unpacked image layer failed.")
+            self._logger.error("Command: " + ' '.join(tarcmd))
+            self._logger.error("Exception: " + str(err))
+            return(False)
+
         return (True)
 
     def squash_tarfile_reverse(self, imagedir=None):
@@ -728,13 +737,11 @@ class AnchoreImage(object):
 
         excludesfile = '/'.join([imagedir, 'tarexcludes'])
         anchore_utils.touch_file(excludesfile)
-        #open(excludesfile, 'w').close()
 
         for l in revlayer:
             layertar = imagedir + "/" + l + "/layer.tar"
             self._logger.debug("layer to squash: " + layertar)
 
-            # washere
             tarcmd = ["tar", "-C", rootfsdir, "-t", "-f", layertar]
             self._logger.debug("cmd: " + ' '.join(tarcmd))
             allfiles = subprocess.check_output(tarcmd)
