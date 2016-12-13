@@ -35,10 +35,18 @@ try:
     pkgdetail_data = anchore.anchore_utils.load_analysis_output(config['imgid'], 'package_list', 'pkgs.npms')
 
     for pname in pkgdetail_data.keys():
-        jsonstr = pkgdetail_data[pname]
-        pkgdata = json.loads(pkgdetail_data[pname])
-        location = pname
+        try:
+            pkgdata = json.loads(pkgdetail_data[pname])
+        except:
+            warns.append("Bad data (not json) for package ("+str(pname)+") - check analyzer output")
+            continue
+
         name = pkgdata['name']
+
+        try:
+            location = re.sub("package\.json$", "", pname)
+        except:
+            location = "Unknown"
         
         match = False
         if 'all' in config['params']:

@@ -32,6 +32,7 @@ class AnchoreConfiguration (object):
     DEFAULT_ANCHORE_FEEDS_CONN_TIMEOUT = 10
     DEFAULT_ANCHORE_FEEDS_MAX_RETRIES = 3
     DEFAULT_ANCHORE_DB_DRIVER = "anchore_image_db_fs"
+    DEFAULT_ANCHORE_SQUASH_DRIVER = "docker_export"
 
     try:
         DEFAULT_EXTRASCRIPTS_DIR = resource_filename("anchore-modules", "/")
@@ -57,15 +58,7 @@ class AnchoreConfiguration (object):
         'anchore_token_url':DEFAULT_ANCHORE_TOKEN_URL,
         'anchore_auth_conn_timeout':DEFAULT_ANCHORE_AUTH_CONN_TIMEOUT,
         'anchore_auth_max_retries':DEFAULT_ANCHORE_AUTH_MAX_RETRIES,
-#        'vulnerabilities': {
-#            'url': 'https://service-data.anchore.com/vulnerabilities.tar.gz',
-#        },
-#        'analysis': {
-#            'url': 'https://service-data.anchore.com/analysis_db.tar.gz',
-#        },
-#        'images': {
-#            'docker_conn': 'unix://var/run/docker.sock'
-#        }
+        'squash_driver':DEFAULT_ANCHORE_SQUASH_DRIVER
     }
 
     def __init__(self, cliargs=None):

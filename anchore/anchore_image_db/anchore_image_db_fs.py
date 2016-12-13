@@ -565,6 +565,19 @@ class AnchoreImageDB_FS(anchore_image_db_base.AnchoreImageDB):
         tar.close()
         return(True)
 
+    def save_files_tarfile(self, imageId, namespace, tarfile):
+        if not os.path.exists(tarfile):
+            return(False)
+
+        thedir = os.path.join(self.imagerootdir, imageId, "file_store", namespace)
+        thefile = os.path.join(thedir, "stored_files.tar.gz")
+        if not os.path.exists(thedir):
+            os.makedirs(thedir)
+
+        shutil.copy(tarfile, thefile)
+
+        return(True)
+
     def load_files_tarfile(self, imageId, namespace):
         thedir = os.path.join(self.imagerootdir, imageId, "file_store", namespace)
         thefile = os.path.join(thedir, 'stored_files.tar.gz')
@@ -642,7 +655,11 @@ class AnchoreImageDB_FS(anchore_image_db_base.AnchoreImageDB):
 
     def save_feed_group_data(self, feed, group, datafilename, data):
         basedir = self.feedrootdir
-        thefile = os.path.join(basedir, feed, group, datafilename)
+        thedir = os.path.join(basedir, feed, group)
+        if not os.path.exists(thedir):
+            os.makedirs(thedir)
+
+        thefile = os.path.join(thedir, datafilename)
 
         jsondata = json.dumps(data).encode('utf8')
 

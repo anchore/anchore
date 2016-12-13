@@ -5,6 +5,7 @@ import shutil
 import collections
 import datetime
 import json
+
 from textwrap import fill
 import click
 
@@ -16,7 +17,7 @@ config = {}
 imagelist = []
 
 @click.group(short_help='Useful tools and operations on images and containers')
-@click.option('--image', help='Process specified image ID', required=True, metavar='<imageid>')
+@click.option('--image', help='Process specified image ID', metavar='<imageid>')
 @click.pass_context
 @click.pass_obj
 def toolbox(anchore_config, ctx, image):
@@ -33,26 +34,31 @@ def toolbox(anchore_config, ctx, image):
 
     imagelist = [image]
 
-    if ctx.invoked_subcommand not in ['import', 'delete']:
-        try:
-            try:
-                ret = anchore_utils.discover_imageIds(imagelist)
-            except ValueError as err:
-                raise err
-            else:
-                #imagelist = ret.keys()
-                imagelist = ret
-        except Exception as err:
-            anchore_print_err("could not load any images")
-            sys.exit(1)
-
-
-        try:
-            nav = navigator.Navigator(anchore_config=config, imagelist=imagelist, allimages=contexts['anchore_allimages'])
-        except Exception as err:
-            anchore_print_err('operation failed')
-            nav = None
+    if ctx.invoked_subcommand not in ['import', 'delete', 'kubesync']:
+        if not image:
+            anchore_print_err("for this operation, you must specify an image with '--image'")
             ecode = 1
+        else:
+            try:
+                try:
+                    ret = anchore_utils.discover_imageIds(imagelist)
+                except ValueError as err:
+                    raise err
+                else:
+                    imagelist = ret
+            except Exception as err:
+                anchore_print_err("could not load any images")
+                sys.exit(1)
+
+            try:
+                nav = navigator.Navigator(anchore_config=config, imagelist=imagelist, allimages=contexts['anchore_allimages'])
+            except Exception as err:
+                anchore_print_err('operation failed')
+                nav = None
+                ecode = 1
+
+        if ecode:
+            sys.exit(ecode)
 
 @toolbox.command(name='delete', short_help="Delete input image(s) from the Anchore DB")
 @click.option('--dontask', help='Will delete the image from Anchore DB without asking for coinfirmation', is_flag=True)
@@ -109,9 +115,13 @@ def unpack(destdir):
     try:
         anchore_print("Unpacking images: " + ' '.join(nav.get_images()))
         result = nav.unpack(destdir=destdir)
-        for imageId in result:
-            anchore_print("Unpacked image: " + imageId)
-            anchore_print("Unpack directory: "+ result[imageId])
+        if not result:
+            anchore_print_err("no images unpacked")
+            ecode = 1
+        else:
+            for imageId in result:
+                anchore_print("Unpacked image: " + imageId)
+                anchore_print("Unpack directory: "+ result[imageId])
     except:
         anchore_print_err("operation failed")
         ecode = 1
@@ -145,6 +155,9 @@ def setup_module_dev(destdir):
         anchore_print("")
 
         result = nav.unpack(destdir=destdir)
+        if not result:
+            raise Exception("unable to unpack input image")
+
         for imageId in result:
             unpackdir = result[imageId]
 
@@ -363,6 +376,37 @@ def export(outfile):
         except Exception as err:
             anchore_print_err("operation failed: " + str(err))
             ecode = 1
+
+    sys.exit(ecode)
+
+@toolbox.command(name='kubesync')
+def kubesync():
+    """Communicate with kubernetes deployment via kubectl and save image names/IDs to local files"""
+
+    ecode = 0
+
+    try:
+        images = anchore_utils.get_images_from_kubectl()
+        if images:
+#            print "Found images in kubernetes - pulling latest to local dockerhost: "
+#            for imageId in images:
+#                print "\t" + imageId + " : " + images[imageId]
+#
+#                cmdstr = "docker pull " + images[imageId]
+#                cmd = cmdstr.split()
+#                subprocess.check_output(cmd)
+            anchore_print("Writing image IDs to ./anchore_imageIds.kube")
+            with open("anchore_imageIds.kube", 'w') as OFH:
+                for imageId in images:
+                    OFH.write(imageId + "\n")
+            anchore_print("Writing image names to ./anchore_imageNames.kube")
+            with open("anchore_imageNames.kube", 'w') as OFH:
+                for imageId in images:
+                    OFH.write(images[imageId] + "\n")
+                    
+    except Exception as err:
+        anchore_print_err("operation failed: " + str(err))
+        ecode = 1
 
     sys.exit(ecode)
 

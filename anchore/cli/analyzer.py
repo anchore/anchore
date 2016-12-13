@@ -311,6 +311,7 @@ def analyze(anchore_config, force, image, imagefile, include_allanchore, dockerf
         step = 1
         count = 0
         allimages = {}
+        success = True
         for imageId in imagedict.keys():
 
             if count % step == 0:
@@ -323,7 +324,12 @@ def analyze(anchore_config, force, image, imagefile, include_allanchore, dockerf
             inlist = [imageId]
             try:
                 anchore_print("Analyzing image: " + imageId)
-                success = analyzer.Analyzer(anchore_config=anchore_config, imagelist=inlist, allimages=allimages, force=force, args=args).run()
+                rc = analyzer.Analyzer(anchore_config=anchore_config, imagelist=inlist, allimages=allimages, force=force, args=args).run()
+                if not rc:
+                    anchore_print_err("analysis failed.")
+                    success = False
+                    ecode = 1
+
             except:
                 anchore_print_err('failed to run analyzer')
                 allimages.clear()
@@ -336,6 +342,7 @@ def analyze(anchore_config, force, image, imagefile, include_allanchore, dockerf
         allimages.clear()
 
         if not success:
+            anchore_print_err("analysis failed for one or more images.")
             ecode = 1
 
     sys.exit(ecode)

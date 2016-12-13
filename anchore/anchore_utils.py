@@ -517,6 +517,29 @@ def discover_imageId(name):
 
     return(imageId)
 
+def get_images_from_kubectl():
+    images = {}
+    try:
+        cmd = "kubectl get --all-namespaces --output json pods".split()
+        jsonbuf = subprocess.check_output(cmd)
+        kubedata = json.loads(jsonbuf)
+        if 'items' in kubedata:
+            for item in kubedata['items']:
+                if 'status' in item:
+                    if 'containerStatuses' in item['status']:
+                        imagename = imageId = None
+                        for cs in item['status']['containerStatuses']:
+                            if 'image' in cs:
+                                imagename = cs['image']
+                            if 'imageID' in cs:
+                                imageId = re.sub("^docker://sha256:", "", cs['imageID'])
+                            
+                            if imagename and imageId:
+                                images[imageId] = imagename
+    except Exception as err:
+        raise err
+    return(images)
+
 def print_result(config, result, outputmode=None):
     if not result:
         return (False)

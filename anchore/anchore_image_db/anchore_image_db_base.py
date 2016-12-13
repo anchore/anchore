@@ -197,6 +197,10 @@ class AnchoreImageDB(object):
         self._logger.debug("AnchoreDB: parent unimplemented: driver has not implemented this anchoreDB operation")
         return(False)
 
+    def save_files_tarfile(self, imageId, namespace, tarfile):
+        self._logger.debug("AnchoreDB: parent unimplemented: driver has not implemented this anchoreDB operation")
+        return(False)
+
     def load_files_namespaces(self, imageId):
         self._logger.debug("AnchoreDB: parent unimplemented: driver has not implemented this anchoreDB operation")
         return(False)
