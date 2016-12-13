@@ -32,6 +32,11 @@ triggers = {
     {
         'description':'triggers if the Dockerfile contains operations running with sudo',
         'params':'None'
+    },
+    'VOLUMEPRESENT':
+    {
+        'description':'triggers if the Dockerfile contains a VOLUME line',
+        'params':'None'
     }
 }
 
@@ -73,15 +78,20 @@ try:
             dockerfile_contents = ireport['dockerfile_contents']
             fromstr = None
             exposestr = None
+            volumestr = None
             sudostr = None
+
             for line in dockerfile_contents.splitlines():
                 line = line.strip()
                 if re.match("^\s*FROM\s+(.*)", line):
                     fromstr = re.match("^\s*FROM\s+(.*)", line).group(1)
                 elif re.match("^\s*EXPOSE\s+(.*)", line):
                     exposestr = re.match("^\s*EXPOSE\s+(.*)", line).group(1)
+                elif re.match("^\s*VOLUME\s+(.*)", line):
+                    volumestr = str(line)
                 elif re.match(".*sudo.*", line):
-                    sudostr = line
+                    sudostr = str(line)
+
 
             if fromstr:
                 if fromstr.lower() == 'scratch':
@@ -136,6 +146,9 @@ try:
 
                         for ip in iexpose:
                             outlist.append("EXPOSE Dockerfile exposes port ("+ip+") which is not in policy file ALLOWEDPORTS list")
+
+            if volumestr:
+                outlist.append("VOLUMEPRESENT Dockerfile contains a VOLUME line: " + str(volumestr))
 
             if sudostr:
                 outlist.append("SUDO Dockerfile contains a 'sudo' command: " + str(sudostr))
