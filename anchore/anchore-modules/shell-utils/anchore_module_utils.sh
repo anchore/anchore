@@ -60,6 +60,7 @@ function init_query_cmdline {
     if [ -f "${OUTPUTDIR}/image.env" -a -s "${OUTPUTDIR}/image.env" ]; then
 	export `cat ${OUTPUTDIR}/image.env`
     fi
+    rm -f ${OUTPUTDIR}/image.env
 
     export ANCHOREPARAMS="$4 $5 $6 $7 $8 $9 $10"
 

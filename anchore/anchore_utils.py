@@ -97,6 +97,8 @@ def init_gate_cmdline(argv, gate_name, gate_help={}):
 def init_query_cmdline(argv, paramhelp):
     ret = {}
 
+    logging.basicConfig(format='%(asctime)-15s %(levelname)s %(filename)s:%(funcName)s %(message)s', level='INFO')
+    
     if len(argv) == 2 and re.match(".*help.*", argv[1]):
         print paramhelp
         return (False)
