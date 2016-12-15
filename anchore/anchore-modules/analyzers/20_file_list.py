@@ -76,7 +76,7 @@ def rpm_check_file_membership_from_path(inpath, allfiles=None):
         if rfile not in realnonmatchfiles:
             matchfiles.append(rfile)
 
-    print "RESULT: " + str(len(matchfiles)) + " : " + str(len(realnonmatchfiles))
+    #print "RESULT: " + str(len(matchfiles)) + " : " + str(len(realnonmatchfiles))
     return(matchfiles, realnonmatchfiles)
 
 def dpkg_check_file_membership_from_path(inpath, allfiles=None):
@@ -108,6 +108,7 @@ def dpkg_check_file_membership_from_path(inpath, allfiles=None):
 
         except Exception as err:
             print str(err)
+
     except Exception as err:
         raise err
     #finally:
@@ -116,7 +117,7 @@ def dpkg_check_file_membership_from_path(inpath, allfiles=None):
 
     matchfiles = list(set(allfiles.keys()) - set(nonmatchfiles))
 
-    print "RESULT: " + str(len(matchfiles)) + " : " + str(len(nonmatchfiles))
+    #print "RESULT: " + str(len(matchfiles)) + " : " + str(len(nonmatchfiles))
 
     return(matchfiles, nonmatchfiles)
 
