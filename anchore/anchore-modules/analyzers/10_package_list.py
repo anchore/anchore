@@ -82,7 +82,10 @@ elif distrodict['flavor'] == 'ALPINE':
         apkgs = anchore.anchore_utils.apkg_get_all_pkgfiles(unpackdir)
         for pkg in apkgs.keys():
             # base
-            pkgsall[pkg] = apkgs[pkg]['version']
+            if apkgs[pkg]['release'] != "N/A":
+                pkgsall[pkg] = apkgs[pkg]['version']+"-"+apkgs[pkg]['release']
+            else:
+                pkgsall[pkg] = apkgs[pkg]['version']
 
             # pkgfiles
             for pkgfile in apkgs[pkg]['files']:

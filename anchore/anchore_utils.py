@@ -716,7 +716,7 @@ def apkg_get_all_pkgfiles(unpackdir):
                     (vers, rel) = vpatt.group(1, 2)
                 else:
                     vers = v
-                    rel = "N/A"
+                    rel = "N/A"                    
                 apkg['version'] = vers
                 apkg['release'] = rel
             elif k == 'm':
@@ -748,6 +748,28 @@ def apkg_get_all_pkgfiles(unpackdir):
 def dpkg_compare_versions(v1, op, v2):
     cmd = ['dpkg', '--compare-versions', v1, op, v2]
     return(subprocess.call(cmd))
+
+def apkg_compare_versions(v1, op, v2):
+
+    if op == 'eq':
+        if v1 == v2:
+            return(0);
+        else:
+            return(1);
+
+    elif op == 'lt':
+        if v1 < v2:
+            return(0)
+        else:
+            return(1)
+    elif op == 'gt':
+        if v1 > v2:
+            return(0)
+        else:
+            return(1)
+
+    _logger.error("invalid op specified in compare: " + str(op))
+    return(1)
 
 def dpkg_get_all_packages(unpackdir):
     actual_packages = {}
@@ -1228,6 +1250,14 @@ def cve_scanimages(images, pkgmap, flavor, cve_data):
                                         isvuln = True
                             else:
                                 isvuln = True
+                        
+                        elif flavor == "ALPINE":
+                            if vvers != "None":
+                                comp_rc = apkg_compare_versions(ivers, 'lt', vvers)
+                                if comp_rc == 0:
+                                    isvuln = True
+                            else:
+                                isvuln = True
 
                         if isvuln:
                             #print "cve-scan: Found vulnerable package: " + vpkg
@@ -1296,6 +1326,14 @@ def cve_scanimage(cve_data, image):
                                 comp_rc = dpkg_compare_versions(ivers, 'lt', vvers)
                                 if comp_rc == 0:
                                     isvuln = True
+                        else:
+                            isvuln = True
+
+                    elif flavor == "ALPINE":
+                        if vvers != "None":
+                            comp_rc = apkg_compare_versions(ivers, 'lt', vvers)
+                            if comp_rc == 0:
+                                isvuln = True
                         else:
                             isvuln = True
 
