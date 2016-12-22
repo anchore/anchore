@@ -656,8 +656,7 @@ def print_result(config, result, outputmode=None):
 #            print "</BODY></HTML>"
     return (True)
 
-def apkg_get_all_pkgfiles(unpackdir):
-    apkdb = '/'.join([unpackdir, 'rootfs/lib/apk/db/installed'])
+def apkg_parse_apkdb(apkdb):
     if not os.path.exists(apkdb):
         raise ValueError("cannot locate APK installed DB '"+str(apkdb)+"'")
         
@@ -744,6 +743,10 @@ def apkg_get_all_pkgfiles(unpackdir):
 
     FH.close()
     return(apkgs)
+
+def apkg_get_all_pkgfiles(unpackdir):
+    apkdb = '/'.join([unpackdir, 'rootfs/lib/apk/db/installed'])
+    return(apkg_parse_apkdb(apkdb))
 
 def dpkg_compare_versions(v1, op, v2):
     cmd = ['dpkg', '--compare-versions', v1, op, v2]

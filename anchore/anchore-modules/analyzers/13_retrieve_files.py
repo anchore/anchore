@@ -26,8 +26,8 @@ outputdir = config['dirs']['outputdir']
 unpackdir = config['dirs']['unpackdir']
 rootfsdir = '/'.join([unpackdir, 'rootfs'])
 
-if not os.path.exists(outputdir):
-    os.makedirs(outputdir)
+#if not os.path.exists(outputdir):
+#    os.makedirs(outputdir)
 
 files_to_get = list()
 if 'analyzer_config' in config and config['analyzer_config']:

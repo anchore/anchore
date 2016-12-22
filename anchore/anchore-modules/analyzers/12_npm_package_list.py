@@ -24,8 +24,8 @@ imgid = imgname
 outputdir = config['dirs']['outputdir']
 unpackdir = config['dirs']['unpackdir']
 
-if not os.path.exists(outputdir):
-    os.makedirs(outputdir)
+#if not os.path.exists(outputdir):
+#    os.makedirs(outputdir)
 
 pkglist = {}
 

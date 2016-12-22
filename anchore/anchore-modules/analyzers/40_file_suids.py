@@ -25,8 +25,8 @@ imgid = config['imgid_full']
 outputdir = config['dirs']['outputdir']
 unpackdir = config['dirs']['unpackdir']
 
-if not os.path.exists(outputdir):
-    os.makedirs(outputdir)
+#if not os.path.exists(outputdir):
+#    os.makedirs(outputdir)
 
 outfiles = {}
 
