@@ -721,7 +721,7 @@ def apkg_get_all_pkgfiles(unpackdir):
                 apkg['origin'] = v
             elif k == 'I':
                 apkg['size'] = v
-            elif k == 'L':
+            elif k == 'L' and v:
                 apkg['license'] = v
             elif k == 'o':
                 apkg['sourcepkg'] = v
