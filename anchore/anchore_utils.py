@@ -722,7 +722,7 @@ def apkg_parse_apkdb(apkdb):
                 apkg['origin'] = v
             elif k == 'I':
                 apkg['size'] = v
-            elif k == 'L':
+            elif k == 'L' and v:
                 apkg['license'] = v
             elif k == 'o':
                 apkg['sourcepkg'] = v
