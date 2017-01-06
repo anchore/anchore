@@ -476,6 +476,8 @@ def show():
                 s = str(o[k])
             print k+"='"+s+"'"
 
+        anchore_utils.normalize_packages(o["IMAGEID"])
+
     except:
         anchore_print_err("operation failed")
         ecode = 1

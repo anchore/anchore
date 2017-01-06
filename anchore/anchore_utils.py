@@ -1135,10 +1135,19 @@ def get_distro_flavor(distro, version, likedistro=None):
             if ret['flavor'] != 'Unknown':
                 break
 
-    (vmaj, vmin) = re.match("(\d*)\.*(\d*)", version).group(1,2)
-    if vmaj:
-        ret['version'] = vmaj
-        ret['likeversion'] = vmaj
+    patt = re.match("(\d*)\.*(\d*)", version)
+    if patt:
+        (vmaj, vmin) = patt.group(1,2)
+        if vmaj:
+            ret['version'] = vmaj
+            ret['likeversion'] = vmaj
+
+    patt = re.match("(\d+)\.*(\d+)\.*(\d+)", version)
+    if patt:
+        (vmaj, vmin, submin) = patt.group(1,2,3)
+        if vmaj and vmin:
+            ret['version'] = vmaj + "." + vmin
+            ret['likeversion'] = vmaj + "." + vmin
 
     return(ret)
 
@@ -1279,29 +1288,338 @@ def cve_scanimages(images, pkgmap, flavor, cve_data):
 
     return(results)
 
+def normalize_packages(imageId):
+    
+    distrometa = get_distro_from_imageId(imageId)
+    idistro = distrometa['DISTRO']
+    idistrovers = distrometa['DISTROVERS']
+    distrodict = get_distro_flavor(idistro, idistrovers)
+    flavor = distrodict['flavor']
+
+    ret = {
+        'bin_packages':{},
+        'bin_to_src':{},
+        'src_to_bin':{}
+    }
+
+    try:
+        all_packages_detail = load_analysis_output(imageId, 'package_list', 'pkgs.allinfo')
+        for pkg in all_packages_detail.keys():
+
+            try:
+                # copy package details
+                data = json.loads(all_packages_detail[pkg])
+                ret['bin_packages'][pkg] = {}
+                ret['bin_packages'][pkg].update(data)
+                if data['release'] and data['release'] != "N/A":
+                    ret['bin_packages'][pkg]['fullvers'] = data['version']+"-"+data['release']
+                else:
+                    ret['bin_packages'][pkg]['fullvers'] = data['version']
+
+                # map binary to source pkg
+                if pkg not in ret['bin_to_src']:
+                    ret['bin_to_src'][pkg] = []
+                spkg = re.sub("-"+data['version'], "", data['sourcepkg'])
+                ret['bin_to_src'][pkg].append(spkg)
+
+                # map source pkg to binary
+                if spkg not in ret['src_to_bin']:
+                    ret['src_to_bin'][spkg] = []
+                ret['src_to_bin'][spkg].append(pkg)
+            except Exception as err:
+                _logger.error("failed to normalize package: " + str(pkg) + " - exception: " + str(err))
+            
+        return(ret)
+    except Exception as err:
+        _logger.debug("no package detail analyzer output found, falling back to base package analyzer output")
+
+    try:
+        all_packages = load_analysis_output(imageId, 'package_list', 'pkgs.all')
+        for pkg in all_packages.keys():
+
+            if flavor == 'RHEL':
+                fname = pkg + '-' + all_packages[pkg] + '.tmparch.rpm'
+                (n,v,r,e,a) = splitFilename(fname)
+                el = {'version':v, 'release':r, 'fullvers':all_packages[pkg], 'type':'RPM', 'origin':"N/A", 'sourcepkg':"N/A", 'license':"N/A", 'arch':"N/A", 'size':"N/A"}
+                ret['bin_packages'][pkg] = el
+            elif flavor == 'DEB':
+                try:
+                    (v, r) = all_packages[pkg].split("-")
+                except:
+                    v = all_packages[pkg]
+                    r = None
+                    
+                if r:
+                    el = {'version':v, 'release':r, 'fullvers':all_packages[pkg], 'type':'DPKG', 'origin':"N/A", 'sourcepkg':"N/A", 'license':"N/A", 'arch':"N/A", 'size':"N/A"}
+                else:
+                    el = {'version':v, 'release':"", 'fullvers':all_packages[pkg], 'type':'DPKG', 'origin':"N/A", 'sourcepkg':"N/A", 'license':"N/A", 'arch':"N/A", 'size':"N/A"}
+
+                ret['bin_packages'][pkg] = el
+                pass
+            elif flavor == 'ALPINE':
+                try:
+                    (v, r) = all_packages[pkg].split("-")
+                except:
+                    v = all_packages[pkg]
+                    r = None
+                    
+                if r:
+                    el = {'version':v, 'release':r, 'fullvers':all_packages[pkg], 'type':'APKG', 'origin':"N/A", 'sourcepkg':"N/A", 'license':"N/A", 'arch':"N/A", 'size':"N/A"}
+                else:
+                    el = {'version':v, 'release':"", 'fullvers':all_packages[pkg], 'type':'APKG', 'origin':"N/A", 'sourcepkg':"N/A", 'license':"N/A", 'arch':"N/A", 'size':"N/A"}
+
+                ret['bin_packages'][pkg] = el
+
+                pass
+            else:
+                pass
+
+    except:
+        _logger.debug("no package data found, skipping")
+
+    try:
+        all_packages_plus_source = load_analysis_output(imageId, 'package_list', 'pkgs_plus_source.all')
+        for pkg in all_packages_plus_source.keys():
+            if pkg not in ret['bin_packages']:
+                svers = all_packages_plus_source[pkg]
+
+                for rpkg in ret['bin_packages'].keys():
+                    check_full = rpkg+"-"+all_packages_plus_source[pkg]
+                    if ret['bin_packages'][rpkg]['fullname'] == check_full:
+
+                        if rpkg not in ret['bin_to_src']:
+                            ret['bin_to_src'][rpkg] = []
+                        ret['bin_to_src'][rpkg].append(pkg)
+                        
+                        if pkg not in ret['src_to_bin']:
+                            ret['src_to_bin'][pkg] = []
+                        ret['src_to_bin'][pkg].append(rpkg)
+
+    except Exception as err:
+        _logger.debug("no source package data found, skipping")
+
+    return(ret)
+
 def cve_scanimage(cve_data, image):
     if not cve_data:
         return ({})
 
-    all_packages = load_analysis_output(image.meta['imageId'], 'package_list', 'pkgs.all')
-    pkgsplussource = load_analysis_output(image.meta['imageId'], 'package_list', 'pkgs_plus_source.all')
+    imageId = image.meta['imageId']
 
-    idistro = image.get_distro()
-    idistrovers = image.get_distro_vers()
+    #all_packages = load_analysis_output(imageId, 'package_list', 'pkgs.all')
+    #pkgsplussource = load_analysis_output(imageId, 'package_list', 'pkgs_plus_source.all')
 
+    distrometa = get_distro_from_imageId(imageId)
+    idistro = distrometa['DISTRO']
+    idistrovers = distrometa['DISTROVERS']
     distrodict = get_distro_flavor(idistro, idistrovers)
-
     flavor = distrodict['flavor']
+    
+    norm_packages = normalize_packages(imageId)
 
-    for p in pkgsplussource.keys():
-        if p not in all_packages:
-            all_packages[p] = pkgsplussource[p]
+#    for p in pkgsplussource.keys():
+#        if p not in all_packages:
+#            all_packages[p] = pkgsplussource[p]
 
     results = {}
     for v in cve_data:
         outel = {}
         vuln = v['Vulnerability']
         #print "cve-scan: CVE: " + vuln['Name']
+        if 'VulnerableIn' in vuln:
+            for vulns in vuln['VulnerableIn']:
+                isvuln = False
+                vpkg = vulns['Name']
+
+                docheck = False
+                
+                if vpkg in norm_packages['bin_packages']:
+                    ivers = norm_packages['bin_packages'][vpkg]['fullvers']
+                    #ivers = all_packages[vulns['Name']]
+                    vvers = re.sub(r'^[0-9]*:', '', vulns['Version'])
+                    #print "\t"+ivers+" : "+vvers
+                    if flavor == "ALPINE":
+                        if vvers == 'all':
+                            isvuln = True
+                        elif vvers != "None":
+                            comp_rc = apkg_compare_versions(ivers, 'eq', vvers)
+                            if comp_rc == 0:
+                                isvuln = True
+                        else:
+                            isvuln = True
+
+                    if isvuln:
+                        severity = url = description = 'Not Available'
+                        if 'Severity' in vuln:
+                            severity = vuln['Severity']
+                        if 'Link' in vuln:
+                            url = vuln['Link']
+                        if 'Description' in vuln:
+                            description = vuln['Description']
+                        
+                        outel = {'pkgName': vpkg, 'imageVers': ivers, 'fixVers': "None", 'severity': severity, 'url': url, 'description': description}
+                if outel:
+                    results[vuln['Name']] = outel
+
+        if 'FixedIn' in vuln:
+            for fixes in vuln['FixedIn']:
+                isvuln = False
+                vpkgname = fixes['Name']
+                #print "cve-scan: Vulnerable Package: " + vpkgname
+
+                if vpkgname in norm_packages['bin_packages']:
+                    ivers = norm_packages['bin_packages'][vpkgname]['fullvers']
+                    #realpkgname = vpkgname
+                    vpkgs = [vpkgname]
+
+                elif vpkgname in norm_packages['src_to_bin']:
+                    bpkg = norm_packages['src_to_bin'][vpkgname][0]
+                    ivers = norm_packages['bin_packages'][bpkg]['fullvers']
+                    vpkgs = norm_packages['src_to_bin'][vpkgname]
+                    #realpkgname = ' '.join( [ x+"-"+ivers for x in norm_packages['src_to_bin'][vpkgname] ] )
+                    #vpkgs = [vpkgname]
+                    #print "HERE : " + realpkgname
+
+                else:
+                    vpkgs = []
+                    pass
+
+                for vpkg in vpkgs:
+                    #ivers = all_packages[fixes['Name']]
+                    vvers = re.sub(r'^[0-9]*:', '', fixes['Version'])
+                    # print "cve-scan: " + vpkg + "\n\tfixed vulnerability package version: " + vvers + "\n\timage package version: " + ivers
+
+                    if flavor == 'RHEL':
+                        if vvers != 'None':
+                            fixfile = vpkg + "-" + vvers + ".arch.rpm"
+                            imagefile = vpkg + "-" + ivers + ".arch.rpm"
+                            (n1, v1, r1, e1, a1) = splitFilename(imagefile)
+                            (n2, v2, r2, e2, a2) = splitFilename(fixfile)
+                            if rpm.labelCompare(('1', v1, r1), ('1', v2, r2)) < 0:
+                                isvuln = True
+                        else:
+                            isvuln = True
+
+                    elif flavor == 'DEB':
+                        if vvers != 'None':
+                            if ivers != vvers:
+                                comp_rc = dpkg_compare_versions(ivers, 'lt', vvers)
+                                if comp_rc == 0:
+                                    isvuln = True
+                        else:
+                            isvuln = True
+
+                    elif flavor == "ALPINE":
+                        if vvers != "None":
+                            comp_rc = apkg_compare_versions(ivers, 'lt', vvers)
+                            if comp_rc == 0:
+                                isvuln = True
+                        else:
+                            isvuln = True
+
+                    if isvuln:
+                        #print "cve-scan: Found vulnerable package: " + vpkg
+                        severity = url = description = 'Not Available'
+                        if 'Severity' in vuln:
+                            severity = vuln['Severity']
+                        if 'Link' in vuln:
+                            url = vuln['Link']
+                        if 'Description' in vuln:
+                            description = vuln['Description']
+                        
+                        outel = {'pkgName': vpkg, 'imageVers': ivers, 'fixVers': vvers, 'severity': severity, 'url': url, 'description': description}
+
+                    if outel:
+                        if vuln['Name'] not in results:
+                            results[vuln['Name']] = []
+                        
+                        results[vuln['Name']].append(outel)
+
+    return (results)
+
+def cve_scanimage_orig(cve_data, image):
+    if not cve_data:
+        return ({})
+
+    imageId = image.meta['imageId']
+
+    all_packages = load_analysis_output(imageId, 'package_list', 'pkgs.all')
+    pkgsplussource = load_analysis_output(imageId, 'package_list', 'pkgs_plus_source.all')
+
+
+    distrometa = get_distro_from_imageId(imageId)
+    idistro = distrometa['DISTRO']
+    idistrovers = distrometa['DISTROVERS']
+    distrodict = get_distro_flavor(idistro, idistrovers)
+    flavor = distrodict['flavor']
+    
+    norm_packages = normalize_packages(imageId)
+    print norm_packages
+
+#    for p in pkgsplussource.keys():
+#        if p not in all_packages:
+#            all_packages[p] = pkgsplussource[p]
+
+    try:
+        all_packages_detail = load_analysis_output(image.meta['imageId'], 'package_list', 'pkgs.allinfo')
+        
+        for p in all_packages_detail.keys():
+            el =  json.loads(all_packages_detail[p])
+            if 'sourcepkg' in el:
+                spkg = el['sourcepkg']
+                svers = el['version']
+                spkg = re.sub(re.escape("-"+svers), "", spkg)
+                if spkg not in all_packages:
+            
+                    print "ADDING: " + str(spkg)
+                    all_packages[spkg] = svers
+                    print "\t"+str(all_packages[spkg])
+
+
+    except Exception as err:
+        import traceback 
+        traceback.print_exc()
+        print str(err)
+
+    results = {}
+    for v in cve_data:
+        outel = {}
+        vuln = v['Vulnerability']
+        #print "cve-scan: CVE: " + vuln['Name']
+        if 'VulnerableIn' in vuln:
+            for vulns in vuln['VulnerableIn']:
+                isvuln = False
+                vpkg = vulns['Name']
+                if vpkg in all_packages:
+                    print vulns
+                    
+                    ivers = all_packages[vulns['Name']]
+                    vvers = re.sub(r'^[0-9]*:', '', vulns['Version'])
+                    print "\t"+ivers+" : "+vvers
+                    if flavor == "ALPINE":
+                        if vvers == 'all':
+                            isvuln = True
+                        elif vvers != "None":
+                            comp_rc = apkg_compare_versions(ivers, 'eq', vvers)
+                            if comp_rc == 0:
+                                isvuln = True
+                        else:
+                            isvuln = True
+
+                    if isvuln:
+                        #print "cve-scan: Found vulnerable package: " + vpkg
+                        severity = url = description = 'Not Available'
+                        if 'Severity' in vuln:
+                            severity = vuln['Severity']
+                        if 'Link' in vuln:
+                            url = vuln['Link']
+                        if 'Description' in vuln:
+                            description = vuln['Description']
+                        
+                        outel = {'pkgName': vpkg, 'imageVers': ivers, 'fixVers': "None", 'severity': severity, 'url': url, 'description': description}
+                if outel:
+                    results[vuln['Name']] = outel
+
         if 'FixedIn' in vuln:
             for fixes in vuln['FixedIn']:
                 isvuln = False

@@ -83,9 +83,19 @@ elif distrodict['flavor'] == 'ALPINE':
         for pkg in apkgs.keys():
             # base
             if apkgs[pkg]['release'] != "N/A":
-                pkgsall[pkg] = apkgs[pkg]['version']+"-"+apkgs[pkg]['release']
+                pvers = apkgs[pkg]['version']+"-"+apkgs[pkg]['release']
+                #pkgsall[pkg] = apkgs[pkg]['version']+"-"+apkgs[pkg]['release']
             else:
-                pkgsall[pkg] = apkgs[pkg]['version']
+                pvers = apkgs[pkg]['version']
+                #pkgsall[pkg] = apkgs[pkg]['version']
+            pkgsall[pkg] = pvers
+            pkgsplussource[pkg] = pvers
+
+            # source package
+            if 'sourcepkg' in apkgs[pkg] and apkgs[pkg]['sourcepkg']:
+                spkg = apkgs[pkg]['sourcepkg']
+                if spkg != pkg and spkg not in pkgsplussource:
+                    pkgsplussource[spkg] = pvers
 
             # pkgfiles
             for pkgfile in apkgs[pkg]['files']:
