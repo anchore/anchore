@@ -13,6 +13,8 @@ import io
 import tarfile
 import urllib
 import hashlib
+import random
+import traceback
 
 from stat import *
 from prettytable import PrettyTable
@@ -25,6 +27,7 @@ import anchore_image, anchore_image_db
 from configuration import AnchoreConfiguration
 from anchore.util import contexts, scripting
 import anchore_auth
+import anchore_feeds
 
 _logger = logging.getLogger(__name__)
 
@@ -55,16 +58,14 @@ def init_analyzer_cmdline(argv, name):
     ret['anchore_config'] = anchore_conf.data
 
     ret['name'] = name
-    import hashlib
+
     FH=open(argv[0], 'r')
     ret['selfcsum'] = hashlib.md5(FH.read()).hexdigest()
     FH.close()
     ret['imgid'] = argv[1]
 
     fullid = discover_imageId(argv[1])
-    #if len(fullid.keys()) > 0:
     if fullid:
-        #ret['imgid_full'] = fullid.keys()[0]
         ret['imgid_full'] = fullid
     else:
         ret['imgid_full'] = ret['imgid']
@@ -188,7 +189,6 @@ def anchore_common_context_setup(config):
         contexts['anchore_db'] = anchore_image_db.load(driver=config['anchore_db_driver'], config=config)
 
     if 'anchore_auth' not in contexts or not contexts['anchore_auth']:
-        #aafile = os.path.join(config['anchore_data_dir'], "conf", "anchore_auth.json")
         aafile = os.path.join(config.config_dir, "anchore_auth.json")
         username = config.DEFAULT_ANON_ANCHORE_USERNAME
         password = config.DEFAULT_ANON_ANCHORE_PASSWORD
@@ -262,7 +262,7 @@ def load_analysis_output(imageId, module_name, module_value):
     if ret: return(ret)
     ret = contexts['anchore_db'].load_analysis_output(imageId, module_name, module_value)
     if ret: return(ret)
-    #return(contexts['anchore_db'].load_analysis_output(imageId, module_name, module_value))
+
     return(ret)
 
 def load_gate_output(imageId, gate_name):
@@ -338,7 +338,6 @@ def is_intermediate_image(imageId, image_report=None):
     return(True)
 
 def make_anchoretmpdir(tmproot):
-    import random
     tmpdir = '/'.join([tmproot, str(random.randint(0, 9999999)) + ".anchoretmp"])
     try:
         os.makedirs(tmpdir)
@@ -390,7 +389,6 @@ def discover_from_info(dockerfile_contents):
             fromid = fromline
         else:
             try:
-                #fromid = discover_imageId(fromline).keys()[0]
                 fromid = discover_imageId(fromline)
             except:
                 fromid = None
@@ -1152,7 +1150,6 @@ def get_distro_flavor(distro, version, likedistro=None):
     return(ret)
 
 def cve_load_data_imageId(imageId, cve_data_context=None):
-    import anchore_feeds
     cve_data = None
     
     distrometa = get_distro_from_imageId(imageId)
@@ -1189,40 +1186,44 @@ def cve_load_data_imageId(imageId, cve_data_context=None):
     return (dstr, cve_data)
 
 def cve_load_data(image, cve_data_context=None):
-    import anchore_feeds
+
     cve_data = None
+    imageId = image.meta['imageId']
 
-    idistro = image.get_distro()
-    idistrovers = image.get_distro_vers()
+    (dst, ret) = cve_load_data_imageId(imageId, cve_data_context=cve_data_context)
 
-    distrodict = get_distro_flavor(idistro, idistrovers)
+    return(ret)
 
-    distro = distrodict['distro']
-    distrovers = distrodict['version']
-    likedistro = distrodict['likedistro']
-    likeversion = distrodict['likeversion']
-    fulldistro = distrodict['distro']
-    fullversion = distrodict['fullversion']
+#    idistro = image.get_distro()
+#    idistrovers = image.get_distro_vers()
+
+#    distrodict = get_distro_flavor(idistro, idistrovers)
+
+#    distro = distrodict['distro']
+#    distrovers = distrodict['version']
+#    likedistro = distrodict['likedistro']
+#    likeversion = distrodict['likeversion']
+#    fulldistro = distrodict['distro']
+#    fullversion = distrodict['fullversion']
     
-    distrolist = [(distro,distrovers), (likedistro, likeversion), (fulldistro, fullversion)]
+#    distrolist = [(distro,distrovers), (likedistro, likeversion), (fulldistro, fullversion)]
+#    for f in distrolist:
+#        dstr = ':'.join([f[0], f[1]])
+#        if cve_data_context and dstr in cve_data_context:
+#            cve_data = cve_data_context[dstr]
+#            break
+#        else:
+#            feeddata = anchore_feeds.load_anchore_feed('vulnerabilities', ':'.join([f[0], f[1]]))
+#            if feeddata['success']:
+#                cve_data = feeddata['data']
+#                if cve_data_context != None and dstr not in cve_data_context:
+#                    cve_data_context[dstr] = cve_data
+#                break
 
-    for f in distrolist:
-        dstr = ':'.join([f[0], f[1]])
-        if cve_data_context and dstr in cve_data_context:
-            cve_data = cve_data_context[dstr]
-            break
-        else:
-            feeddata = anchore_feeds.load_anchore_feed('vulnerabilities', ':'.join([f[0], f[1]]))
-            if feeddata['success']:
-                cve_data = feeddata['data']
-                if cve_data_context != None and dstr not in cve_data_context:
-                    cve_data_context[dstr] = cve_data
-                break
+#    if not cve_data:
+#        raise ValueError("cannot find CVE data associated with the input container distro: ("+str(distrolist)+")")
 
-    if not cve_data:
-        raise ValueError("cannot find CVE data associated with the input container distro: ("+str(distrolist)+")")
-
-    return (cve_data)
+#    return (cve_data)
 
 def cve_scanimages(images, pkgmap, flavor, cve_data):
     results = {}
@@ -1319,7 +1320,14 @@ def normalize_packages(imageId):
                 # map binary to source pkg
                 if pkg not in ret['bin_to_src']:
                     ret['bin_to_src'][pkg] = []
-                spkg = re.sub("-"+data['version'], "", data['sourcepkg'])
+
+                # need to clean out/remove the "+b[0-9]+" from DEBs
+                if flavor == 'DEB':
+                    cleanvers = re.sub(re.escape("+b")+"\d+.*", "", data['version'])
+                    spkg = re.sub(re.escape("-"+cleanvers), "", data['sourcepkg'])
+                else:
+                    spkg = re.sub(re.escape("-"+data['version'])+".*", "", data['sourcepkg'])
+
                 ret['bin_to_src'][pkg].append(spkg)
 
                 # map source pkg to binary
@@ -1327,7 +1335,8 @@ def normalize_packages(imageId):
                     ret['src_to_bin'][spkg] = []
                 ret['src_to_bin'][spkg].append(pkg)
             except Exception as err:
-                _logger.error("failed to normalize package: " + str(pkg) + " - exception: " + str(err))
+                errmsg = "failed to normalize package: " + str(pkg) + " - exception: " + str(err)
+                _logger.error(errmsg)
             
         return(ret)
     except Exception as err:
@@ -1355,7 +1364,6 @@ def normalize_packages(imageId):
                     el = {'version':v, 'release':"", 'fullvers':all_packages[pkg], 'type':'DPKG', 'origin':"N/A", 'sourcepkg':"N/A", 'license':"N/A", 'arch':"N/A", 'size':"N/A"}
 
                 ret['bin_packages'][pkg] = el
-                pass
             elif flavor == 'ALPINE':
                 try:
                     (v, r) = all_packages[pkg].split("-")
@@ -1370,7 +1378,6 @@ def normalize_packages(imageId):
 
                 ret['bin_packages'][pkg] = el
 
-                pass
             else:
                 pass
 
@@ -1400,289 +1407,136 @@ def normalize_packages(imageId):
 
     return(ret)
 
-def cve_scanimage(cve_data, image):
+def cve_scanimage(cve_data, imageId):
     if not cve_data:
         return ({})
-
-    imageId = image.meta['imageId']
-
-    #all_packages = load_analysis_output(imageId, 'package_list', 'pkgs.all')
-    #pkgsplussource = load_analysis_output(imageId, 'package_list', 'pkgs_plus_source.all')
-
-    distrometa = get_distro_from_imageId(imageId)
-    idistro = distrometa['DISTRO']
-    idistrovers = distrometa['DISTROVERS']
-    distrodict = get_distro_flavor(idistro, idistrovers)
-    flavor = distrodict['flavor']
-    
-    norm_packages = normalize_packages(imageId)
-
-#    for p in pkgsplussource.keys():
-#        if p not in all_packages:
-#            all_packages[p] = pkgsplussource[p]
-
-    results = {}
-    for v in cve_data:
-        outel = {}
-        vuln = v['Vulnerability']
-        #print "cve-scan: CVE: " + vuln['Name']
-        if 'VulnerableIn' in vuln:
-            for vulns in vuln['VulnerableIn']:
-                isvuln = False
-                vpkg = vulns['Name']
-
-                docheck = False
-                
-                if vpkg in norm_packages['bin_packages']:
-                    ivers = norm_packages['bin_packages'][vpkg]['fullvers']
-                    #ivers = all_packages[vulns['Name']]
-                    vvers = re.sub(r'^[0-9]*:', '', vulns['Version'])
-                    #print "\t"+ivers+" : "+vvers
-                    if flavor == "ALPINE":
-                        if vvers == 'all':
-                            isvuln = True
-                        elif vvers != "None":
-                            comp_rc = apkg_compare_versions(ivers, 'eq', vvers)
-                            if comp_rc == 0:
-                                isvuln = True
-                        else:
-                            isvuln = True
-
-                    if isvuln:
-                        severity = url = description = 'Not Available'
-                        if 'Severity' in vuln:
-                            severity = vuln['Severity']
-                        if 'Link' in vuln:
-                            url = vuln['Link']
-                        if 'Description' in vuln:
-                            description = vuln['Description']
-                        
-                        outel = {'pkgName': vpkg, 'imageVers': ivers, 'fixVers': "None", 'severity': severity, 'url': url, 'description': description}
-                if outel:
-                    results[vuln['Name']] = outel
-
-        if 'FixedIn' in vuln:
-            for fixes in vuln['FixedIn']:
-                isvuln = False
-                vpkgname = fixes['Name']
-                #print "cve-scan: Vulnerable Package: " + vpkgname
-
-                if vpkgname in norm_packages['bin_packages']:
-                    ivers = norm_packages['bin_packages'][vpkgname]['fullvers']
-                    #realpkgname = vpkgname
-                    vpkgs = [vpkgname]
-
-                elif vpkgname in norm_packages['src_to_bin']:
-                    bpkg = norm_packages['src_to_bin'][vpkgname][0]
-                    ivers = norm_packages['bin_packages'][bpkg]['fullvers']
-                    vpkgs = norm_packages['src_to_bin'][vpkgname]
-                    #realpkgname = ' '.join( [ x+"-"+ivers for x in norm_packages['src_to_bin'][vpkgname] ] )
-                    #vpkgs = [vpkgname]
-                    #print "HERE : " + realpkgname
-
-                else:
-                    vpkgs = []
-                    pass
-
-                for vpkg in vpkgs:
-                    #ivers = all_packages[fixes['Name']]
-                    vvers = re.sub(r'^[0-9]*:', '', fixes['Version'])
-                    # print "cve-scan: " + vpkg + "\n\tfixed vulnerability package version: " + vvers + "\n\timage package version: " + ivers
-
-                    if flavor == 'RHEL':
-                        if vvers != 'None':
-                            fixfile = vpkg + "-" + vvers + ".arch.rpm"
-                            imagefile = vpkg + "-" + ivers + ".arch.rpm"
-                            (n1, v1, r1, e1, a1) = splitFilename(imagefile)
-                            (n2, v2, r2, e2, a2) = splitFilename(fixfile)
-                            if rpm.labelCompare(('1', v1, r1), ('1', v2, r2)) < 0:
-                                isvuln = True
-                        else:
-                            isvuln = True
-
-                    elif flavor == 'DEB':
-                        if vvers != 'None':
-                            if ivers != vvers:
-                                comp_rc = dpkg_compare_versions(ivers, 'lt', vvers)
-                                if comp_rc == 0:
-                                    isvuln = True
-                        else:
-                            isvuln = True
-
-                    elif flavor == "ALPINE":
-                        if vvers != "None":
-                            comp_rc = apkg_compare_versions(ivers, 'lt', vvers)
-                            if comp_rc == 0:
-                                isvuln = True
-                        else:
-                            isvuln = True
-
-                    if isvuln:
-                        #print "cve-scan: Found vulnerable package: " + vpkg
-                        severity = url = description = 'Not Available'
-                        if 'Severity' in vuln:
-                            severity = vuln['Severity']
-                        if 'Link' in vuln:
-                            url = vuln['Link']
-                        if 'Description' in vuln:
-                            description = vuln['Description']
-                        
-                        outel = {'pkgName': vpkg, 'imageVers': ivers, 'fixVers': vvers, 'severity': severity, 'url': url, 'description': description}
-
-                    if outel:
-                        if vuln['Name'] not in results:
-                            results[vuln['Name']] = []
-                        
-                        results[vuln['Name']].append(outel)
-
-    return (results)
-
-def cve_scanimage_orig(cve_data, image):
-    if not cve_data:
-        return ({})
-
-    imageId = image.meta['imageId']
-
-    all_packages = load_analysis_output(imageId, 'package_list', 'pkgs.all')
-    pkgsplussource = load_analysis_output(imageId, 'package_list', 'pkgs_plus_source.all')
-
-
-    distrometa = get_distro_from_imageId(imageId)
-    idistro = distrometa['DISTRO']
-    idistrovers = distrometa['DISTROVERS']
-    distrodict = get_distro_flavor(idistro, idistrovers)
-    flavor = distrodict['flavor']
-    
-    norm_packages = normalize_packages(imageId)
-    print norm_packages
-
-#    for p in pkgsplussource.keys():
-#        if p not in all_packages:
-#            all_packages[p] = pkgsplussource[p]
 
     try:
-        all_packages_detail = load_analysis_output(image.meta['imageId'], 'package_list', 'pkgs.allinfo')
-        
-        for p in all_packages_detail.keys():
-            el =  json.loads(all_packages_detail[p])
-            if 'sourcepkg' in el:
-                spkg = el['sourcepkg']
-                svers = el['version']
-                spkg = re.sub(re.escape("-"+svers), "", spkg)
-                if spkg not in all_packages:
-            
-                    print "ADDING: " + str(spkg)
-                    all_packages[spkg] = svers
-                    print "\t"+str(all_packages[spkg])
-
-
+        distrometa = get_distro_from_imageId(imageId)
+        idistro = distrometa['DISTRO']
+        idistrovers = distrometa['DISTROVERS']
+        distrodict = get_distro_flavor(idistro, idistrovers)
+        flavor = distrodict['flavor']
     except Exception as err:
-        import traceback 
-        traceback.print_exc()
-        print str(err)
+        print "cve-scan: could not determin image distro: returning empty value"
+        return({})
+    
+    norm_packages = normalize_packages(imageId)
+    if 'bin_packages' not in norm_packages or not norm_packages['bin_packages']:
+        return({})
 
     results = {}
     for v in cve_data:
-        outel = {}
+
         vuln = v['Vulnerability']
         #print "cve-scan: CVE: " + vuln['Name']
-        if 'VulnerableIn' in vuln:
-            for vulns in vuln['VulnerableIn']:
-                isvuln = False
-                vpkg = vulns['Name']
-                if vpkg in all_packages:
-                    print vulns
-                    
-                    ivers = all_packages[vulns['Name']]
-                    vvers = re.sub(r'^[0-9]*:', '', vulns['Version'])
-                    print "\t"+ivers+" : "+vvers
-                    if flavor == "ALPINE":
-                        if vvers == 'all':
-                            isvuln = True
-                        elif vvers != "None":
-                            comp_rc = apkg_compare_versions(ivers, 'eq', vvers)
-                            if comp_rc == 0:
-                                isvuln = True
-                        else:
-                            isvuln = True
-
-                    if isvuln:
-                        #print "cve-scan: Found vulnerable package: " + vpkg
-                        severity = url = description = 'Not Available'
-                        if 'Severity' in vuln:
-                            severity = vuln['Severity']
-                        if 'Link' in vuln:
-                            url = vuln['Link']
-                        if 'Description' in vuln:
-                            description = vuln['Description']
-                        
-                        outel = {'pkgName': vpkg, 'imageVers': ivers, 'fixVers': "None", 'severity': severity, 'url': url, 'description': description}
-                if outel:
-                    results[vuln['Name']] = outel
-
+        
+        fixedIn = {}
         if 'FixedIn' in vuln:
             for fixes in vuln['FixedIn']:
-                isvuln = False
-                vpkg = fixes['Name']
-                #print "cve-scan: Vulnerable Package: " + vpkg
-                if vpkg in all_packages:
-                    ivers = all_packages[fixes['Name']]
+                vpkgname = fixes['Name']
+                fixVers = re.sub(r'^[0-9]*:', '', fixes['Version'])
+                fixedIn[vpkgname] = fixVers
+
+        if 'VulnerableIn' in vuln:
+            for vulns in vuln['VulnerableIn']:
+                vpkgname = vulns['Name']
+                vulnVers = re.sub(r'^[0-9]*:', '', vulns['Version'])
+                if vpkgname not in fixedIn:
+                    fixedIn[vpkgname] = "None"
+
+        for vtag in ['FixedIn', 'VulnerableIn']:
+            if vtag in vuln:
+                for fixes in vuln[vtag]:
+                    vpkgname = fixes['Name']
                     vvers = re.sub(r'^[0-9]*:', '', fixes['Version'])
-                    #print "cve-scan: " + vpkg + "\n\tfixed vulnerability package version: " + vvers + "\n\timage package version: " + ivers
 
-                    if flavor == 'RHEL':
-                        if vvers != 'None':
-                            fixfile = vpkg + "-" + vvers + ".arch.rpm"
-                            imagefile = vpkg + "-" + ivers + ".arch.rpm"
-                            (n1, v1, r1, e1, a1) = splitFilename(imagefile)
-                            (n2, v2, r2, e2, a2) = splitFilename(fixfile)
-                            if rpm.labelCompare(('1', v1, r1), ('1', v2, r2)) < 0:
-                                isvuln = True
+                    fixVers = fixedIn[vpkgname]
+
+                    vpkgs = []
+                    ivers = iversonly = irelonly = None
+
+                    #print "cve-scan: Vulnerable Package: " + vpkgname
+
+                    if vpkgname in norm_packages['bin_packages']:
+                        ivers = norm_packages['bin_packages'][vpkgname]['fullvers']
+                        iversonly = norm_packages['bin_packages'][vpkgname]['version']
+                        irelonly = norm_packages['bin_packages'][vpkgname]['release']
+                        vpkgs = [vpkgname]
+                    elif vpkgname in norm_packages['src_to_bin']:
+                        bpkg = norm_packages['src_to_bin'][vpkgname][0]
+                        ivers = norm_packages['bin_packages'][bpkg]['fullvers']
+                        iversonly = norm_packages['bin_packages'][bpkg]['version']
+                        irelonly = norm_packages['bin_packages'][bpkg]['release']
+                        vpkgs = norm_packages['src_to_bin'][vpkgname]
+                    else:
+                        # cve vuln package cannot be mapped to anything installed
+                        pass
+
+
+                    # go through all found packages that mapped to the CVE vul package to check versions for vulnerability
+                    for vpkg in vpkgs:
+                        isvuln = False
+
+                        #print "cve-scan: " + vpkg + "\n\tvulnerability package version: " + vvers + "\n\timage package version: " + ivers
+
+                        if vtag == 'VulnerableIn' and vvers == 'all':
+                            isvuln = True
+                        elif vvers != 'None':
+                            if flavor == 'RHEL':
+                                fixfile = vpkg + "-" + vvers + ".arch.rpm"
+                                imagefile = vpkg + "-" + ivers + ".arch.rpm"
+                                (n1, v1, r1, e1, a1) = splitFilename(imagefile)
+                                (n2, v2, r2, e2, a2) = splitFilename(fixfile)
+                                if vtag == 'FixedIn':
+                                    if rpm.labelCompare(('1', v1, r1), ('1', v2, r2)) < 0:
+                                        isvuln = True
+                                elif vtag == 'VulnerableIn':
+                                    if ivers == vvers or iversonly == vvers:
+                                        isvuln = True
+
+                            elif flavor == 'DEB':
+                                if vtag == 'FixedIn':
+                                    if ivers != vvers:
+                                        comp_rc = dpkg_compare_versions(ivers, 'lt', vvers)
+                                        if comp_rc == 0:
+                                            isvuln = True
+                                elif vtag == 'VulnerableIn':
+                                    if ivers == vvers or iversonly == vvers:
+                                        isvuln = True
+
+                            elif flavor == "ALPINE":
+                                if vtag == 'FixedIn':
+                                    comp_rc = apkg_compare_versions(ivers, 'lt', vvers)
+                                    if comp_rc == 0:
+                                        isvuln = True
+                                elif vtag == 'VulnerableIn':
+                                    if ivers == vvers or iversonly == vvers:
+                                        isvuln = True
                         else:
                             isvuln = True
 
-                    elif flavor == 'DEB':
-                        if vvers != 'None':
-                            if ivers != vvers:
-                                comp_rc = dpkg_compare_versions(ivers, 'lt', vvers)
-                                if comp_rc == 0:
-                                    isvuln = True
-                        else:
-                            isvuln = True
+                        # finally - format and add result to return dict if vulnerability has been determined
 
-                    elif flavor == "ALPINE":
-                        if vvers != "None":
-                            comp_rc = apkg_compare_versions(ivers, 'lt', vvers)
-                            if comp_rc == 0:
-                                isvuln = True
-                        else:
-                            isvuln = True
+                        if isvuln:
+                            #print "cve-scan: Found vulnerable package: " + vpkg
 
-                    if isvuln:
-                        #print "cve-scan: Found vulnerable package: " + vpkg
-                        severity = url = description = 'Not Available'
-                        if 'Severity' in vuln:
-                            severity = vuln['Severity']
-                        if 'Link' in vuln:
-                            url = vuln['Link']
-                        if 'Description' in vuln:
-                            description = vuln['Description']
-                        
-                        outel = {'pkgName': vpkg, 'imageVers': ivers, 'fixVers': vvers, 'severity': severity, 'url': url, 'description': description}
-                if outel:
-                    results[vuln['Name']] = outel
+                            severity = url = description = 'Not Available'
+                            if 'Severity' in vuln:
+                                severity = vuln['Severity']
+                            if 'Link' in vuln:
+                                url = vuln['Link']
+                            if 'Description' in vuln:
+                                description = vuln['Description']
+
+                            outel = {'pkgName': vpkg, 'imageVers': ivers, 'fixVers': fixVers, 'severity': severity, 'url': url, 'description': description}
+
+                            if vuln['Name'] not in results:
+                                results[vuln['Name']] = []
+                            if outel not in results[vuln['Name']]:
+                                results[vuln['Name']].append(outel)
+
     return (results)
-
-
-def cve_get_fixpkg(cve_data, cveId):
-    retlist = list()
-    for v in cve_data:
-        vuln = v['Vulnerability']
-        if cveId == vuln['Name']:
-            if 'FixedIn' in vuln:
-                for p in vuln['FixedIn']:
-                    retlist.append(p['Name'])
-    return (retlist)
 
 def image_context_add(imagelist, allimages, docker_cli=None, dockerfile=None, anchore_datadir=None, tmproot='/tmp', anchore_db=None, docker_images=None, must_be_analyzed=False, usertype=None, must_load_all=False):
     retlist = list()
@@ -1697,7 +1551,6 @@ def image_context_add(imagelist, allimages, docker_cli=None, dockerfile=None, an
                 newimage = anchore_image.AnchoreImage(i, anchore_datadir, docker_cli=docker_cli, allimages=allimages, dockerfile=dockerfile, tmpdirroot=tmproot, usertype=usertype, anchore_db=anchore_db, docker_images=docker_images)
             except Exception as err:
                 if must_load_all:
-                    import traceback
                     traceback.print_exc()
                     errorstr = "Could not load/initialize all input images.\n" + "\tImage: " + str(i) + "\n\tInfo: " + str(err.message)
                     raise Exception(errorstr)
@@ -1918,7 +1771,6 @@ def run_command_in_container(image=None, cmd="echo HELLO WORLD", fileget=None, f
                 TFH.close()
                 docker_cli.put_archive(container.get('Id'), "/", dat)
             except Exception as err:
-                import traceback
                 traceback.print_exc()
                 print str(err)
                 pass
@@ -2076,7 +1928,6 @@ def get_files_from_path(inpath):
                     newfmap[oname].update(newfmap[mname])
 
     except Exception as err:
-        import traceback
         traceback.print_exc()
         print str(err)
         pass

@@ -66,7 +66,7 @@ cvedirroot = '/'.join([config['anchore_config']['image_data_store'], "../cve-dat
 try:
     image = anchore_image.AnchoreImage(imgid, config['anchore_config']['image_data_store'], {})
     cve_data = anchore.anchore_utils.cve_load_data(image)
-    report = anchore.anchore_utils.cve_scanimage(cve_data, image)
+    report = anchore.anchore_utils.cve_scanimage(cve_data, imgid)
 except Exception as err:
     import traceback
     traceback.print_exc()
@@ -78,23 +78,24 @@ except Exception as err:
 
 outlist = list()
 for k in report.keys():
-    vuln = report[k]
-    cve = k
-    pkg = vuln['pkgName']
-    sev = vuln['severity']
-    url = vuln['url']
-    if sev == 'Low':
-        t = "VULNLOW"
-    elif sev == 'Medium':
-        t = "VULNMEDIUM"
-    elif sev == "High":
-        t = "VULNHIGH"
-    elif sev == "Critical":
-        t = "VULNCRITICAL"
-    else:
-        t = "VULNUNKNOWN"
+    for cvepkg in report[k]:
+        vuln = cvepkg
+        cve = k
+        pkg = vuln['pkgName']
+        sev = vuln['severity']
+        url = vuln['url']
+        if sev == 'Low':
+            t = "VULNLOW"
+        elif sev == 'Medium':
+            t = "VULNMEDIUM"
+        elif sev == "High":
+            t = "VULNHIGH"
+        elif sev == "Critical":
+            t = "VULNCRITICAL"
+        else:
+            t = "VULNUNKNOWN"
 
-    outlist.append(t + " " + sev + " Vulnerability found in package - " + pkg + " (" + cve + " - " + url + ")")
+        outlist.append(t + " " + sev + " Vulnerability found in package - " + pkg + " (" + cve + " - " + url + ")")
 
 anchore.anchore_utils.save_gate_output(imgid, gate_name, outlist)
 
