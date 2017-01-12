@@ -318,13 +318,30 @@ class Controller(object):
             record['result'] = {}
             record['result']['header'] = ['Image_Id', 'Repo_Tag', 'Gate', 'Trigger', 'Check_Output', 'Gate_Action']
             record['result']['rows'] = list()
-            report = results
-            for m in report:
+
+            for m in results:
                 id = image.meta['imageId']
                 name = image.get_human_name()
                 gate = m['check']
                 trigger = m['trigger']
+
                 output = m['output']
+                outputid = m['output']
+                outputdesc = m['output']
+                # if the output is structured (i.e. decoded as an
+                # anchore compatible json string) then extract the
+                # elements for display
+                try:
+                    json_output = json.loads(output)
+                    if 'id' in json_output:
+                        outputid = str(json_output['id'])
+                        output = 'id='+outputid
+                    if 'desc' in json_output:
+                        outputdesc = str(json_output['desc'])
+                        output = output + " description="+outputdesc
+                except:
+                    pass
+
                 action = m['action']
                 row = [id[0:12], name, gate, trigger, output, action]
                 record['result']['rows'].append(row)
