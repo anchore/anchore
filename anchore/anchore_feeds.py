@@ -388,7 +388,7 @@ def load_anchore_feed(feed, group, ensure_unique=False):
                         if isinstance(el, dict) and len(el.keys()) == 1:
                             elkey = el.keys()[0]
                             if elkey in unique_hash:
-                                _logger.warn("FOUND duplicate entry during scan for unique data values: " + str(elkey))
+                                _logger.debug("FOUND duplicate entry during scan for unique data values: " + str(elkey))
                             unique_hash[elkey] = el
 
                 ret['data'] = ret['data'] + thelist

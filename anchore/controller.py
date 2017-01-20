@@ -7,6 +7,7 @@ import re
 import json 
 import random 
 import shutil
+import hashlib
 
 from anchore import anchore_utils
 import logging
@@ -38,6 +39,8 @@ class Controller(object):
         self.default_gatepol = '/'.join([self.config.config_dir, "anchore_gate.policy"])
 
         self.policy_override = None
+        self.global_whitelist = None
+        self.show_triggerIds = False
 
     def read_policy(self, policydata):
         policies = {}
@@ -115,6 +118,14 @@ class Controller(object):
 
         return(policies)
 
+    def load_global_whitelist(self):
+        ret = []
+
+        if self.global_whitelist and os.path.exists(self.global_whitelist):
+            ret = anchore_utils.read_kvfile_tolist(self.global_whitelist)
+
+        return(ret)
+
     def load_whitelist(self, image):
         ret = {'ignore':[], 'enforce':[]}
 
@@ -165,9 +176,11 @@ class Controller(object):
 
     def evaluate_gates_results(self, image):
         ret = list()
+        fullret = list()
         final_gate_action = 'GO'
 
         policies_whitelist = self.load_whitelist(image)
+        global_whitelist = self.load_global_whitelist()
 
         if self.policy_override:
             policy_data = anchore_utils.read_plainfile_tolist(self.policy_override)
@@ -178,10 +191,47 @@ class Controller(object):
             gdata = self.anchoreDB.load_gate_output(image.meta['imageId'], m)
             for l in gdata:
                 (k, v) = re.match('(\S*)\s*(.*)', l).group(1, 2)
+                imageId = image.meta['imageId']
+                check = m
+                trigger = k
+                output = v
+                action = policies[check][trigger]['action']
+                triggerId = hashlib.md5(''.join([check,trigger,output])).hexdigest()                
+
+                # if the output is structured (i.e. decoded as an
+                # anchore compatible json string) then extract the
+                # elements for display
+                try:
+                    json_output = json.loads(output)
+                    if 'id' in json_output:
+                        triggerId = str(json_output['id'])
+                    if 'desc' in json_output:
+                        #output = output + " description="+outputdesc
+                        output = str(json_output['desc'])
+                except:
+                    pass
+                
                 if k in policies[m]:
-                    r = {'imageId':image.meta['imageId'], 'check':m, 'trigger':k, 'output':v, 'action':policies[m][k]['action']}
+                    #r = {'imageId':image.meta['imageId'], 'check':m, 'trigger':k, 'output':v, 'action':policies[m][k]['action']}
+                    r = {'imageId':imageId, 'check':check, 'triggerId':triggerId, 'trigger':trigger, 'output':output, 'action':action}
                     # this is where whitelist check should go
-                    if r not in policies_whitelist['ignore']:
+                    whitelisted = False
+                    whitelist_type = "none"
+
+                    if [m, triggerId] in global_whitelist:
+                        whitelisted = True
+                        whitelist_type = "global"
+                    elif r in policies_whitelist['ignore']:
+                        whitelisted = True
+                        whitelist_type = "image"
+                    
+                    fullr = {}
+                    fullr.update(r)
+                    fullr['whitelisted'] = whitelisted
+                    fullr['whitelist_type'] = whitelist_type
+                    fullret.append(fullr)
+
+                    if not whitelisted:
                         if policies[m][k]['action'] == 'STOP':
                             final_gate_action = 'STOP'
                         elif final_gate_action != 'STOP' and policies[m][k]['action'] == 'WARN':
@@ -194,7 +244,7 @@ class Controller(object):
         self.save_whitelist(image, policies_whitelist, ret)
 
         ret.append({'imageId':image.meta['imageId'], 'check':'FINAL', 'trigger':'FINAL', 'output':"", 'action':final_gate_action})
-        
+        fullret.append({'imageId':image.meta['imageId'], 'check':'FINAL', 'trigger':'FINAL', 'output':"", 'action':final_gate_action, 'whitelisted':False, 'whitelist_type':"none", 'triggerId':"N/A"})
         for i in ret:
             self.anchoreDB.del_gate_eval_output(image.meta['imageId'], i['check'])
 
@@ -208,7 +258,7 @@ class Controller(object):
             self.anchoreDB.save_gate_eval_output(image.meta['imageId'], i, evals[i])
 
         self.anchoreDB.save_gates_eval_report(image.meta['imageId'], ret)
-        return(ret)
+        return(ret, fullret)
 
     def execute_gates(self, image, refresh=True):
         self._logger.debug("gate policy evaluation for image "+str(image.meta['imagename'])+": begin")
@@ -299,12 +349,18 @@ class Controller(object):
             
         return(highest_action)
 
-    def run_gates(self, policy=None, refresh=True):
+    def run_gates(self, policy=None, refresh=True, global_whitelist=None, show_triggerIds=False, show_whitelisted=False):
         # actually run the gates
         ret = {}
 
         if policy:
             self.policy_override = policy
+
+        if global_whitelist:
+            self.global_whitelist = global_whitelist
+
+        self.show_triggerIds = show_triggerIds
+        self.show_whitelisted = show_whitelisted
 
         for imageId in self.images:
             image = self.allimages[imageId]
@@ -312,39 +368,40 @@ class Controller(object):
             if not self.execute_gates(image, refresh=refresh):
                 raise Exception("One or more gates failed to execute")
 
-            results = self.evaluate_gates_results(image)
+            results, fullresults = self.evaluate_gates_results(image)
 
             record = {}
             record['result'] = {}
-            record['result']['header'] = ['Image_Id', 'Repo_Tag', 'Gate', 'Trigger', 'Check_Output', 'Gate_Action']
+
+            #record['result']['header'] = ['Image_Id', 'Repo_Tag', 'Gate', 'Trigger', 'Check_Output', 'Gate_Action']        
+            record['result']['header'] = ['Image_Id', 'Repo_Tag']
+            if self.show_triggerIds:
+                record['result']['header'].append('Trigger_Id')
+            record['result']['header'] += ['Gate', 'Trigger', 'Check_Output', 'Gate_Action']
+            if self.show_whitelisted:
+                record['result']['header'].append('Whitelisted')
+
             record['result']['rows'] = list()
 
-            for m in results:
+            for m in fullresults:
                 id = image.meta['imageId']
                 name = image.get_human_name()
                 gate = m['check']
                 trigger = m['trigger']
-
                 output = m['output']
-                outputid = m['output']
-                outputdesc = m['output']
-                # if the output is structured (i.e. decoded as an
-                # anchore compatible json string) then extract the
-                # elements for display
-                try:
-                    json_output = json.loads(output)
-                    if 'id' in json_output:
-                        outputid = str(json_output['id'])
-                        output = 'id='+outputid
-                    if 'desc' in json_output:
-                        outputdesc = str(json_output['desc'])
-                        output = output + " description="+outputdesc
-                except:
-                    pass
-
+                triggerId = m['triggerId']
                 action = m['action']
-                row = [id[0:12], name, gate, trigger, output, action]
-                record['result']['rows'].append(row)
+
+                row = [id[0:12], name]
+                if self.show_triggerIds:
+                    row.append(triggerId)
+                row += [gate, trigger, output, action]
+                if self.show_whitelisted:
+                    row.append(m['whitelist_type'])
+
+                if not m['whitelisted'] or show_whitelisted:
+                    record['result']['rows'].append(row)
+
                 if gate == 'FINAL':
                     record['result']['final_action'] = action
 

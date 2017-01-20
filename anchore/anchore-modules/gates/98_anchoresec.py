@@ -95,7 +95,9 @@ for k in report.keys():
         else:
             t = "VULNUNKNOWN"
 
-        outlist.append(t + " " + sev + " Vulnerability found in package - " + pkg + " (" + cve + " - " + url + ")")
+        d = {'id':cve, 'desc':sev + " Vulnerability found in package - " + pkg + " (" + cve + " - " + url + ")"}
+        #outlist.append(t + " " + sev + " Vulnerability found in package - " + pkg + " (" + cve + " - " + url + ")")
+        outlist.append(t + " " + json.dumps(d))
 
 anchore.anchore_utils.save_gate_output(imgid, gate_name, outlist)
 

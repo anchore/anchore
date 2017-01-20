@@ -65,9 +65,12 @@ Edit the gate policy for 'nginx:latest':
 @click.option('--show-gatehelp', help='Show all gate names, triggers, and params that can be used to build an anchore policy', is_flag=True)
 @click.option('--show-policytemplate', help='Generate policy template based on all installed gate/triggers', is_flag=True)
 @click.option('--whitelist', is_flag=True, help='Edit evaluated gate triggers and optionally whitelist them.')
+@click.option('--global-whitelist', help='Use the specified global whitelist file.', type=click.Path(exists=True), metavar='<file>')
+@click.option('--show-triggerids', is_flag=True, help='Show triggered gate IDs in output')
+@click.option('--show-whitelisted', is_flag=True, help='Show gate triggers even if whitelisted (with annotation).')
 @click.pass_obj
 @extended_help_option(extended_help=gate_extended_help)
-def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy, rmpolicy, listpolicy, updatepolicy, policy, show_gatehelp, show_policytemplate, whitelist):
+def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy, rmpolicy, listpolicy, updatepolicy, policy, show_gatehelp, show_policytemplate, whitelist, global_whitelist, show_triggerids, show_whitelisted):
     """
     Runs gate checks on the specified image(s) or edits the image's gate policy.
     The --editpolicy option is only valid for a single image.
@@ -179,7 +182,7 @@ def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy
         else:
             try:
                 # run the gates
-                result = con.run_gates(policy=policy)
+                result = con.run_gates(policy=policy, global_whitelist=global_whitelist, show_triggerIds=show_triggerids, show_whitelisted=show_whitelisted)
                 if result:
                     anchore_utils.print_result(anchore_config, result)
                     success = True
