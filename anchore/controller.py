@@ -195,7 +195,6 @@ class Controller(object):
                 check = m
                 trigger = k
                 output = v
-                action = policies[check][trigger]['action']
                 triggerId = hashlib.md5(''.join([check,trigger,output])).hexdigest()                
 
                 # if the output is structured (i.e. decoded as an
@@ -212,6 +211,9 @@ class Controller(object):
                     pass
                 
                 if k in policies[m]:
+                    trigger = k
+                    action = policies[check][trigger]['action']
+
                     #r = {'imageId':image.meta['imageId'], 'check':m, 'trigger':k, 'output':v, 'action':policies[m][k]['action']}
                     r = {'imageId':imageId, 'check':check, 'triggerId':triggerId, 'trigger':trigger, 'output':output, 'action':action}
                     # this is where whitelist check should go

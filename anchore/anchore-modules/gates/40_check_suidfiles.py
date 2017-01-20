@@ -3,6 +3,7 @@
 import sys
 import os
 import re
+import json
 import anchore.anchore_utils
 
 gate_name = "SUIDDIFF"
@@ -62,11 +63,20 @@ try:
             isdiff = True
             status = pkgdiffs[module_type][pkg]
             if (status == 'VERSION_DIFF'):
-                outlist.append("SUIDMODEDIFF SUID file mode in container is different from baseline for file - " + pkg)
+                trigger = "SUIDMODEDIFF"
+                d = {'id':'-'.join([pkg, trigger]), 'desc':"SUID file mode in container is different from baseline for file - " + pkg}
+                #outlist.append("SUIDMODEDIFF SUID file mode in container is different from baseline for file - " + pkg)
+                outlist.append(trigger +  " " + json.dumps(d))
             elif (status == 'INIMG_NOTINBASE'):
-                outlist.append("SUIDFILEADD SUID file has been added to image since base - " + pkg)
+                trigger = "SUIDFILEADD"
+                d = {'id':'-'.join([pkg, trigger]), 'desc':"SUID file has been added to image since base - " + pkg}
+                #outlist.append("SUIDFILEADD SUID file has been added to image since base - " + pkg)
+                outlist.append(trigger + " " + json.dumps(d))
             elif (status == 'INBASE_NOTINIMG'):
-                outlist.append("SUIDFILEDEL SUID file has been removed from image since base - " + pkg)
+                trigger = "SUIDFILEDEL"
+                d = {'id':'-'.join([pkg, trigger]), 'desc':"SUID file has been removed from image since base - " + pkg}
+                #outlist.append("SUIDFILEDEL SUID file has been removed from image since base - " + pkg)
+                outlist.append(trigger + " " + json.dumps(d))
 
     if (isdiff):
         outlist.append("SUIDDIFF SUID file manifest is different from image to base")

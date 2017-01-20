@@ -137,6 +137,8 @@ class Navigator(object):
                 usertype = fimage.get_usertype()
                 if usertype == "anchorebase":
                     userstr = "Anchore Base Image"
+                elif usertype == "base":
+                    userstr = "Base"
                 elif usertype == "oldanchorebase":
                     userstr = "Previous Anchore Base Image"
                 elif usertype == "user":

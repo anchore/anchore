@@ -3,6 +3,7 @@
 import sys
 import os
 import re
+import json
 import anchore.anchore_utils
 
 gate_name = "PKGDIFF"
@@ -63,11 +64,23 @@ try:
             isdiff = True
             status = pkgdiffs[module_type][pkg]
             if (status == 'VERSION_DIFF'):
-                outlist.append('PKGVERSIONDIFF Package version in container is different from baseline for pkg - ' + pkg)
+                trigger = "PKGVERSIONDIFF"
+                d = {'id':'-'.join([pkg, trigger]), 'desc':"Package version in container is different from baseline for pkg - " + pkg}
+                #outlist.append('PKGVERSIONDIFF Package version in container is different from baseline for pkg - ' + pkg)
+                #outlist.append("PKGVERSIONDIFF " + json.dumps(d))
+                outlist.append(trigger +  " " + json.dumps(d))
             elif (status == 'INIMG_NOTINBASE'):
-                outlist.append("PKGADD Package has been added to image since base - " + pkg)
+                trigger = "PKGADD"
+                d = {'id':'-'.join([pkg, trigger]), 'desc':"Package has been added to image since base - " + pkg}
+                #outlist.append("PKGADD Package has been added to image since base - " + pkg)
+                #outlist.append("PKGADD " + json.dumps(d))
+                outlist.append(trigger +  " " + json.dumps(d))
             elif (status == 'INBASE_NOTINIMG'):
-                outlist.append("PKGDEL Package has been removed to image since base - " + pkg)
+                trigger = "PKGDEL"
+                d = {'id':'-'.join([pkg, trigger]), 'desc':"Package has been removed to image since base - " + pkg}
+                #outlist.append("PKGDEL Package has been removed to image since base - " + pkg)
+                #outlist.append("PKGDEL " + json.dumps(d))
+                outlist.append(trigger +  " " + json.dumps(d))
 
     if (isdiff):
         outlist.append("PKGDIFF Package manifest is different from image to base")
