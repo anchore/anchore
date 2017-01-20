@@ -259,12 +259,13 @@ def analyze(anchore_config, force, image, imagefile, include_allanchore, dockerf
     To include multiple images use the --imagefile, no option, or --include-allanchore options.
     To exclude specific images from analysis, use the --excludefile option.
 
-    One of --imagetype or --dockerfile are required for an analysis run. Use --dockerfile whenever possible as the inclusion
+    One of --imagetype or --dockerfile should be supplied for an analysis run. Use --dockerfile whenever possible as the inclusion
     of the dockerfile for an image associates the dockerfile and image for later use in queries etc. The --dockerfile option
-    is only valid in combination with the --image option.
+    is only valid in combination with the --image option.  If neither --dockerfile and --imagetype is supplied, then 
 
     When using --imagetype, use 'none' to specify that the image(s) is an unknown or user image and use 'base' to specify
-    that the image(s) are approved base images to be used to build other images--'golden' images.
+    that the image(s) are approved base images to be used to build other images or it is useful to mark the image one from which
+    other images are meant to be derived.
 
     Image IDs can be specified as hash ids, repo names (e.g. centos), or tags (e.g. centos:latest).
 
@@ -291,8 +292,8 @@ def analyze(anchore_config, force, image, imagefile, include_allanchore, dockerf
                 pass
             else:
                 raise click.BadOptionUsage("Invalid imagetype specified: valid types are 'none' or 'base'")
-        elif not dockerfile:
-            raise click.BadOptionUsage('Must specify either --dockerfile or --imagetype <type>')
+        #elif not dockerfile:
+        #    raise click.BadOptionUsage('Must specify either --dockerfile or --imagetype <type>')
 
     try:
         imagedict = build_image_list(anchore_config, image, imagefile, not (image or imagefile), include_allanchore, exclude_file=excludefile, dockerfile=dockerfile)
