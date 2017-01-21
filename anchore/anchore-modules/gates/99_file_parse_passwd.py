@@ -16,22 +16,34 @@ def get_retrieved_file(imgid, srcfile, dstdir):
     if srcfile == 'all':
         extractall = True
 
-    stored_data_tarfile = anchore.anchore_utils.load_analysis_output(imgid, 'retrieve_files', 'file_cache')
-    if stored_data_tarfile:
-        tar = tarfile.open(fileobj=stored_data_tarfile, mode='r:gz', format=tarfile.PAX_FORMAT)
-        for f in tar.getmembers():
-            if re.match(".*stored_files.tar.gz", f.name):
-                data = tar.extractfile(f)
-                filetar = tarfile.open(fileobj=data, mode='r:gz', format=tarfile.PAX_FORMAT)
-                for ff in filetar.getmembers():
-                    patt = re.match("imageroot("+re.escape(srcfile)+")", ff.name)
-                    if extractall or patt:
-                        filetar.extract(ff, dstdir)
-                        scrubbed_name = re.sub("imageroot", "", ff.name)
-                        ret.append([scrubbed_name, os.path.join(dstdir, ff.name)])
-                filetar.close()
-        tar.close()
-        stored_data_tarfile.close()
+    thedstdir = os.path.join(dstdir, imgid)
+
+    tarfiles = list()
+    namespaces = anchore.anchore_utils.load_files_namespaces(imgid)
+    if namespaces:
+        for namespace in namespaces:
+            stored_data_tarfile = anchore.anchore_utils.load_files_tarfile(imgid, namespace)
+            if stored_data_tarfile:
+                tarfiles.append(stored_data_tarfile)
+    else:
+        stored_data_tarfile = anchore.anchore_utils.load_files_tarfile(imgid, 'retrieve_files')
+        if stored_data_tarfile:
+            tarfiles.append(stored_data_tarfile)
+
+    for thetarfile in tarfiles:
+        filetar = tarfile.open(thetarfile, mode='r:gz', format=tarfile.PAX_FORMAT)
+        for ff in filetar.getmembers():
+            patt = re.match("imageroot("+re.escape(srcfile)+")", ff.name)
+            if extractall or patt:
+                filetar.extract(ff, thedstdir)
+                scrubbed_name = re.sub("imageroot", "", ff.name)
+                ret.append([scrubbed_name, os.path.join(thedstdir, ff.name)])
+        filetar.close()
+
+    if namespaces:
+        for namespace in namespaces:
+            anchore.anchore_utils.del_files_cache(imgid)
+    
     return(ret)
 
 gate_name = "FILEPARSE_PASSWD"
@@ -94,7 +106,6 @@ outlist = list()
 
 # first, attempt to extract /etc/passwd
 dstdir = anchore.anchore_utils.make_anchoretmpdir("/tmp")
-#dstdir = os.path.join(outputdir, 'extract_tmp')
 
 retlist = list()
 try:
@@ -169,8 +180,8 @@ else:
             pass
 
 try:
-
-    shutil.rmtree(dstdir)
+    if dstdir:
+        shutil.rmtree(dstdir)
 except:
     pass
 
