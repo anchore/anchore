@@ -1194,37 +1194,6 @@ def cve_load_data(image, cve_data_context=None):
 
     return(ret)
 
-#    idistro = image.get_distro()
-#    idistrovers = image.get_distro_vers()
-
-#    distrodict = get_distro_flavor(idistro, idistrovers)
-
-#    distro = distrodict['distro']
-#    distrovers = distrodict['version']
-#    likedistro = distrodict['likedistro']
-#    likeversion = distrodict['likeversion']
-#    fulldistro = distrodict['distro']
-#    fullversion = distrodict['fullversion']
-    
-#    distrolist = [(distro,distrovers), (likedistro, likeversion), (fulldistro, fullversion)]
-#    for f in distrolist:
-#        dstr = ':'.join([f[0], f[1]])
-#        if cve_data_context and dstr in cve_data_context:
-#            cve_data = cve_data_context[dstr]
-#            break
-#        else:
-#            feeddata = anchore_feeds.load_anchore_feed('vulnerabilities', ':'.join([f[0], f[1]]))
-#            if feeddata['success']:
-#                cve_data = feeddata['data']
-#                if cve_data_context != None and dstr not in cve_data_context:
-#                    cve_data_context[dstr] = cve_data
-#                break
-
-#    if not cve_data:
-#        raise ValueError("cannot find CVE data associated with the input container distro: ("+str(distrolist)+")")
-
-#    return (cve_data)
-
 def cve_scanimages(images, pkgmap, flavor, cve_data):
     results = {}
     for v in cve_data:
@@ -1232,60 +1201,34 @@ def cve_scanimages(images, pkgmap, flavor, cve_data):
         vuln = v['Vulnerability']
 
         #print "cve-scan: VULN NAME CVE: " + vuln['Name']
-        if 'FixedIn' in vuln:
-            for fixes in vuln['FixedIn']:
-                isvuln = False
-                vpkg = fixes['Name']
-                #print "cve-scan: Vulnerable Package: " + vpkg
-                if vpkg in pkgmap:
-                    for ivers in pkgmap[vpkg]['versions'].keys():
-                        vvers = re.sub(r'^[0-9]*:', '', fixes['Version'])
-                        #print "cve-scan: " + vpkg + "\n\tfixed vulnerability package version: " + vvers + "\n\timage package version: " + ivers
+        for vtag in ['FixedIn', 'VulnerableIn']:
+            if vtag in vuln:
+                for fixes in vuln[vtag]:
+                    isvuln = False
+                    vpkg = fixes['Name']
+                    #print "cve-scan: Vulnerable Package: " + vpkg
+                    if vpkg in pkgmap:
+                        for ivers in pkgmap[vpkg]['versions'].keys():
+                            vvers = re.sub(r'^[0-9]*:', '', fixes['Version'])
+                            #print "cve-scan: " + vpkg + "\n\tfixed vulnerability package version: " + vvers + "\n\timage package version: " + ivers
 
-                        if flavor == 'RHEL':
-                            if vvers != 'None':
-                                fixfile = vpkg + "-" + vvers + ".arch.rpm"
-                                imagefile = vpkg + "-" + ivers + ".arch.rpm"
-                                (n1, v1, r1, e1, a1) = splitFilename(imagefile)
-                                (n2, v2, r2, e2, a2) = splitFilename(fixfile)
-                                if rpm.labelCompare(('1', v1, r1), ('1', v2, r2)) < 0:
-                                    isvuln = True
-                            else:
-                                isvuln = True
+                            iversonly = ivers
+                            isvuln = is_pkg_vuln(vtag, vpkg, flavor, ivers, iversonly, vvers)
 
-                        elif flavor == 'DEB':
-                            #print "cve-scan: VERS (image, vuln): " + ivers + " : " + vvers
+                            if isvuln:
+                                #print "cve-scan: Found vulnerable package: " + vpkg
+                                severity = url = description = 'Not Available'
+                                if 'Severity' in vuln:
+                                    severity = vuln['Severity']
+                                if 'Link' in vuln:
+                                    url = vuln['Link']
+                                if 'Description' in vuln:
+                                    description = vuln['Description']
 
-                            if vvers != 'None':
-                                if ivers != vvers:
-                                    comp_rc = dpkg_compare_versions(ivers, 'lt', vvers)
-                                    if comp_rc == 0:
-                                        isvuln = True
-                            else:
-                                isvuln = True
-                        
-                        elif flavor == "ALPINE":
-                            if vvers != "None":
-                                comp_rc = apkg_compare_versions(ivers, 'lt', vvers)
-                                if comp_rc == 0:
-                                    isvuln = True
-                            else:
-                                isvuln = True
+                                outel = {'images':pkgmap[vpkg]['versions'][ivers], 'pkgName': vpkg, 'imageVers': ivers, 'fixVers': vvers, 'severity': severity, 'url': url, 'description': description}
 
-                        if isvuln:
-                            #print "cve-scan: Found vulnerable package: " + vpkg
-                            severity = url = description = 'Not Available'
-                            if 'Severity' in vuln:
-                                severity = vuln['Severity']
-                            if 'Link' in vuln:
-                                url = vuln['Link']
-                            if 'Description' in vuln:
-                                description = vuln['Description']
-
-                            outel = {'images':pkgmap[vpkg]['versions'][ivers], 'pkgName': vpkg, 'imageVers': ivers, 'fixVers': vvers, 'severity': severity, 'url': url, 'description': description}
-
-        if outel:
-            results[vuln['Name']] = outel
+            if outel:
+                results[vuln['Name']] = outel
 
     return(results)
 
@@ -1407,30 +1350,13 @@ def normalize_packages(imageId):
 
     return(ret)
 
-def cve_scanimage(cve_data, imageId):
-    if not cve_data:
-        return ({})
-
-    try:
-        distrometa = get_distro_from_imageId(imageId)
-        idistro = distrometa['DISTRO']
-        idistrovers = distrometa['DISTROVERS']
-        distrodict = get_distro_flavor(idistro, idistrovers)
-        flavor = distrodict['flavor']
-    except Exception as err:
-        print "cve-scan: could not determin image distro: returning empty value"
-        return({})
-    
-    norm_packages = normalize_packages(imageId)
-    if 'bin_packages' not in norm_packages or not norm_packages['bin_packages']:
-        return({})
-
+def cve_scan_packages(cve_data, norm_packages, flavor):
     results = {}
     for v in cve_data:
 
         vuln = v['Vulnerability']
         #print "cve-scan: CVE: " + vuln['Name']
-        
+
         fixedIn = {}
         if 'FixedIn' in vuln:
             for fixes in vuln['FixedIn']:
@@ -1478,43 +1404,7 @@ def cve_scanimage(cve_data, imageId):
                     for vpkg in vpkgs:
                         isvuln = False
 
-                        #print "cve-scan: " + vpkg + "\n\tvulnerability package version: " + vvers + "\n\timage package version: " + ivers
-
-                        if vtag == 'VulnerableIn' and vvers == 'all':
-                            isvuln = True
-                        elif vvers != 'None':
-                            if flavor == 'RHEL':
-                                fixfile = vpkg + "-" + vvers + ".arch.rpm"
-                                imagefile = vpkg + "-" + ivers + ".arch.rpm"
-                                (n1, v1, r1, e1, a1) = splitFilename(imagefile)
-                                (n2, v2, r2, e2, a2) = splitFilename(fixfile)
-                                if vtag == 'FixedIn':
-                                    if rpm.labelCompare(('1', v1, r1), ('1', v2, r2)) < 0:
-                                        isvuln = True
-                                elif vtag == 'VulnerableIn':
-                                    if ivers == vvers or iversonly == vvers:
-                                        isvuln = True
-
-                            elif flavor == 'DEB':
-                                if vtag == 'FixedIn':
-                                    if ivers != vvers:
-                                        comp_rc = dpkg_compare_versions(ivers, 'lt', vvers)
-                                        if comp_rc == 0:
-                                            isvuln = True
-                                elif vtag == 'VulnerableIn':
-                                    if ivers == vvers or iversonly == vvers:
-                                        isvuln = True
-
-                            elif flavor == "ALPINE":
-                                if vtag == 'FixedIn':
-                                    comp_rc = apkg_compare_versions(ivers, 'lt', vvers)
-                                    if comp_rc == 0:
-                                        isvuln = True
-                                elif vtag == 'VulnerableIn':
-                                    if ivers == vvers or iversonly == vvers:
-                                        isvuln = True
-                        else:
-                            isvuln = True
+                        isvuln = is_pkg_vuln(vtag, vpkg, flavor, ivers, iversonly, vvers)
 
                         # finally - format and add result to return dict if vulnerability has been determined
 
@@ -1537,6 +1427,146 @@ def cve_scanimage(cve_data, imageId):
                                 results[vuln['Name']].append(outel)
 
     return (results)
+
+def cve_scanimage(cve_data, imageId):
+    if not cve_data:
+        return ({})
+
+    try:
+        distrometa = get_distro_from_imageId(imageId)
+        idistro = distrometa['DISTRO']
+        idistrovers = distrometa['DISTROVERS']
+        distrodict = get_distro_flavor(idistro, idistrovers)
+        flavor = distrodict['flavor']
+    except Exception as err:
+        print "cve-scan: could not determin image distro: returning empty value"
+        return({})
+    
+    norm_packages = normalize_packages(imageId)
+    if 'bin_packages' not in norm_packages or not norm_packages['bin_packages']:
+        return({})
+
+    results = cve_scan_packages(cve_data, norm_packages, flavor)
+
+    if False:
+        results = {}
+        for v in cve_data:
+
+            vuln = v['Vulnerability']
+            #print "cve-scan: CVE: " + vuln['Name']
+
+            fixedIn = {}
+            if 'FixedIn' in vuln:
+                for fixes in vuln['FixedIn']:
+                    vpkgname = fixes['Name']
+                    fixVers = re.sub(r'^[0-9]*:', '', fixes['Version'])
+                    fixedIn[vpkgname] = fixVers
+
+            if 'VulnerableIn' in vuln:
+                for vulns in vuln['VulnerableIn']:
+                    vpkgname = vulns['Name']
+                    vulnVers = re.sub(r'^[0-9]*:', '', vulns['Version'])
+                    if vpkgname not in fixedIn:
+                        fixedIn[vpkgname] = "None"
+
+            for vtag in ['FixedIn', 'VulnerableIn']:
+                if vtag in vuln:
+                    for fixes in vuln[vtag]:
+                        vpkgname = fixes['Name']
+                        vvers = re.sub(r'^[0-9]*:', '', fixes['Version'])
+
+                        fixVers = fixedIn[vpkgname]
+
+                        vpkgs = []
+                        ivers = iversonly = irelonly = None
+
+                        #print "cve-scan: Vulnerable Package: " + vpkgname
+
+                        if vpkgname in norm_packages['bin_packages']:
+                            ivers = norm_packages['bin_packages'][vpkgname]['fullvers']
+                            iversonly = norm_packages['bin_packages'][vpkgname]['version']
+                            irelonly = norm_packages['bin_packages'][vpkgname]['release']
+                            vpkgs = [vpkgname]
+                        elif vpkgname in norm_packages['src_to_bin']:
+                            bpkg = norm_packages['src_to_bin'][vpkgname][0]
+                            ivers = norm_packages['bin_packages'][bpkg]['fullvers']
+                            iversonly = norm_packages['bin_packages'][bpkg]['version']
+                            irelonly = norm_packages['bin_packages'][bpkg]['release']
+                            vpkgs = norm_packages['src_to_bin'][vpkgname]
+                        else:
+                            # cve vuln package cannot be mapped to anything installed
+                            pass
+
+
+                        # go through all found packages that mapped to the CVE vul package to check versions for vulnerability
+                        for vpkg in vpkgs:
+                            isvuln = False
+
+                            isvuln = is_pkg_vuln(vtag, vpkg, flavor, ivers, iversonly, vvers)
+
+                            # finally - format and add result to return dict if vulnerability has been determined
+
+                            if isvuln:
+                                #print "cve-scan: Found vulnerable package: " + vpkg
+
+                                severity = url = description = 'Not Available'
+                                if 'Severity' in vuln:
+                                    severity = vuln['Severity']
+                                if 'Link' in vuln:
+                                    url = vuln['Link']
+                                if 'Description' in vuln:
+                                    description = vuln['Description']
+
+                                outel = {'pkgName': vpkg, 'imageVers': ivers, 'fixVers': fixVers, 'severity': severity, 'url': url, 'description': description}
+
+                                if vuln['Name'] not in results:
+                                    results[vuln['Name']] = []
+                                if outel not in results[vuln['Name']]:
+                                    results[vuln['Name']].append(outel)
+
+    return (results)
+
+def is_pkg_vuln(vtag, vpkg, flavor, ivers, iversonly, vvers):
+    isvuln = False
+    #print "cve-scan: " + vpkg + "\n\tvulnerability package version: " + vvers + "\n\timage package version: " + ivers
+
+    if vtag == 'VulnerableIn' and vvers == 'all':
+        isvuln = True
+    elif vvers != 'None':
+        if flavor == 'RHEL':
+            fixfile = vpkg + "-" + vvers + ".arch.rpm"
+            imagefile = vpkg + "-" + ivers + ".arch.rpm"
+            (n1, v1, r1, e1, a1) = splitFilename(imagefile)
+            (n2, v2, r2, e2, a2) = splitFilename(fixfile)
+            if vtag == 'FixedIn':
+                if rpm.labelCompare(('1', v1, r1), ('1', v2, r2)) < 0:
+                    isvuln = True
+            elif vtag == 'VulnerableIn':
+                if ivers == vvers or iversonly == vvers:
+                    isvuln = True
+
+        elif flavor == 'DEB':
+            if vtag == 'FixedIn':
+                if ivers != vvers:
+                    comp_rc = dpkg_compare_versions(ivers, 'lt', vvers)
+                    if comp_rc == 0:
+                        isvuln = True
+            elif vtag == 'VulnerableIn':
+                if ivers == vvers or iversonly == vvers:
+                    isvuln = True
+
+        elif flavor == "ALPINE":
+            if vtag == 'FixedIn':
+                comp_rc = apkg_compare_versions(ivers, 'lt', vvers)
+                if comp_rc == 0:
+                    isvuln = True
+            elif vtag == 'VulnerableIn':
+                if ivers == vvers or iversonly == vvers:
+                    isvuln = True
+    else:
+        isvuln = True
+
+    return(isvuln)
 
 def image_context_add(imagelist, allimages, docker_cli=None, dockerfile=None, anchore_datadir=None, tmproot='/tmp', anchore_db=None, docker_images=None, must_be_analyzed=False, usertype=None, must_load_all=False):
     retlist = list()
@@ -1842,10 +1872,6 @@ def get_files_from_tarfile(intarfile):
                 finfo['fullpath'] = fullpath
 
             allfiles[finfo['name']] = finfo
-#            if finfo['name'] in allfiles:
-#                allfiles[finfo['name']] = allfiles[finfo['name']] + [finfo]
-#            else:
-#                allfiles[finfo['name']] = [finfo]
 
         tar.close()
     except:
