@@ -131,7 +131,11 @@ class Controller(object):
             self._logger.debug("no global whitelist can be found, skipping")
 
         if whitelist_file:
-            ret = anchore_utils.read_kvfile_tolist(whitelist_file)
+            whitelist_data = anchore_utils.read_kvfile_tolist(whitelist_file)
+
+        for item in whitelist_data:
+            if item[0] and not re.match("^#", item[0]):
+                ret.append(item)
 
         return(ret)
 
