@@ -1,0 +1,18 @@
+#
+# example global whitelist 
+#
+#
+# each line contains two values '<GATENAME> <TRIGGERID>' which can be
+# discovered using the '--show-triggerids' option to 'anchore gate'
+# operation.  if a gate/trigger ID combo is listed here, the trigger
+# will be ignored by anchore gate policy evaluation globally.
+#
+#
+# for example, the following lines if uncommented would instruct all
+# anchore gate evaluations to ignore any triggering against the listed
+# RHSA/CVE triggerIDs when evaluating the result of the ANCHORESEC
+# gate check.
+#
+
+#ANCHORESEC CVE-2015-5180
+#ANCHORESEC RHSA-2016:2972
