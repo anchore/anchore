@@ -37,9 +37,10 @@ class Controller(object):
         self.anchoreDB = contexts['anchore_db']
 
         self.default_gatepol = '/'.join([self.config.config_dir, "anchore_gate.policy"])
+        self.default_global_whitelist = os.path.join(self.config.config_dir, "anchore_global.whitelist")
 
         self.policy_override = None
-        self.global_whitelist = None
+        self.global_whitelist_override = None
         self.show_triggerIds = False
 
     def read_policy(self, policydata):
@@ -121,8 +122,16 @@ class Controller(object):
     def load_global_whitelist(self):
         ret = []
 
-        if self.global_whitelist and os.path.exists(self.global_whitelist):
-            ret = anchore_utils.read_kvfile_tolist(self.global_whitelist)
+        whitelist_file = None
+        if self.global_whitelist_override and os.path.exists(self.global_whitelist_override):
+            whitelist_file = self.global_whitelist_override
+        elif self.default_global_whitelist and os.path.exists(self.default_global_whitelist):
+            whitelist_file = self.default_global_whitelist
+        else:
+            self._logger.debug("no global whitelist can be found, skipping")
+
+        if whitelist_file:
+            ret = anchore_utils.read_kvfile_tolist(whitelist_file)
 
         return(ret)
 
@@ -187,6 +196,7 @@ class Controller(object):
             policies = self.read_policy(policy_data)
         else:
             policies = self.get_image_policies(image)
+
         for m in policies.keys():
             gdata = self.anchoreDB.load_gate_output(image.meta['imageId'], m)
             for l in gdata:
@@ -359,7 +369,7 @@ class Controller(object):
             self.policy_override = policy
 
         if global_whitelist:
-            self.global_whitelist = global_whitelist
+            self.global_whitelist_override = global_whitelist
 
         self.show_triggerIds = show_triggerIds
         self.show_whitelisted = show_whitelisted
