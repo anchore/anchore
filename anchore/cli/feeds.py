@@ -203,7 +203,8 @@ def unsub(feednames, delete, dontask):
 
 @feeds.command(name='sync', short_help="Sync (download) latest data for all subscribed feeds from the Anchore service.")
 @click.option('--since', help='Force a feed sync from the given timestamp to today.', metavar='<unix timestamp>')
-def sync(since):
+@click.option('--do-compact', help='After syncing, process feed data to eliminate duplicate entries and store only latest data records', is_flag=True)
+def sync(since, do_compact):
     """
     Sync (download) latest data for all subscribed feeds from the Anchore service.
     """
@@ -215,7 +216,7 @@ def sync(since):
             anchore_print_err(ret['text'])
             ecode = 1
         else:
-            rc, ret = anchore_feeds.sync_feeds(force_since=since)
+            rc, ret = anchore_feeds.sync_feeds(force_since=since, do_combine=do_compact)
             if not rc:
                 anchore_print_err(ret['text'])
                 ecode = 1

@@ -196,7 +196,7 @@ def feed_group_data_exists(feed, group, datafile):
     return (False)
 
 
-def sync_feeds(force_since=None):
+def sync_feeds(force_since=None, do_combine=False):
     ret = {'success': False, 'text': "", 'status_code': 1}
 
     feedmeta = load_anchore_feedmeta()
@@ -252,8 +252,6 @@ def sync_feeds(force_since=None):
                                 _logger.warn("\t\tWARN: failed to download feed/group data (" + str(feed) + "/" + str(
                                     group) + "): {}".format(err_msg))
 
-                            rc, msg = handle_anchore_feed_post(feed, group)
-
             else:
                 _logger.info("skipping data sync for unsubscribed feed (" + str(feed) + ") ...")
 
@@ -268,6 +266,10 @@ def sync_feeds(force_since=None):
 
     if not save_anchore_feedmeta(feedmeta):
         ret['text'] = "\t\tWARN: failed to store metadata on synced feed data"
+
+    # if user has asked for data compress, do it now
+    if do_combine:
+        handle_datafile_combine()
 
     return (True, ret)
 
@@ -365,6 +367,8 @@ def save_anchore_feed_group_data(feed, group, datafile, data):
 def load_anchore_feed_group_data(feed, group, datafile):
     return (contexts['anchore_db'].load_feed_group_data(feed, group, datafile))
 
+def delete_anchore_feed_group_data(feed, group, datafile):
+    return (contexts['anchore_db'].delete_feed_group_data(feed, group, datafile))
 
 def load_anchore_feed(feed, group, ensure_unique=False):
     ret = {'success': False, 'msg': "", 'data': list()}
@@ -381,7 +385,10 @@ def load_anchore_feed(feed, group, ensure_unique=False):
 
         if datameta and 'datafiles' in datameta:
             unique_hash = {}
-            for datafile in sorted(datameta['datafiles']):
+            revfiles = sorted(datameta['datafiles'])
+            revfiles.reverse()
+            #for datafile in sorted(datameta['datafiles']):
+            for datafile in revfiles:
                 thelist = load_anchore_feed_group_data(feed, group, datafile)
                 if ensure_unique:
                     for el in thelist:
@@ -389,7 +396,8 @@ def load_anchore_feed(feed, group, ensure_unique=False):
                             elkey = el.keys()[0]
                             if elkey in unique_hash:
                                 _logger.debug("FOUND duplicate entry during scan for unique data values: " + str(elkey))
-                            unique_hash[elkey] = el
+                            else:
+                                unique_hash[elkey] = el
 
                 ret['data'] = ret['data'] + thelist
                 ret['success'] = True
@@ -467,9 +475,59 @@ def handle_anchore_feed_post(feed, group):
                                 msg = "failed to download/import image: " + imageId
                         else:
                             _logger.info("\t\tskipping: " + str(imageId) + ": already in DB")
-
     else:
         # no handler
         pass
 
     return (ret, msg)
+
+def handle_datafile_combine():
+    ret = True
+
+    feedmeta = load_anchore_feedmeta()
+
+    for feed in feedmeta.keys():
+        if 'groups' in feedmeta[feed]:
+            _logger.info("combining data for feed ("+str(feed)+") ...")
+            for group in feedmeta[feed]['groups']:
+                rawdata = load_anchore_feed(feed, group, ensure_unique=False)
+                data = rawdata['data']
+                uniqhash = {}
+                uniq = list()
+                collisions = 0
+                for v in data:
+                    vid = None
+                    try:
+                        if feed == 'vulnerabilities':
+                            vid = v['Vulnerability']['Name']
+                        elif feed == 'packages':
+                            vid = v.keys()[0]
+                    except:
+                        vid = None
+                        pass
+
+                    if vid:
+                        if vid not in uniqhash:
+                            uniqhash[vid] = True
+                            uniq.append(v)
+                        else:
+                            collisions = collisions + 1
+
+                rawdata.clear()
+                _logger.info("\tprocessing group data: " + str(group) + ": removed " + str(collisions) + " records as duplicate or out-of-date")
+
+                # datafile updates                
+                updatetime = int(time.time())
+                now = time.strftime("%Y-%m-%d", time.gmtime(updatetime))
+
+                datafilename = "data_" + now + "_to_" + now + ".json"
+
+                rc = save_anchore_feed_group_data(feed, group, datafilename, uniq)
+                if rc:
+                    for dfile in feedmeta[feed]['groups'][group]['datafiles']:
+                        if dfile != datafilename:
+                            delete_anchore_feed_group_data(feed, group, dfile)
+                    feedmeta[feed]['groups'][group]['datafiles'] = [datafilename]
+                    save_anchore_feedmeta(feedmeta)
+
+    return(ret)

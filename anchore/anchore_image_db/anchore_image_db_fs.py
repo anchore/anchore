@@ -678,3 +678,17 @@ class AnchoreImageDB_FS(anchore_image_db_base.AnchoreImageDB):
                 ret = json.loads(FH.read().decode('utf8'))
 
         return(ret)
+
+    def delete_feed_group_data(self, feed, group, datafilename):
+        ret = True
+        basedir = self.feedrootdir
+        thefile = os.path.join(basedir, feed, group, datafilename)
+        
+        if os.path.exists(thefile):
+            try:
+                os.remove(thefile)
+            except:
+                ret = False
+
+        return(ret)
+        

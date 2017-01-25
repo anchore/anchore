@@ -901,6 +901,87 @@ def rpm_get_all_pkgfiles_orig(unpackdir):
 
     return(rpmfiles)
 
+def gem_parse_meta(gem):
+    ret = {}
+
+    name = None
+    versions = []
+    lics = []
+    latest = None
+    origins = []
+    sourcepkg = None
+    rfiles = []
+
+    try:
+        for line in gem.splitlines():
+            line = line.strip()
+            line = re.sub("\.freeze", "", line)
+
+            # look for the unicode \u{} format and try to convert to something python can use
+            try:
+                replline = line
+                mat = "\\\u{.*?}"
+                patt = re.match(r".*("+mat+").*", replline)
+                while(patt):
+                    replstr = ""
+                    subpatt = re.match("\\\u{(.*)}", patt.group(1))
+                    if subpatt:
+                        chars = subpatt.group(1).split()
+                        for char in chars:
+                            replstr += unichr(int(char, 16))
+
+                    if replstr:
+                        replline = re.sub(re.escape(patt.group(1)), replstr, replline, 1)
+
+                    patt = re.match(r".*("+mat+").*", replline)
+                    line = replline
+            except Exception as err:
+                pass
+
+            patt = re.match(".*\.name *= *(.*) *", line)
+            if patt:
+                name = json.loads(patt.group(1))
+
+            patt = re.match(".*\.homepage *= *(.*) *", line)
+            if patt:
+                sourcepkg = json.loads(patt.group(1))
+
+            patt = re.match(".*\.version *= *(.*) *", line)
+            if patt:
+                v = json.loads(patt.group(1))
+                latest = v
+                versions.append(latest)
+
+            patt = re.match(".*\.licenses *= *(.*) *", line)
+            if patt:
+                lstr = re.sub("^\[|\]$", "", patt.group(1)).split(',')
+                for thestr in lstr:
+                    thestr = re.sub(' *" *', "", thestr)
+                    lics.append(thestr)
+
+            patt = re.match(".*\.authors *= *(.*) *", line)
+            if patt:
+                lstr = re.sub("^\[|\]$", "", patt.group(1)).split(',')
+                for thestr in lstr:
+                    thestr = re.sub(' *" *', "", thestr)
+                    origins.append(thestr)
+
+            patt = re.match(".*\.files *= *(.*) *", line)
+            if patt:
+                lstr = re.sub("^\[|\]$", "", patt.group(1)).split(',')
+                for thestr in lstr:
+                    thestr = re.sub(' *" *', "", thestr)
+                    rfiles.append(thestr)
+
+    except Exception as err:
+        print "WARN could not fully parse gemspec file: " + str(name) + ": exception: " + str(err)
+        return({})
+
+    if name:
+        ret[name] = {'name':name, 'lics':lics, 'versions':versions, 'latest':latest, 'origins':origins, 'sourcepkg':sourcepkg, 'files':rfiles}
+
+    return(ret)
+
 def npm_parse_meta(npm):
 
     record = {}
@@ -1351,9 +1432,10 @@ def normalize_packages(imageId):
     return(ret)
 
 def cve_scan_packages(cve_data, norm_packages, flavor):
+    import time
+    #start = time.time()
     results = {}
     for v in cve_data:
-
         vuln = v['Vulnerability']
         #print "cve-scan: CVE: " + vuln['Name']
 
@@ -1442,7 +1524,10 @@ def cve_scanimage(cve_data, imageId):
         print "cve-scan: could not determin image distro: returning empty value"
         return({})
     
+    import time
+
     norm_packages = normalize_packages(imageId)
+
     if 'bin_packages' not in norm_packages or not norm_packages['bin_packages']:
         return({})
 
