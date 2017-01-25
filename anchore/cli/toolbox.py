@@ -388,13 +388,6 @@ def kubesync():
     try:
         images = anchore_utils.get_images_from_kubectl()
         if images:
-#            print "Found images in kubernetes - pulling latest to local dockerhost: "
-#            for imageId in images:
-#                print "\t" + imageId + " : " + images[imageId]
-#
-#                cmdstr = "docker pull " + images[imageId]
-#                cmd = cmdstr.split()
-#                subprocess.check_output(cmd)
             anchore_print("Writing image IDs to ./anchore_imageIds.kube")
             with open("anchore_imageIds.kube", 'w') as OFH:
                 for imageId in images:

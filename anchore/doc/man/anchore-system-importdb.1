@@ -4,11 +4,15 @@
 anchore, \- manual page for anchore, version 1.1.0dev
 .SH SYNOPSIS
 .B anchore
-\fIsystem restore \fR[\fIOPTIONS\fR] \fIINPUTFILE \fR[\fIDESTINATION_ROOT\fR]
+\fIsystem importdb \fR[\fIOPTIONS\fR]
 .SH DESCRIPTION
 .IP
-Restore an anchore installation from a previously backed up tar file.
+Import a previously exported anchore DB
 .SH OPTIONS
+.TP
+\fB\-\-indir\fR <export directory>
+directory from previously exported anchore DB
+[required]
 .TP
 \fB\-\-help\fR
 Show this message and exit.
