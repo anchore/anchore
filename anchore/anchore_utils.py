@@ -1527,7 +1527,7 @@ def cve_scanimage(cve_data, imageId):
         distrodict = get_distro_flavor(idistro, idistrovers)
         flavor = distrodict['flavor']
     except Exception as err:
-        print "cve-scan: could not determin image distro: returning empty value"
+        print "cve-scan: could not determine image distro: returning empty value"
         return({})
     
     import time
@@ -1538,82 +1538,6 @@ def cve_scanimage(cve_data, imageId):
         return({})
 
     results = cve_scan_packages(cve_data, norm_packages, flavor)
-
-    if False:
-        results = {}
-        for v in cve_data:
-
-            vuln = v['Vulnerability']
-            print "cve-scan: CVE: " + vuln['Name']
-
-            fixedIn = {}
-            if 'FixedIn' in vuln:
-                for fixes in vuln['FixedIn']:
-                    vpkgname = fixes['Name']
-                    fixVers = re.sub(r'^[0-9]*:', '', fixes['Version'])
-                    fixedIn[vpkgname] = fixVers
-
-            if 'VulnerableIn' in vuln:
-                for vulns in vuln['VulnerableIn']:
-                    vpkgname = vulns['Name']
-                    vulnVers = re.sub(r'^[0-9]*:', '', vulns['Version'])
-                    if vpkgname not in fixedIn:
-                        fixedIn[vpkgname] = "None"
-
-            for vtag in ['FixedIn', 'VulnerableIn']:
-                if vtag in vuln:
-                    for fixes in vuln[vtag]:
-                        vpkgname = fixes['Name']
-                        vvers = re.sub(r'^[0-9]*:', '', fixes['Version'])
-
-                        fixVers = fixedIn[vpkgname]
-
-                        vpkgs = []
-                        ivers = iversonly = irelonly = None
-
-                        print "cve-scan: Vulnerable Package: " + vpkgname
-
-                        if vpkgname in norm_packages['bin_packages']:
-                            ivers = norm_packages['bin_packages'][vpkgname]['fullvers']
-                            iversonly = norm_packages['bin_packages'][vpkgname]['version']
-                            irelonly = norm_packages['bin_packages'][vpkgname]['release']
-                            vpkgs = [vpkgname]
-                        elif vpkgname in norm_packages['src_to_bin']:
-                            bpkg = norm_packages['src_to_bin'][vpkgname][0]
-                            ivers = norm_packages['bin_packages'][bpkg]['fullvers']
-                            iversonly = norm_packages['bin_packages'][bpkg]['version']
-                            irelonly = norm_packages['bin_packages'][bpkg]['release']
-                            vpkgs = norm_packages['src_to_bin'][vpkgname]
-                        else:
-                            # cve vuln package cannot be mapped to anything installed
-                            pass
-
-
-                        # go through all found packages that mapped to the CVE vul package to check versions for vulnerability
-                        for vpkg in vpkgs:
-                            isvuln = False
-
-                            isvuln = is_pkg_vuln(vtag, vpkg, flavor, ivers, iversonly, vvers)
-
-                            # finally - format and add result to return dict if vulnerability has been determined
-
-                            if isvuln:
-                                #print "cve-scan: Found vulnerable package: " + vpkg
-
-                                severity = url = description = 'Not Available'
-                                if 'Severity' in vuln:
-                                    severity = vuln['Severity']
-                                if 'Link' in vuln:
-                                    url = vuln['Link']
-                                if 'Description' in vuln:
-                                    description = vuln['Description']
-
-                                outel = {'pkgName': vpkg, 'imageVers': ivers, 'fixVers': fixVers, 'severity': severity, 'url': url, 'description': description}
-
-                                if vuln['Name'] not in results:
-                                    results[vuln['Name']] = []
-                                if outel not in results[vuln['Name']]:
-                                    results[vuln['Name']].append(outel)
 
     return (results)
 
