@@ -487,7 +487,7 @@ def handle_datafile_combine():
     feedmeta = load_anchore_feedmeta()
 
     for feed in feedmeta.keys():
-        if 'groups' in feedmeta[feed]:
+        if 'groups' in feedmeta[feed] and 'subscribed' in feedmeta[feed] and feedmeta[feed]['subscribed']:
             _logger.info("combining data for feed ("+str(feed)+") ...")
             for group in feedmeta[feed]['groups']:
                 rawdata = load_anchore_feed(feed, group, ensure_unique=False)
@@ -516,17 +516,18 @@ def handle_datafile_combine():
                 rawdata.clear()
                 _logger.info("\tprocessing group data: " + str(group) + ": removed " + str(collisions) + " records as duplicate or out-of-date")
 
-                # datafile updates                
+                # datafile updates
                 updatetime = int(time.time())
                 now = time.strftime("%Y-%m-%d", time.gmtime(updatetime))
 
                 datafilename = "data_" + now + "_to_" + now + ".json"
-
                 rc = save_anchore_feed_group_data(feed, group, datafilename, uniq)
                 if rc:
-                    for dfile in feedmeta[feed]['groups'][group]['datafiles']:
-                        if dfile != datafilename:
-                            delete_anchore_feed_group_data(feed, group, dfile)
+                    if 'datafiles' in feedmeta[feed]['groups'][group]:
+                        for dfile in feedmeta[feed]['groups'][group]['datafiles']:
+                            if dfile != datafilename:
+                                delete_anchore_feed_group_data(feed, group, dfile)
+
                     feedmeta[feed]['groups'][group]['datafiles'] = [datafilename]
                     save_anchore_feedmeta(feedmeta)
 
