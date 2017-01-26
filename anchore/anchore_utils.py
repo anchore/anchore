@@ -1373,7 +1373,6 @@ def normalize_packages(imageId):
         all_packages = load_analysis_output(imageId, 'package_list', 'pkgs.all')
         all_packages_plus_source = load_analysis_output(imageId, 'package_list', 'pkgs_plus_source.all')
         
-        print "HERE"
         all_packages.update(all_packages_plus_source)
         if not all_packages:
             raise Exception("no package data")
