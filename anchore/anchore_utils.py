@@ -1329,6 +1329,9 @@ def normalize_packages(imageId):
 
     try:
         all_packages_detail = load_analysis_output(imageId, 'package_list', 'pkgs.allinfo')
+        if not all_packages_detail:
+            raise Exception("no package detail")
+
         for pkg in all_packages_detail.keys():
 
             try:
@@ -1368,6 +1371,9 @@ def normalize_packages(imageId):
 
     try:
         all_packages = load_analysis_output(imageId, 'package_list', 'pkgs.all')
+        if not all_packages:
+            raise Exception("no package data")
+
         for pkg in all_packages.keys():
 
             if flavor == 'RHEL':
@@ -1538,7 +1544,7 @@ def cve_scanimage(cve_data, imageId):
         for v in cve_data:
 
             vuln = v['Vulnerability']
-            #print "cve-scan: CVE: " + vuln['Name']
+            print "cve-scan: CVE: " + vuln['Name']
 
             fixedIn = {}
             if 'FixedIn' in vuln:
@@ -1565,7 +1571,7 @@ def cve_scanimage(cve_data, imageId):
                         vpkgs = []
                         ivers = iversonly = irelonly = None
 
-                        #print "cve-scan: Vulnerable Package: " + vpkgname
+                        print "cve-scan: Vulnerable Package: " + vpkgname
 
                         if vpkgname in norm_packages['bin_packages']:
                             ivers = norm_packages['bin_packages'][vpkgname]['fullvers']
