@@ -1,5 +1,5 @@
 Name:           anchore-release
-Version:        1.0.0
+Version:        1.1.0
 Release:        1%{?dist}
 Source0:        anchore.repo
 Source1:        RPM-GPG-KEY-anchore
