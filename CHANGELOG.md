@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.0 (2017-02-01)
+
++ Added Ruby GEM package analyzer and queries (list-gems, list-gem-detail)
++ Added Alpine Linux to vulnerability feed in order to perform CVE scans against Alpine-based container images
++ New feature 'global whitelist' which enables the ability to filter policy triggers during container gate checking for all images
++ Improved analyzer performance by switching to new method of 'squashing' image layers into complete root filesystem
++ Removed the need to specify '--imagetype' during image analysis (default is now set to 'none' if --imagetype is not supplied)
++ Fixed issue in Debian-based CVE scanning which was showing only 'source' package names instead of installed package names
++ Fixed issue in Alpine package analysis which was truncating results if the license field was not present in the package manifest
++ Fixed issue in shell-based queries (list-files) which would sometimes cause output to contain image summary data instead of file listing
+
 ## 1.0.3 (2016-12-07)
 
 + Adding dockerfiles that are used to build anchore container images hosted on github
