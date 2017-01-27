@@ -18,8 +18,18 @@ def login(anchore_config):
     ecode = 0
 
     try:
-        username = raw_input("Username: ")
-        password = getpass.getpass("Password: ")
+        if os.getenv('ANCHOREUSER'):
+            anchore_print("Using user from environment (ANCHOREUSER)")
+            username = os.getenv('ANCHOREUSER')
+        else:
+            username = raw_input("Username: ")
+
+        if os.getenv('ANCHOREPASS'):
+            anchore_print("Using password from environment (ANCHOREPASS)")
+            password = os.getenv('ANCHOREPASS')
+        else:
+            password = getpass.getpass("Password: ")
+            
         aa = contexts['anchore_auth']
 
         new_anchore_auth = anchore_auth.anchore_auth_init(username, password, aa['auth_file'], aa['client_info_url'], aa['token_url'], aa['conn_timeout'], aa['max_retries'])
