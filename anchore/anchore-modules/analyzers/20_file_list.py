@@ -22,12 +22,10 @@ def rpm_check_file_membership_from_path(unpackdir, allfiles=None):
     if not allfiles:
         filemap, allfiles = anchore.anchore_utils.get_files_from_path(inpath)
 
-    #real_root = os.open('/', os.O_RDONLY)
     try:
         try:
             # get a list of all files from RPM
             try:
-                #sout = subprocess.check_output(['chroot', inpath, 'rpm', '-qal'])
                 sout = subprocess.check_output(['rpm', '--dbpath='+rpmdbdir, '-qal'])
                 sout = sout.decode('utf8')
             except subprocess.CalledProcessError as err:
@@ -54,7 +52,7 @@ def rpm_check_file_membership_from_path(unpackdir, allfiles=None):
                 done=True
             else:
                 try:
-                    sout = subprocess.check_output(['rpm', '--dbpath='+rpmdbdir, '-qf'] + cmdlist)
+                    sout = subprocess.check_output(['rpm', '--dbpath='+rpmdbdir, '-qf'] + cmdlist, stderr=subprocess.STDOUT)
                     sout = sout.decode('utf8')
                 except subprocess.CalledProcessError as err:
                     sout = err.output.decode('utf8')
@@ -86,13 +84,11 @@ def dpkg_check_file_membership_from_path(unpackdir, allfiles=None):
     if not allfiles:
         filemap, allfiles = anchore.anchore_utils.get_files_from_path(inpath)
 
-    #real_root = os.open('/', os.O_RDONLY)
     try:
         try:
 
             for flist in anchore.anchore_utils.grouper(allfiles.keys(), 256):
                 try:
-                    #sout = subprocess.check_output(['chroot', inpath, 'dpkg', '-S'] + flist, stderr=subprocess.STDOUT)
                     sout = subprocess.check_output(['dpkg', "--admindir="+unpackdir+"/rootfs/var/lib/dpkg", '-S'] + flist, stderr=subprocess.STDOUT)
                     sout = sout.decode('utf8')
                 except subprocess.CalledProcessError as err:
@@ -130,9 +126,6 @@ imgname = config['imgid']
 imgid = config['imgid_full']
 outputdir = config['dirs']['outputdir']
 unpackdir = config['dirs']['unpackdir']
-
-#if not os.path.exists(outputdir):
-#    os.makedirs(outputdir)
 
 meta = anchore.anchore_utils.get_distro_from_path('/'.join([unpackdir, "rootfs"]))
 distrodict = anchore.anchore_utils.get_distro_flavor(meta['DISTRO'], meta['DISTROVERS'], meta['LIKEDISTRO'])
@@ -174,7 +167,6 @@ except Exception as err:
 
 if simplefiles:
     ofile = os.path.join(outputdir, 'files.all')
-    #ofile = os.path.join(outputdir+"mehmehmeh", 'files.all')
     anchore.anchore_utils.write_kvfile_fromdict(ofile, simplefiles)
 
 if outfiles:
