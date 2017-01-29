@@ -824,10 +824,28 @@ def dpkg_get_all_pkgfiles(unpackdir):
 
     return(allfiles)
 
+def rpm_prepdb(unpackdir):
+    origrpmdir = os.path.join(unpackdir, 'rootfs', 'var', 'lib', 'rpm')
+    ret = origrpmdir
+
+    if os.path.exists(origrpmdir):
+        newrpmdirbase = make_anchoretmpdir(unpackdir)
+        newrpmdir = os.path.join(newrpmdirbase, 'var', 'lib', 'rpm')
+        shutil.copytree(origrpmdir, newrpmdir)
+        try:
+            sout = subprocess.check_output(['rpmdb', '--root='+newrpmdirbase, '--rebuilddb'])
+            ret = newrpmdir
+        except:
+            pass
+
+    return(ret)
+
 def rpm_get_all_packages(unpackdir):
     rpms = {}
+    rpmdbdir = rpm_prepdb(unpackdir)
     try:
-        sout = subprocess.check_output(['chroot', unpackdir + '/rootfs', 'rpm', '--queryformat', '%{NAME} %{VERSION} %{RELEASE} %{ARCH}\n', '-qa'], stderr=subprocess.STDOUT)
+        #sout = subprocess.check_output(['chroot', unpackdir + '/rootfs', 'rpm', '--queryformat', '%{NAME} %{VERSION} %{RELEASE} %{ARCH}\n', '-qa'], stderr=subprocess.STDOUT)
+        sout = subprocess.check_output(['rpm', '--dbpath='+rpmdbdir, '--queryformat', '%{NAME} %{VERSION} %{RELEASE} %{ARCH}\n', '-qa'], stderr=subprocess.STDOUT)
         for l in sout.splitlines():
             l = l.strip()
             l = l.decode('utf8')
@@ -839,65 +857,18 @@ def rpm_get_all_packages(unpackdir):
 
     return(rpms)
 
-def rpm_get_all_packages_orig(unpackdir):
-    rpms = {}
-    try:
-        rpm.addMacro("_dbpath", unpackdir + "/rootfs/var/lib/rpm")
-        ts = rpm.TransactionSet()
-        mi = ts.dbMatch()
-        if mi.count() == 0:
-            raise Exception
-        for h in mi:
-            rpms[h['name']] = {'version':h['version'], 'release':h['release'], 'arch':h['arch']}
-    except:
-        try:
-            sout = subprocess.check_output(['chroot', unpackdir + '/rootfs', 'rpm', '--queryformat', '%{NAME} %{VERSION} %{RELEASE} %{ARCH}\n', '-qa'], stderr=subprocess.STDOUT)
-            for l in sout.splitlines():
-                l = l.strip()
-                l = l.decode('utf8')
-                (name, vers, rel, arch) = re.match('(\S*)\s*(\S*)\s*(\S*)\s*(.*)', l).group(1, 2, 3, 4)
-                rpms[name] = {'version':vers, 'release':rel, 'arch':arch}
-        except Exception as err:
-            raise ValueError("could not get package list from RPM database: " + str(err))
-
-    return(rpms)
-
 def rpm_get_all_pkgfiles(unpackdir):
     rpmfiles = {}
-
+    rpmdbdir = rpm_prepdb(unpackdir)
     try:
-        sout = subprocess.check_output(['chroot', unpackdir + '/rootfs', 'rpm', '-qal'])
+        #sout = subprocess.check_output(['chroot', unpackdir + '/rootfs', 'rpm', '-qal'])
+        sout = subprocess.check_output(['rpm', '--dbpath='+rpmdbdir, '-qal'])
         for l in sout.splitlines():
             l = l.strip()
             l = l.decode('utf8')
             rpmfiles[l] = True
     except Exception as err:
         raise ValueError("could not get file list from RPM database: " + str(err))
-
-    return(rpmfiles)
-
-def rpm_get_all_pkgfiles_orig(unpackdir):
-    rpmfiles = {}
-
-    try:
-        rpm.addMacro("_dbpath", unpackdir + "/rootfs/var/lib/rpm")
-        ts = rpm.TransactionSet()
-        mi = ts.dbMatch()
-        
-        rpmfiles = {}
-        for h in mi:
-            fs = h['FILENAMES']
-            for f in fs:
-                rpmfiles[f] = h['name']
-    except:
-        try:
-            sout = subprocess.check_output(['chroot', unpackdir + '/rootfs', 'rpm', '-qal'])
-            for l in sout.splitlines():
-                l = l.strip()
-                l = l.decode('utf8')
-                rpmfiles[l] = True
-        except Exception as err:
-            raise ValueError("could not get file list from RPM database: " + str(err))
 
     return(rpmfiles)
 
@@ -1142,6 +1113,28 @@ def get_distro_from_path(inpath):
                 vers = l.split(':')[4]
                 meta['DISTRO'] = distro
                 meta['DISTROVERS'] = vers
+            except:
+                pass
+        FH.close()
+    elif os.path.exists('/'.join([inpath, "/etc/redhat-release"])):
+        FH=open('/'.join([inpath, "/etc/redhat-release"]), 'r')
+        for l in FH.readlines():
+            l = l.strip()
+            l = l.decode('utf8')
+            try:
+                distro = vers = None
+                patt = re.match(".*CentOS.*", l)
+                if patt:
+                    distro = 'centos'
+
+                patt = re.match(".*(\d+\.\d+).*", l)
+                if patt:
+                    vers = patt.group(1)
+
+                if distro:
+                    meta['DISTRO'] = distro
+                if vers:
+                    meta['DISTROVERS'] = vers
             except:
                 pass
         FH.close()
