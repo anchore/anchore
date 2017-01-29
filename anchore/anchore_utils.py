@@ -833,7 +833,7 @@ def rpm_prepdb(unpackdir):
         newrpmdir = os.path.join(newrpmdirbase, 'var', 'lib', 'rpm')
         try:
             shutil.copytree(origrpmdir, newrpmdir)
-            sout = subprocess.check_output(['rpmdb', '--root='+newrpmdirbase, '--rebuilddb'])
+            sout = subprocess.check_output(['rpmdb', '--root='+newrpmdirbase, '--dbpath=/var/lib/rpm', '--rebuilddb'])
             ret = newrpmdir
         except:
             pass
@@ -844,7 +844,6 @@ def rpm_get_all_packages(unpackdir):
     rpms = {}
     rpmdbdir = rpm_prepdb(unpackdir)
     try:
-        #sout = subprocess.check_output(['chroot', unpackdir + '/rootfs', 'rpm', '--queryformat', '%{NAME} %{VERSION} %{RELEASE} %{ARCH}\n', '-qa'], stderr=subprocess.STDOUT)
         sout = subprocess.check_output(['rpm', '--dbpath='+rpmdbdir, '--queryformat', '%{NAME} %{VERSION} %{RELEASE} %{ARCH}\n', '-qa'], stderr=subprocess.STDOUT)
         for l in sout.splitlines():
             l = l.strip()
@@ -861,7 +860,6 @@ def rpm_get_all_pkgfiles(unpackdir):
     rpmfiles = {}
     rpmdbdir = rpm_prepdb(unpackdir)
     try:
-        #sout = subprocess.check_output(['chroot', unpackdir + '/rootfs', 'rpm', '-qal'])
         sout = subprocess.check_output(['rpm', '--dbpath='+rpmdbdir, '-qal'])
         for l in sout.splitlines():
             l = l.strip()

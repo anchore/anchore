@@ -11,22 +11,24 @@ import stat
 
 import anchore.anchore_utils
 
-def rpm_check_file_membership_from_path(inpath, allfiles=None):
+def rpm_check_file_membership_from_path(unpackdir, allfiles=None):
     rpmfiles = {}
     matchfiles = list()
     nonmatchfiles = list()
     realnonmatchfiles = list()
+    inpath = os.path.join(unpackdir, 'rootfs')
+    rpmdbdir = anchore.anchore_utils.rpm_prepdb(unpackdir)
 
     if not allfiles:
         filemap, allfiles = anchore.anchore_utils.get_files_from_path(inpath)
 
     #real_root = os.open('/', os.O_RDONLY)
     try:
-        #os.chroot(inpath)
         try:
             # get a list of all files from RPM
             try:
-                sout = subprocess.check_output(['chroot', inpath, 'rpm', '-qal'])
+                #sout = subprocess.check_output(['chroot', inpath, 'rpm', '-qal'])
+                sout = subprocess.check_output(['rpm', '--dbpath='+rpmdbdir, '-qal'])
                 sout = sout.decode('utf8')
             except subprocess.CalledProcessError as err:
                 sout = ""
@@ -52,7 +54,7 @@ def rpm_check_file_membership_from_path(inpath, allfiles=None):
                 done=True
             else:
                 try:
-                    sout = subprocess.check_output(['chroot', inpath, 'rpm', '-qf'] + cmdlist)
+                    sout = subprocess.check_output(['rpm', '--dbpath='+rpmdbdir, '-qf'] + cmdlist)
                     sout = sout.decode('utf8')
                 except subprocess.CalledProcessError as err:
                     sout = err.output.decode('utf8')
@@ -67,9 +69,6 @@ def rpm_check_file_membership_from_path(inpath, allfiles=None):
             start = start + 256
     except Exception as err:
         raise err
-    #finally:
-        #os.fchdir(real_root)
-        #os.chroot('.')
     
     # for all files, if not unmatched, consider them matched to a package
     for rfile in allfiles.keys():
@@ -79,21 +78,22 @@ def rpm_check_file_membership_from_path(inpath, allfiles=None):
     #print "RESULT: " + str(len(matchfiles)) + " : " + str(len(realnonmatchfiles))
     return(matchfiles, realnonmatchfiles)
 
-def dpkg_check_file_membership_from_path(inpath, allfiles=None):
+def dpkg_check_file_membership_from_path(unpackdir, allfiles=None):
     matchfiles = list()
     nonmatchfiles = list()
+    inpath = os.path.join(unpackdir, 'rootfs')
 
     if not allfiles:
         filemap, allfiles = anchore.anchore_utils.get_files_from_path(inpath)
 
     #real_root = os.open('/', os.O_RDONLY)
     try:
-        #os.chroot(inpath)
         try:
 
             for flist in anchore.anchore_utils.grouper(allfiles.keys(), 256):
                 try:
-                    sout = subprocess.check_output(['chroot', inpath, 'dpkg', '-S'] + flist, stderr=subprocess.STDOUT)
+                    #sout = subprocess.check_output(['chroot', inpath, 'dpkg', '-S'] + flist, stderr=subprocess.STDOUT)
+                    sout = subprocess.check_output(['dpkg', "--admindir="+unpackdir+"/rootfs/var/lib/dpkg", '-S'] + flist, stderr=subprocess.STDOUT)
                     sout = sout.decode('utf8')
                 except subprocess.CalledProcessError as err:
                     sout = err.output.decode('utf8')
@@ -111,9 +111,6 @@ def dpkg_check_file_membership_from_path(inpath, allfiles=None):
 
     except Exception as err:
         raise err
-    #finally:
-        #os.fchdir(real_root)
-        #os.chroot('.')
 
     matchfiles = list(set(allfiles.keys()) - set(nonmatchfiles))
 
@@ -161,12 +158,12 @@ try:
 
     if distrodict['flavor'] == "RHEL":
         # rpm file check
-        match, nonmatch = rpm_check_file_membership_from_path(unpackdir + "/rootfs", allfiles=allfiles)
+        match, nonmatch = rpm_check_file_membership_from_path(unpackdir, allfiles=allfiles)
         for f in nonmatch:
             nonpkgoutfiles[f] = 'NOTPKGED'
     elif distrodict['flavor'] == "DEB":
         # dpkg file check
-        match, nonmatch = dpkg_check_file_membership_from_path(unpackdir + "/rootfs", allfiles=allfiles)
+        match, nonmatch = dpkg_check_file_membership_from_path(unpackdir, allfiles=allfiles)
         for f in nonmatch:
             nonpkgoutfiles[f] = 'NOTPKGED'
 
