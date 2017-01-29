@@ -24,11 +24,10 @@ imgid = config['imgid_full']
 outputdir = config['dirs']['outputdir']
 unpackdir = config['dirs']['unpackdir']
 
-#if not os.path.exists(outputdir):
-#    os.makedirs(outputdir)
-
 meta = anchore.anchore_utils.get_distro_from_path('/'.join([unpackdir, "rootfs"]))
 distrodict = anchore.anchore_utils.get_distro_flavor(meta['DISTRO'], meta['DISTROVERS'], meta['LIKEDISTRO'])
+
+print "analyzer starting up: imageId="+str(imgid) + " meta="+str(meta) + " distrodict="+str(distrodict)
 
 if distrodict['flavor'] not in ['RHEL', 'DEB', 'BUSYB', 'ALPINE']:
     sys.exit(0)
