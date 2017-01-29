@@ -831,8 +831,8 @@ def rpm_prepdb(unpackdir):
     if os.path.exists(origrpmdir):
         newrpmdirbase = make_anchoretmpdir(unpackdir)
         newrpmdir = os.path.join(newrpmdirbase, 'var', 'lib', 'rpm')
-        shutil.copytree(origrpmdir, newrpmdir)
         try:
+            shutil.copytree(origrpmdir, newrpmdir)
             sout = subprocess.check_output(['rpmdb', '--root='+newrpmdirbase, '--rebuilddb'])
             ret = newrpmdir
         except:
