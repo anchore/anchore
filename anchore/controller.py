@@ -121,8 +121,9 @@ class Controller(object):
 
     def load_global_whitelist(self):
         ret = []
-
+        whitelist_data = []
         whitelist_file = None
+
         if self.global_whitelist_override and os.path.exists(self.global_whitelist_override):
             whitelist_file = self.global_whitelist_override
         elif self.default_global_whitelist and os.path.exists(self.default_global_whitelist):
@@ -134,8 +135,9 @@ class Controller(object):
             whitelist_data = anchore_utils.read_kvfile_tolist(whitelist_file)
 
         for item in whitelist_data:
-            if item[0] and not re.match("^#", item[0]):
-                ret.append(item)
+            if item[0] and not re.match("^#", item[0]) and len(item) > 1:
+                store = item[0:2]
+                ret.append(store)
 
         return(ret)
 
