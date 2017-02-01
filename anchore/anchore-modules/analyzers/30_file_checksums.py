@@ -36,18 +36,15 @@ outfiles_md5 = {}
 outfiles_sha256 = {}
 
 try:
-
     timer = time.time()
-    tar = tarfile.open(unpackdir + "/squashed.tar", mode='r', format=tarfile.PAX_FORMAT)
-    for member in tar.getmembers():
-        name = member.name.decode('utf8')
+    (tmp, allfiles) = anchore.anchore_utils.get_files_from_path(unpackdir + "/rootfs")
+    for name in allfiles.keys():
         name = re.sub("^\.", "", name)
+        thefile = '/'.join([unpackdir, "rootfs", name])
 
-        if member.isfile():
-            thefile = '/'.join([unpackdir, "rootfs", name])
-
+        csum = "DIRECTORY_OR_OTHER"
+        if os.path.isfile(thefile) and not os.path.islink(thefile):
             if domd5:
-
                 csum = "DIRECTORY_OR_OTHER"
                 try:
                     with open(thefile, 'r') as FH:
@@ -56,23 +53,23 @@ try:
                     pass
                 outfiles_md5[name] = csum
 
-            csum = "DIRECTORY_OR_OTHER"
             try:
                 with open(thefile, 'r') as FH:
                     csum = hashlib.sha256(FH.read()).hexdigest()
             except:
                 pass
+
             outfiles_sha256[name] = csum
 
         else:
             outfiles_md5[name] = "DIRECTORY_OR_OTHER"
             outfiles_sha256[name] = "DIRECTORY_OR_OTHER"
-        tar.close()
 
 except Exception as err:
     import traceback
     traceback.print_exc()
     print "ERROR: " + str(err)
+    raise err
 
 if outfiles_md5:
     ofile = os.path.join(outputdir, 'files.md5sums')
