@@ -628,17 +628,15 @@ class AnchoreImage(object):
             return(False)
 
         #python2 tarfile doesn't like docker generated tars, for now use tar to recreate: https://bugzilla.redhat.com/show_bug.cgi?id=1194473
-        if True:
-            tarcmd = ["tar", "-C", rootfsdir, "-c", "-f", self.squashtar, './']
-            try:
-                subprocess.check_output(tarcmd)
-            except Exception as err:
-                self._logger.error("Error: Re-tar of unpacked image layer failed.")
-                self._logger.error("Command: " + ' '.join(tarcmd))
-                self._logger.error("Exception: " + str(err))
-                return(False)
-            #os.remove(self.squashtar)
-            #os.rename(self.squashtar_tmp, self.squashtar)
+        os.remove(self.squashtar)
+        tarcmd = ["tar", "-C", rootfsdir, "-c", "-f", self.squashtar, './']
+        try:
+            subprocess.check_output(tarcmd)
+        except Exception as err:
+            self._logger.error("Error: Re-tar of unpacked image layer failed.")
+            self._logger.error("Command: " + ' '.join(tarcmd))
+            self._logger.error("Exception: " + str(err))
+            return(False)
 
         return (True)
 

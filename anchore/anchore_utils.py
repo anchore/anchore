@@ -1899,11 +1899,13 @@ def get_files_from_path(inpath):
         for root, dirs, files in os.walk('/', followlinks=False):
             for name in dirs + files:
                 filename = os.path.join(root, name).decode('utf8')
-                fstat = os.lstat(filename)
+                osfilename = os.path.join(root, name)
+
+                fstat = os.lstat(osfilename)
 
                 finfo = {}
                 finfo['name'] = filename
-                finfo['fullpath'] = os.path.normpath(finfo['name'])
+                finfo['fullpath'] = os.path.normpath(osfilename)
                 finfo['size'] = fstat.st_size
                 finfo['mode'] = fstat.st_mode
                 
@@ -1916,7 +1918,7 @@ def get_files_from_path(inpath):
                     finfo['type'] = 'dir'
                 elif S_ISLNK(mode):
                     finfo['type'] = 'slink'
-                    finfo['linkdst'] = os.readlink(finfo['name'].encode('utf8')).decode('utf8')
+                    finfo['linkdst'] = os.readlink(osfilename)
                 elif S_ISCHR(mode) or S_ISBLK(mode):
                     finfo['type'] = 'dev'
                 else:
@@ -1929,11 +1931,10 @@ def get_files_from_path(inpath):
                         dstlist = finfo['linkdst'].split('/')
                         srclist = finfo['name'].split('/')
                         srcpath = srclist[0:-1]
-                        fullpath = '/'.join(srcpath + dstlist)
-                        fullpath = os.path.normpath('/'.join(srcpath + dstlist))
+                        fullpath = os.path.normpath(os.path.join(finfo['linkdst'], osfilename))
                     finfo['linkdst_fullpath'] = fullpath
 
-                fullpath = os.path.realpath(filename)
+                fullpath = os.path.realpath(osfilename)
 
                 finfo['othernames'] = {}
                 for f in [fullpath, finfo['linkdst_fullpath'], finfo['linkdst'], finfo['name']]:
