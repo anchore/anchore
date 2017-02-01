@@ -617,6 +617,7 @@ class AnchoreImage(object):
             self._logger.error("unable to delete (cleanup) temporary container - proceeding but zombie container may be left in docker: " + str(err))
 
         self.squashtar = imagedir + "/squashed.tar"
+        self.squashtar_tmp = imagedir = "/squashed_tmp.tar"
         
         tarcmd = ["tar", "-C", rootfsdir, "-x", "-f", self.squashtar]
         try:
@@ -626,6 +627,17 @@ class AnchoreImage(object):
             self._logger.error("Command: " + ' '.join(tarcmd))
             self._logger.error("Exception: " + str(err))
             return(False)
+
+        #python2 tarfile doesn't like docker generated tars, for now use tar to recreate: https://bugzilla.redhat.com/show_bug.cgi?id=1194473
+        tarcmd = ["tar", "-C", rootfsdir, "-c", "-f", self.squashtar_tmp, './']
+        try:
+            subprocess.check_output(tarcmd)
+        except Exception as err:
+            self._logger.error("Error: Re-tar of unpacked image layer failed.")
+            self._logger.error("Command: " + ' '.join(tarcmd))
+            self._logger.error("Exception: " + str(err))
+            return(False)
+        os.rename(self.squashtar_tmp, self.squashtar)
 
         return (True)
 

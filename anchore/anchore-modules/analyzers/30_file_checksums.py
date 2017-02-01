@@ -38,7 +38,7 @@ outfiles_sha256 = {}
 try:
 
     timer = time.time()
-    tar = tarfile.open(unpackdir + "/squashed.tar")
+    tar = tarfile.open(unpackdir + "/squashed.tar", mode='r', format=tarfile.PAX_FORMAT)
     for member in tar.getmembers():
         name = member.name.decode('utf8')
         name = re.sub("^\.", "", name)
@@ -70,6 +70,8 @@ try:
         tar.close()
 
 except Exception as err:
+    import traceback
+    traceback.print_exc()
     print "ERROR: " + str(err)
 
 if outfiles_md5:
