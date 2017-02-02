@@ -70,6 +70,27 @@ class ScriptExecutor:
 
         return(output)
 
+    def get_script(self):
+        ret = ""
+
+        if self.thecmd:
+            ret = self.thecmd
+
+        return(ret)
+
+    def csum(self):
+        script = self.get_script()
+        try:
+            import hashlib
+            FH=open(script, 'r')
+            csum = hashlib.md5(FH.read()).hexdigest()
+            FH.close()
+        except:
+            csum = "N/A"
+
+        ret = csum
+        return(ret)
+
 class ScriptSetExecutor:
     """
     A script module is a module for executing a set of user-provided scripts found in a specific directory in
