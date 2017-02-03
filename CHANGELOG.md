@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.1.0 (2017-02-??)
+## 1.1.0 (2017-02-03)
 
 + Added Ruby GEM package analyzer and queries (list-gems, list-gem-detail)
 + Added Alpine Linux to vulnerability feed in order to perform CVE scans against Alpine-based container images
