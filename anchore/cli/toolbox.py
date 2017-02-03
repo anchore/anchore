@@ -62,7 +62,7 @@ def toolbox(anchore_config, ctx, image):
 
 @toolbox.command(name='delete', short_help="Delete input image(s) from the Anchore DB")
 @click.option('--dontask', help='Will delete the image from Anchore DB without asking for coinfirmation', is_flag=True)
-def purge(dontask):
+def delete(dontask):
     ecode = 0
 
     try:
@@ -437,6 +437,24 @@ def image_import(infile):
                 ecode = 1
 
     sys.exit(ecode)
+
+@toolbox.command(name='images')
+def images():
+    anchoreDB = contexts['anchore_db']
+
+    from prettytable import PrettyTable
+    header = ["Tag", "ImageId"]
+    t = PrettyTable(header)
+    t.align = 'l'
+
+    image_list = anchoreDB.get_image_list()
+    for imageId in image_list.keys():
+        for name in image_list[imageId]:
+            row = [name[0:12], imageId[0:12]]
+            t.add_row(row)
+
+    print t
+
 
 @toolbox.command(name='show')
 def show():
