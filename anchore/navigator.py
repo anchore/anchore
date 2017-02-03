@@ -20,6 +20,8 @@ class Navigator(object):
 
         self.images = anchore_utils.image_context_add(imagelist, allimages, docker_cli=contexts['docker_cli'], anchore_datadir=self.anchore_datadir, tmproot=self.config['tmpdir'], anchore_db=contexts['anchore_db'], docker_images=contexts['docker_images'], must_be_analyzed=True, must_load_all=True)
 
+        self.anchoreDB = contexts['anchore_db']
+
     def add_images(self, imagelist):
         newimages = anchore_utils.image_context_add(imagelist, self.allimages, docker_cli=contexts['docker_cli'], anchore_datadir=self.anchore_datadir, tmproot=self.config['tmpdir'], anchore_db=contexts['anchore_db'], docker_images=contexts['docker_images'], must_be_analyzed=True, must_load_all=True)
 
@@ -326,6 +328,18 @@ class Navigator(object):
         ret = [success, cmd, meta]
         return(ret)
 
+    def format_query_manifest_record(self, command, status, returncode, timestamp, qtype, output, csum):
+        ret = {
+            "status": status,
+            "returncode": returncode,
+            "timestamp": timestamp,
+            "type": qtype,
+            "command": command,
+            "output": output,
+            "csum": csum
+        }
+        return(ret)
+
     def list_query_commands(self, command=None):
         result = {}
 
@@ -333,13 +347,28 @@ class Navigator(object):
         record['result']['header'] = ["Query", "Help_String"]
         record['result']['rows'] = list()
 
+        query_manifest = self.anchoreDB.load_query_manifest()
+
         if command:
             try:
                 (rc, command_type, se) = self.find_query_command(command)
                 if rc:
-                    (cmd, rc, sout) = se.execute(capture_output=True, cmdline='help')
+                    commandpath = se.get_script()
+                    csum = se.csum()
+                    if commandpath in query_manifest and csum != "N/A" and csum == query_manifest[commandpath]['csum']:
+                        self._logger.debug("skipping query help refresh run ("+str(command)+"): no change in query")
+                        cmd = query_manifest[commandpath]['command']
+                        rc = query_manifest[commandpath]['returncode']
+                        sout = query_manifest[commandpath]['output']
+                    else:
+                        (cmd, rc, sout) = se.execute(capture_output=True, cmdline='help')
+                    
                     if rc == 0:
+                        query_manifest[commandpath] = self.format_query_manifest_record(cmd, "SUCCESS", rc, time.time(), "N/A", sout, csum)
                         record['result']['rows'].append([command, sout])
+                    else:
+                        query_manifest[commandpath] = self.format_query_manifest_record(cmd, "FAIL", rc, time.time(), "N/A", "N/A", csum)
+
             except Exception as err:
                 pass
                 
@@ -361,15 +390,32 @@ class Navigator(object):
                     continue
                 for d in os.listdir(dd):
                     command = re.sub("(\.py|\.sh)$", "", d)
+                    commandpath = os.path.join(dd, d)
+
                     try:
                         (rc, command_type, se) = self.find_query_command(command)
                         if rc:
-                            (cmd, rc, sout) = se.execute(capture_output=True, cmdline='help')
+                            commandpath = se.get_script()
+                            csum = se.csum()
+                            if commandpath in query_manifest and csum != "N/A" and csum == query_manifest[commandpath]['csum']:
+                                self._logger.debug("skipping query help refresh run ("+str(command)+"): no change in query")
+                                cmd = query_manifest[commandpath]['command']
+                                rc = query_manifest[commandpath]['returncode']
+                                sout = query_manifest[commandpath]['output']
+                            else:
+                                (cmd, rc, sout) = se.execute(capture_output=True, cmdline='help')
+
                             if rc == 0:
+                                query_manifest[commandpath] = self.format_query_manifest_record(cmd, "SUCCESS", rc, time.time(), command_type, sout, csum)
                                 record['result']['rows'].append([command, sout])
+                            else:
+                                query_manifest[commandpath] = self.format_query_manifest_record(cmd, "FAIL", rc, time.time(), command_type, "N/A", csum)
+                                
                     except Exception as err:
                         pass
 
+        self.anchoreDB.save_query_manifest(query_manifest)
+        
         result['list_query_commands'] = record
         return(result)
 

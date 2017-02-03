@@ -277,6 +277,23 @@ class AnchoreImageDB_FS(anchore_image_db_base.AnchoreImageDB):
 
         return(True)
                 
+    def load_query_manifest(self):
+        ret = {}
+        thefile = os.path.join(self.imagerootdir, 'query_manifest.json')
+        if os.path.exists(thefile):
+            with open(thefile, 'r') as FH:
+                try:
+                    ret = json.loads(FH.read())
+                except:
+                    ret = {}
+        return(ret)
+
+    def save_query_manifest(self, data):
+        thefile = os.path.join(self.imagerootdir, 'query_manifest.json')
+        if data:
+            with open(thefile, 'w') as FH:
+                FH.write(json.dumps(data))
+        return(True)
 
     def load_analysis_report(self, imageId):
         thefile = self.imagerootdir + "/" + imageId + "/reports/analysis_report.json"
