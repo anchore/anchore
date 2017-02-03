@@ -444,15 +444,13 @@ def images(no_trunc):
     ecode = 0
 
     import datetime
-    from prettytable import PrettyTable
     
     try:
         anchoreDB = contexts['anchore_db']
 
         #header = ["Repository", "Tag", "Image ID", "Distro", "Size", "All Tags"]
         header = ["Repository", "Tag", "Image ID", "Distro", "Analyzed", "Size"]
-        t = PrettyTable(header)
-        t.align = 'l'
+        result = {"multi":{'result':{'header':header, 'rows':[]}}}
 
         hasData = False
         for image in anchoreDB.load_all_images_iter():
@@ -504,12 +502,13 @@ def images(no_trunc):
                     timestr = "Not Analyzed"
                     
                 row = [repo, tag, printId, distro, timestr, str(round(float(size) / 1024.0 / 1024.0, 2)) + "M"]
-                t.add_row(row)
+                result['multi']['result']['rows'].append(row)
+                #t.add_row(row)
                 hasData = True
             except Exception as err:
                 raise err
 
-        print t
+        anchore_utils.print_result(config, result)
 
     except:
         anchore_print_err("operation failed")
