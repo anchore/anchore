@@ -1245,7 +1245,7 @@ def cve_load_data_imageId(imageId, cve_data_context=None):
             cve_data = cve_data_context[dstr]
             break
         else:
-            feeddata = anchore_feeds.load_anchore_feed('vulnerabilities', ':'.join([f[0], f[1]]))
+            feeddata = anchore_feeds.load_anchore_feed('vulnerabilities', ':'.join([f[0], f[1]]), ensure_unique=True)
             if feeddata['success']:
                 cve_data = feeddata['data']
                 if cve_data_context != None and dstr not in cve_data_context:
