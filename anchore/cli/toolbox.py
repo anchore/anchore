@@ -34,7 +34,7 @@ def toolbox(anchore_config, ctx, image):
 
     imagelist = [image]
 
-    if ctx.invoked_subcommand not in ['import', 'delete', 'kubesync']:
+    if ctx.invoked_subcommand not in ['import', 'delete', 'kubesync', 'images']:
         if not image:
             anchore_print_err("for this operation, you must specify an image with '--image'")
             ecode = 1
@@ -62,7 +62,7 @@ def toolbox(anchore_config, ctx, image):
 
 @toolbox.command(name='delete', short_help="Delete input image(s) from the Anchore DB")
 @click.option('--dontask', help='Will delete the image from Anchore DB without asking for coinfirmation', is_flag=True)
-def purge(dontask):
+def delete(dontask):
     ecode = 0
 
     try:
@@ -435,6 +435,84 @@ def image_import(infile):
             except Exception as err:
                 anchore_print_err("could not store image ("+str(imageId)+") from import file: "+ str(err))
                 ecode = 1
+
+    sys.exit(ecode)
+
+@toolbox.command(name='images')
+@click.option('--no-trunc', help='Do not truncate imageIds', is_flag=True)
+def images(no_trunc):
+    ecode = 0
+
+    import datetime
+    
+    try:
+        anchoreDB = contexts['anchore_db']
+
+        #header = ["Repository", "Tag", "Image ID", "Distro", "Size", "All Tags"]
+        header = ["Repository", "Tag", "Image ID", "Distro", "Analyzed", "Size"]
+        result = {"multi":{'result':{'header':header, 'rows':[]}}}
+
+        hasData = False
+        for image in anchoreDB.load_all_images_iter():
+            try:
+                imageId = image[0]
+                imagedata = image[1]
+                meta = imagedata['meta']
+
+                name = meta['humanname']
+                shortId = meta['shortId']
+                size = meta['sizebytes']
+
+                if no_trunc:
+                    printId = imageId
+                else:
+                    printId = shortId
+
+                patt = re.match("(.*):(.*)", name)
+                if patt:
+                    repo = patt.group(1)
+                    tag = patt.group(2)
+                else:
+                    repo = "<none>"
+                    tag = "<none>"
+
+                oldtags = ','.join(imagedata['anchore_all_tags'])
+
+                if meta['usertype']:
+                    atype = meta['usertype']
+                else:
+                    atype = "<none>"
+
+                distrometa = anchore_utils.get_distro_from_imageId(imageId)
+                #distrodict = anchore_utils.get_distro_flavor(distrometa['DISTRO'], distrometa['DISTROVERS'])
+                distro = distrometa['DISTRO'] + "/" + distrometa['DISTROVERS']
+
+                amanifest = anchoreDB.load_analyzer_manifest(imageId)
+                latest = 0;
+                if amanifest:
+                    for a in amanifest.keys():
+                        ts = amanifest[a]['timestamp']
+                        if ts > latest:
+                            latest = ts
+                
+                if latest:
+                    #timestr = datetime.datetime.fromtimestamp(int(latest)).strftime('%Y-%m-%d %H:%M:%S')
+                    timestr = datetime.datetime.fromtimestamp(int(latest)).strftime('%m-%d-%Y')
+                else:
+                    timestr = "Not Analyzed"
+                    
+                row = [repo, tag, printId, distro, timestr, str(round(float(size) / 1024.0 / 1024.0, 2)) + "M"]
+                result['multi']['result']['rows'].append(row)
+                #t.add_row(row)
+                hasData = True
+            except Exception as err:
+                raise err
+
+        anchore_utils.print_result(config, result)
+
+    except:
+        anchore_print_err("operation failed")
+        ecode = 1            
 
     sys.exit(ecode)
 

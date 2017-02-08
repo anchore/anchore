@@ -93,6 +93,14 @@ class AnchoreImageDB(object):
         self._logger.debug("AnchoreDB: parent unimplemented: driver has not implemented this anchoreDB operation")
         return(False)
 
+    def load_query_manifest(self):
+        self._logger.debug("AnchoreDB: parent unimplemented: driver has not implemented this anchoreDB operation")
+        return(False)
+
+    def save_query_manifest(self, data):
+        self._logger.debug("AnchoreDB: parent unimplemented: driver has not implemented this anchoreDB operation")
+        return(False)
+
     def load_analysis_report(self, imageId):
         self._logger.debug("AnchoreDB: parent unimplemented: driver has not implemented this anchoreDB operation")
         return(False)
@@ -238,5 +246,9 @@ class AnchoreImageDB(object):
         return(False)
 
     def load_feed_group_data(self, feed, group, datafilename):
+        self._logger.debug("AnchoreDB: parent unimplemented: driver has not implemented this anchoreDB operation")
+        return(False)
+
+    def delete_feed_group_data(self, feed, group, datafilename):
         self._logger.debug("AnchoreDB: parent unimplemented: driver has not implemented this anchoreDB operation")
         return(False)

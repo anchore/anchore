@@ -391,9 +391,14 @@ def load_anchore_feed(feed, group, ensure_unique=False):
             for datafile in revfiles:
                 thelist = load_anchore_feed_group_data(feed, group, datafile)
                 if ensure_unique:
+                    thelist.reverse()
                     for el in thelist:
                         if isinstance(el, dict) and len(el.keys()) == 1:
-                            elkey = el.keys()[0]
+                            if feed == 'vulnerabilities':
+                                elkey = el['Vulnerability']['Name']
+                            else:
+                                elkey = el.keys()[0]
+                            #elkey = el.keys()[0]
                             if elkey in unique_hash:
                                 _logger.debug("FOUND duplicate entry during scan for unique data values: " + str(elkey))
                             else:
@@ -500,7 +505,7 @@ def handle_datafile_combine():
                     try:
                         if feed == 'vulnerabilities':
                             vid = v['Vulnerability']['Name']
-                        elif feed == 'packages':
+                        else:
                             vid = v.keys()[0]
                     except:
                         vid = None
