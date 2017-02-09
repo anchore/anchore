@@ -1221,7 +1221,7 @@ def get_distro_flavor(distro, version, likedistro=None):
 
     return(ret)
 
-def cve_load_data_imageId(imageId, cve_data_context=None):
+def cve_load_data(imageId, cve_data_context=None):
     cve_data = None
     
     distrometa = get_distro_from_imageId(imageId)
@@ -1255,16 +1255,24 @@ def cve_load_data_imageId(imageId, cve_data_context=None):
     if not cve_data:
         raise ValueError("cannot find CVE data associated with the input container distro: ("+str(distrolist)+")")
 
-    return (dstr, cve_data)
 
-def cve_load_data(image, cve_data_context=None):
+    last_update = 0
+    try:
+        d = anchore_feeds.load_anchore_feed_group_datameta('vulnerabilities', dstr)
+        last_update = d['last_update']
+    except:
+        pass
 
-    cve_data = None
-    imageId = image.meta['imageId']
+    return (last_update, dstr, cve_data)
 
-    (dst, ret) = cve_load_data_imageId(imageId, cve_data_context=cve_data_context)
-
-    return(ret)
+#def cve_load_data(image, cve_data_context=None):
+#
+#    cve_data = None
+#    imageId = image.meta['imageId']
+#
+#    (dst, ret) = cve_load_data_imageId(imageId, cve_data_context=cve_data_context)
+#
+#    return(ret)
 
 def cve_scanimages(images, pkgmap, flavor, cve_data):
     results = {}
