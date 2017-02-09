@@ -168,6 +168,5 @@ def build_image_list(config, image, imagefile, all_local, include_allanchore, do
             raise Exception("Could not query docker - is docker running?")
         for img in docker_cli.images(name=excluded, quiet=True):
             imagelist.pop(img, None)
-            #imagelist.remove(img)
 
     return imagelist

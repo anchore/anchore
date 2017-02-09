@@ -879,10 +879,7 @@ class AnchoreImage(object):
                 while chunk:
                     OFH.write(chunk)
                     chunk = r.read(chunk_size)
-
-            #with open(imagetar, 'w') as OFH:
-            #    OFH.write(self.docker_cli.get_image(imageId).data)
-
+        
             sout = subprocess.check_output(["tar", "-C", imagedir, "-x", "-f", imagetar], stderr=DEVNULL)
 
         # store some metadata and dockerfile if present
