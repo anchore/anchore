@@ -370,7 +370,8 @@ class Navigator(object):
                         query_manifest[commandpath] = self.format_query_manifest_record(cmd, "FAIL", rc, time.time(), "N/A", "N/A", csum)
 
             except Exception as err:
-                pass
+                self._logger.debug("cannot execute ("+str(command)+"): skipping in list")
+
                 
         else:
             paths = list()
@@ -391,6 +392,8 @@ class Navigator(object):
                 for d in os.listdir(dd):
                     command = re.sub("(\.py|\.sh)$", "", d)
                     commandpath = os.path.join(dd, d)
+                    if re.match(".*\.pyc$", d):
+                        continue
 
                     try:
                         (rc, command_type, se) = self.find_query_command(command)
@@ -412,7 +415,7 @@ class Navigator(object):
                                 query_manifest[commandpath] = self.format_query_manifest_record(cmd, "FAIL", rc, time.time(), command_type, "N/A", csum)
                                 
                     except Exception as err:
-                        pass
+                        self._logger.debug("cannot execute ("+str(command)+"): skipping in list")
 
         self.anchoreDB.save_query_manifest(query_manifest)
         

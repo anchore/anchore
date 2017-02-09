@@ -66,7 +66,6 @@ def delete(dontask):
     ecode = 0
 
     try:
-        #for i in nav.get_images():
         for i in imagelist:
             imageId = None
             if contexts['anchore_db'].is_image_present(i):
@@ -528,7 +527,7 @@ def images(no_trunc):
     try:
         anchoreDB = contexts['anchore_db']
 
-        header = ["Repository", "Tag", "Image ID", "Distro", "Analyzed", "Size"]
+        header = ["Repository", "Tag", "Image ID", "Distro", "Last Analyzed", "Size"]
         result = {"multi":{'result':{'header':header, 'rows':[]}}}
 
         hasData = False
@@ -574,7 +573,7 @@ def images(no_trunc):
                             latest = ts
                 
                 if latest:
-                    timestr = datetime.datetime.fromtimestamp(int(latest)).strftime('%m-%d-%Y')
+                    timestr = datetime.datetime.fromtimestamp(int(latest)).strftime('%m-%d-%Y %H:%M:%S')
                 else:
                     timestr = "Not Analyzed"
                     

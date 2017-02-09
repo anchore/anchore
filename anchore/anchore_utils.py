@@ -1529,7 +1529,7 @@ def cve_scanimage(cve_data, imageId):
     norm_packages = normalize_packages(imageId)
 
     if 'bin_packages' not in norm_packages or not norm_packages['bin_packages']:
-        return({})
+        raise Exception("cannot perform CVE scan on image: no package data is available from analysis")
 
     results = cve_scan_packages(cve_data, norm_packages, flavor)
 
