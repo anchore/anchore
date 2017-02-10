@@ -84,7 +84,10 @@ try:
     else:
         dockerfile_mode = "Unknown"
 
-    if dockerfile_mode == "Actual":
+    if dockerfile_mode != "Actual":
+        outlist.append("NODOCKERFILE Image was not analyzed with an actual Dockerfile")
+
+    if dockerfile_mode != "Unknown":
         if 'dockerfile_contents' in ireport:
             dockerfile_contents = ireport['dockerfile_contents']
             fromstr = None
@@ -162,8 +165,6 @@ try:
 
             if sudostr:
                 outlist.append("SUDO Dockerfile contains a 'sudo' command: " + str(sudostr))
-    else:
-        outlist.append("NODOCKERFILE Image was not analyzed with an actual Dockerfile")
 
 except Exception as err:
     outlist.append(gate_name + " gate failed to run with exception: " + str(err))
