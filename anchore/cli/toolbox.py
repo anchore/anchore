@@ -316,7 +316,7 @@ def setup_module_dev(destdir):
     sys.exit(ecode)
 
 @toolbox.command(name='show-dockerfile')
-def generate_dockerfile():
+def show_dockerfile():
     """Generate (or display actual) image Dockerfile"""
 
     if not nav:
@@ -324,9 +324,9 @@ def generate_dockerfile():
 
     ecode = 0
     try:
-        result = nav.get_dockerfile_contents()
+        result = nav.run_query(['show-dockerfile', 'all'])
         if result:
-            anchore_utils.print_result(config, result, outputmode='raw')
+            anchore_utils.print_result(config, result)
 
     except:
         anchore_print_err("operation failed")
@@ -346,7 +346,7 @@ def show_layers():
 
     ecode = 0
     try:
-        result = nav.get_layers()
+        result = nav.run_query(['show-layers', 'all'])
         if result:
             anchore_utils.print_result(config, result)
 
@@ -366,7 +366,7 @@ def show_familytree():
 
     ecode = 0
     try:
-        result = nav.get_familytree()
+        result = nav.run_query(['show-familytree', 'all'])
         if result:
             anchore_utils.print_result(config, result)
 

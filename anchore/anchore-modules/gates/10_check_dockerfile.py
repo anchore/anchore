@@ -37,6 +37,11 @@ triggers = {
     {
         'description':'triggers if the Dockerfile contains a VOLUME line',
         'params':'None'
+    },
+    'NODOCKERFILE':
+    {
+        'description':'triggers if anchore analysis was performed without supplying a real Dockerfile',
+        'params':'None'
     }
 }
 
@@ -73,7 +78,13 @@ if params:
 # do something
 try:
     ireport = anchore.anchore_utils.load_image_report(imgid)
-    if 'dockerfile_mode' in ireport and ireport['dockerfile_mode'] == "Actual":
+
+    if 'dockerfile_mode' in ireport:
+        dockerfile_mode = ireport['dockerfile_mode']
+    else:
+        dockerfile_mode = "Unknown"
+
+    if dockerfile_mode == "Actual":
         if 'dockerfile_contents' in ireport:
             dockerfile_contents = ireport['dockerfile_contents']
             fromstr = None
@@ -151,6 +162,8 @@ try:
 
             if sudostr:
                 outlist.append("SUDO Dockerfile contains a 'sudo' command: " + str(sudostr))
+    else:
+        outlist.append("NODOCKERFILE Image was not analyzed with an actual Dockerfile")
 
 except Exception as err:
     outlist.append(gate_name + " gate failed to run with exception: " + str(err))

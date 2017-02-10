@@ -60,6 +60,7 @@ def query(anchore_config, image, imagefile, include_allanchore, module):
 
     try:
         nav = init_nav_contexts()
+
         result = nav.run_query(list(module))
         if result:
             anchore_utils.print_result(config, result)
