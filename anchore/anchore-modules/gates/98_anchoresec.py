@@ -1,12 +1,9 @@
 #!/usr/bin/env python
 
 import sys
-import os
 import json
-import re
 import time
 
-from anchore import anchore_image
 import anchore.anchore_utils
 
 gate_name = "ANCHORESEC"
@@ -78,8 +75,6 @@ if params:
             pass
 
 try:
-    #image = anchore_image.AnchoreImage(imgid, config['anchore_config']['image_data_store'], {})
-    #imageId = image.meta['imageId']
     last_update, distro, cve_data = anchore.anchore_utils.cve_load_data(imgid)
     report = anchore.anchore_utils.cve_scanimage(cve_data, imgid)
 except Exception as err:

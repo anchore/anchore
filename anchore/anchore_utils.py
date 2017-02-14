@@ -88,8 +88,11 @@ def init_analyzer_cmdline(argv, name):
 def init_gate_cmdline(argv, gate_name, gate_help={}):
     if len(argv) > 2 and argv[2] == 'anchore_get_help':
         if gate_help:
-            thefile = os.path.join(argv[1], gate_name + ".help")
-            update_file_jsonstr(json.dumps(gate_help), thefile)
+            if argv[1] != 'stdout':
+                gate_help_json = json.dumps(gate_help)
+                thefile = os.path.join(argv[1], gate_name + ".help")
+                update_file_jsonstr(gate_help_json, thefile)
+            print json.dumps({gate_name:gate_help})
         sys.exit(0)
         
     ret = init_query_cmdline(argv, gate_name)
@@ -130,10 +133,6 @@ def init_query_cmdline(argv, paramhelp):
     ret['images'] = images
 
     ret['dirs'] = {}
-    #ret['dirs']['datadir'] = argv[2]
-    #ret['dirs']['imgdir'] = '/'.join([ret['dirs']['datadir'], ret['imgid'], 'image_output'])
-    #ret['dirs']['analyzerdir'] = '/'.join([ret['dirs']['datadir'], ret['imgid'], 'analyzer_output'])
-    #ret['dirs']['gatesdir'] = '/'.join([ret['dirs']['datadir'], ret['imgid'], 'gates_output'])
 
     ret['dirs']['outputdir'] = argv[3]
 
@@ -345,7 +344,94 @@ def make_anchoretmpdir(tmproot):
     except:
         return(False)
 
+def generate_gates_manifest():
+    config = contexts['anchore_config']
+    ret = {}
+
+    gmanifest = contexts['anchore_db'].load_gates_manifest()
+
+    # remove any modules that from manifest that are no longer present on FS
+    for gcommand in gmanifest.keys():
+        if not os.path.exists(gcommand):
+            gmanifest.pop(gcommand, None)
+
+    # make list of all places gate modules can be
+    gatesdir = '/'.join([config["scripts_dir"], "gates"])
+    path_overrides = ['/'.join([config['user_scripts_dir'], 'gates'])]
+    if config['extra_scripts_dir']:
+        path_overrides = path_overrides + ['/'.join([config['extra_scripts_dir'], 'gates'])]
+    
+        
+    # either generate a new element for the module record in the manifest (if new module or module csum is different from what is in manifest), or skip
+    for gdir in path_overrides + [gatesdir]:
+        for gcmd in os.listdir(gdir):
+            script = os.path.join(gdir, gcmd)
+            if re.match(".*~$|.*#$|.*\.pyc", gcmd) or not os.access(script, os.R_OK ^ os.X_OK):
+                # skip tmp and pyc modules
+                continue
+
+            try:
+                with open(script, 'r') as FH:
+                    csum = hashlib.md5(FH.read()).hexdigest()
+            except:
+                csum = "N/A"
+
+            if script not in gmanifest or gmanifest[script]['csum'] == 'N/A' or gmanifest[script]['csum'] != csum:
+                el = {
+                    'status':'FAIL',
+                    'returncode':1,
+                    'timestamp':time.time(),
+                    'command':"",
+                    'csum':csum,
+                    'gatename':"",
+                    'triggers':{},
+                    'type':'gate'
+                }
+
+                try:
+                    cmd = [script, 'stdout', "anchore_get_help"]
+
+                    el['command'] = ' '.join(cmd)
+
+                    (rc, sout, cmdstring) = run_command(cmd)
+                    el['returncode'] = rc
+                    if rc == 0:
+                        el['status'] = 'SUCCESS'
+                        try:
+                            data = json.loads(sout)
+                        except:
+                            data = {}
+
+                        for gkey in data.keys():
+                            el['gatename'] = gkey
+                            el['triggers'] = data[gkey]
+                            #if gkey not in gates_info:
+                            #    gates_info[gkey] = {'command':script, 'triggers':data[gkey], 'csum':csum}
+                    else:
+                        raise Exception("could not exec/generate help/trigger output for gate module (skipping): " + str(cmd))
+                except Exception as err:
+                    _logger.warn(str(err))
+                    pass
+                gmanifest[script] = el
+            else:
+                _logger.debug("no change in module, skipping trigger info get: " + str(script))
+
+    # save the resulting manifest
+    contexts['anchore_db'].save_gates_manifest(gmanifest)
+
+    return(gmanifest)
+
 def discover_gates():
+    gmanifest = generate_gates_manifest()
+    
+    allhelp = {}
+    for gkey in gmanifest:
+        gatename = gmanifest[gkey]['gatename']
+        allhelp[gatename] = gmanifest[gkey]['triggers']
+
+    return(allhelp)
+
+def discover_gates_orig():
     config = contexts['anchore_config']
     ret = {}
 
@@ -1265,15 +1351,6 @@ def cve_load_data(imageId, cve_data_context=None):
 
     return (last_update, dstr, cve_data)
 
-#def cve_load_data(image, cve_data_context=None):
-#
-#    cve_data = None
-#    imageId = image.meta['imageId']
-#
-#    (dst, ret) = cve_load_data_imageId(imageId, cve_data_context=cve_data_context)
-#
-#    return(ret)
-
 def cve_scanimages(images, pkgmap, flavor, cve_data):
     results = {}
     for v in cve_data:
@@ -1984,3 +2061,21 @@ def get_files_from_path(inpath):
 def grouper(inlist, chunksize):
     return (inlist[pos:pos + chunksize] for pos in xrange(0, len(inlist), chunksize))
 
+def run_command(command):
+    rc = 1
+    sout = ""
+
+    try:
+        _logger.debug("running command: " + str(command))
+        sout = subprocess.check_output(command, stderr=subprocess.STDOUT)
+        sout = sout.decode('utf8')
+        rc = 0
+    except subprocess.CalledProcessError as err:
+        sout = err.output.decode('utf8')
+        rc = err.returncode
+    except Exception as err:
+        sout = str(err)
+        rc = 1
+    _logger.debug("command complete: " + str(command))
+
+    return(rc, sout, ' '.join(command))
