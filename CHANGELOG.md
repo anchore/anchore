@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.1 (2017-02-14)
+
++ Added analyzer, gate, and query modules that allow searching and gating based on regular expression matches of file contents 
+  and file names (for finding secrets/keys/other items in files)
++ Added 'anchore toolbox images' feature to give a quick tabular view of all analyzed images in the anchore DB
++ Improved query list time by only re-running query modules for help output if the query module has changed
++ Improved CVE scan feed handling to allow for ensuring unique data values in the feed, which happens if CVE data for a given CVE is updated
++ Fixed issue in where a CVE scan would show no warning if a container appears to be a supported distro but has no package information present
+	
 ## 1.1.0 (2017-02-03)
 
 + Added Ruby GEM package analyzer and queries (list-gems, list-gem-detail)
