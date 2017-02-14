@@ -26,7 +26,6 @@ class Controller(object):
     def __init__(self, anchore_config, imagelist, allimages, force=False):
         self.config = anchore_config
         self.allimages = allimages
-        self.force = force        
         self.anchore_datadir = self.config['image_data_store']
         
         if len(imagelist) <= 0:
@@ -288,10 +287,70 @@ class Controller(object):
         workingdir = '/'.join([self.config['anchore_data_dir'], 'querytmp'])
         outputdir = workingdir
         
-        if not self.force and os.path.exists(imagedir + "/gates.done"):
-            self._logger.info(image.meta['shortId'] + ": evaluated.")
-            return(True)
+        self._logger.info(image.meta['shortId'] + ": evaluating policies ...")
+        
+        for d in [outputdir, workingdir]:
+            if not os.path.exists(d):
+                os.makedirs(d)
 
+        imgfile = '/'.join([workingdir, "queryimages." + str(random.randint(0, 99999999))])
+        anchore_utils.write_plainfile_fromstr(imgfile, image.meta['imageId'])
+
+        if self.policy_override:
+            policy_data = anchore_utils.read_plainfile_tolist(self.policy_override)
+            policies = self.read_policy(policy_data)
+        else:
+            policies = self.get_image_policies(image)
+
+        gmanifest = anchore_utils.create_gates_manifest()
+        
+        success = True
+        for gatecheck in policies.keys():
+            if gatecheck in gmanifest:
+                params = []
+                for trigger in policies[gatecheck].keys():
+                    if 'params' in policies[gatecheck][trigger] and policies[gatecheck][trigger]['params']:
+                        params.append(policies[gatecheck][trigger]['params'])
+
+                if not params:
+                    params = ['all']
+
+                cmd = [gmanifest[gatecheck]['command']] + [imgfile, self.config['image_data_store'], outputdir] + params
+
+                self._logger.debug("running gate command: " + str(' '.join(cmd)))
+
+                (rc, sout, cmdstring) = anchore_utils.run_command(cmd)
+                if rc:
+                    self._logger.error("FAILED")
+                    self._logger.error("\tCMD: " + str(cmdstring))
+                    self._logger.error("\tEXITCODE: " + str(rc))
+                    self._logger.error("\tOUTPUT: " + str(sout))
+                    success = False
+                else:
+                    self._logger.debug("")
+                    self._logger.debug("\tCMD: " + str(cmdstring))
+                    self._logger.debug("\tEXITCODE: " + str(rc))
+                    self._logger.debug("\tOUTPUT: " + str(sout))
+                    self._logger.debug("")
+                    
+        if success:
+            report = self.generate_gates_report(image)
+            self.anchoreDB.save_gates_report(image.meta['imageId'], report)
+            self._logger.info(image.meta['shortId'] + ": evaluated.")
+
+        self._logger.debug("gate policy evaluation for image "+str(image.meta['imagename'])+": end")
+        return(success)
+
+    def execute_gates_orig(self, image, refresh=True):
+        self._logger.debug("gate policy evaluation for image "+str(image.meta['imagename'])+": begin")
+        success = True
+
+        imagename = image.meta['imageId']
+        imagedir = image.anchore_imagedir
+        gatesdir = '/'.join([self.config["scripts_dir"], "gates"])
+        workingdir = '/'.join([self.config['anchore_data_dir'], 'querytmp'])
+        outputdir = workingdir
+        
         self._logger.info(image.meta['shortId'] + ": evaluating policies ...")
         
         for d in [outputdir, workingdir]:

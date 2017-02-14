@@ -84,7 +84,7 @@ def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy
     success = True
 
     # special option, does not need any image inputs
-    if show_gatehelp:
+    if show_gatehelp:        
         try:
             gate_info = anchore_utils.discover_gates()
             anchore_print(gate_info, do_formatting=True)

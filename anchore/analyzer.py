@@ -352,12 +352,12 @@ class Analyzer(object):
             self._logger.error("analyzers failed to run on one or more images.")
             return (False)
 
-        if not self.skipgates:
-            # execute gates
-            self._logger.debug("running gates post-analysis: begin")
-            for imageId in toanalyze.keys():
-                c = controller.Controller(anchore_config=self.config, imagelist=[imageId], allimages=self.allimages).run_gates(refresh=True)
-            self._logger.debug("running gates post-analysis: end")
+        #if not self.skipgates:
+        #    # execute gates
+        #    self._logger.debug("running gates post-analysis: begin")
+        #    for imageId in toanalyze.keys():
+        #        c = controller.Controller(anchore_config=self.config, imagelist=[imageId], allimages=self.allimages).run_gates(refresh=True)
+        #    self._logger.debug("running gates post-analysis: end")
 
         self._logger.debug("main image analysis on images: " + str(self.images) + ": end")
         return (success)
