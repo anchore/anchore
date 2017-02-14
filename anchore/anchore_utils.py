@@ -344,17 +344,25 @@ def make_anchoretmpdir(tmproot):
     except:
         return(False)
 
-def create_gates_manifest():
+def generate_gates_manifest():
     config = contexts['anchore_config']
     ret = {}
 
-    gatesdir = '/'.join([config["scripts_dir"], "gates"])
+    gmanifest = contexts['anchore_db'].load_gates_manifest()
 
+    # remove any modules that from manifest that are no longer present on FS
+    for gcommand in gmanifest.keys():
+        if not os.path.exists(gcommand):
+            gmanifest.pop(gcommand, None)
+
+    # make list of all places gate modules can be
+    gatesdir = '/'.join([config["scripts_dir"], "gates"])
     path_overrides = ['/'.join([config['user_scripts_dir'], 'gates'])]
     if config['extra_scripts_dir']:
         path_overrides = path_overrides + ['/'.join([config['extra_scripts_dir'], 'gates'])]
     
-    gmanifest = {}
+        
+    # either generate a new element for the module record in the manifest (if new module or module csum is different from what is in manifest), or skip
     for gdir in path_overrides + [gatesdir]:
         for gcmd in os.listdir(gdir):
             script = os.path.join(gdir, gcmd)
@@ -368,34 +376,58 @@ def create_gates_manifest():
             except:
                 csum = "N/A"
 
-            try:
-                cmd = [script, 'stdout', "anchore_get_help"]
-                (rc, sout, cmdstring) = run_command(cmd)
-                if rc == 0:
-                    try:
-                        data = json.loads(sout)
-                    except:
-                        data = {}
+            if script not in gmanifest or gmanifest[script]['csum'] == 'N/A' or gmanifest[script]['csum'] != csum:
+                el = {
+                    'status':'FAIL',
+                    'returncode':1,
+                    'timestamp':time.time(),
+                    'command':"",
+                    'csum':csum,
+                    'gatename':"",
+                    'triggers':{},
+                    'type':'gate'
+                }
 
-                    for gkey in data.keys():
-                        if gkey not in gmanifest:
-                            gmanifest[gkey] = {'command':script, 'triggers':data[gkey], 'csum':csum}
-                else:
-                    raise Exception("could not exec/generate help/trigger output for gate module (skipping): " + str(cmd))
-            except Exception as err:
-                _logger.warn(str(err))
-                pass
+                try:
+                    cmd = [script, 'stdout', "anchore_get_help"]
+
+                    el['command'] = ' '.join(cmd)
+
+                    (rc, sout, cmdstring) = run_command(cmd)
+                    el['returncode'] = rc
+                    if rc == 0:
+                        el['status'] = 'SUCCESS'
+                        try:
+                            data = json.loads(sout)
+                        except:
+                            data = {}
+
+                        for gkey in data.keys():
+                            el['gatename'] = gkey
+                            el['triggers'] = data[gkey]
+                            #if gkey not in gates_info:
+                            #    gates_info[gkey] = {'command':script, 'triggers':data[gkey], 'csum':csum}
+                    else:
+                        raise Exception("could not exec/generate help/trigger output for gate module (skipping): " + str(cmd))
+                except Exception as err:
+                    _logger.warn(str(err))
+                    pass
+                gmanifest[script] = el
+            else:
+                _logger.debug("no change in module, skipping trigger info get: " + str(script))
+
+    # save the resulting manifest
+    contexts['anchore_db'].save_gates_manifest(gmanifest)
 
     return(gmanifest)
 
 def discover_gates():
-    gmanifest = create_gates_manifest()
+    gmanifest = generate_gates_manifest()
     
     allhelp = {}
     for gkey in gmanifest:
-        allhelp[gkey] = gmanifest[gkey]['triggers']
-
-    save_gate_help_output(allhelp)
+        gatename = gmanifest[gkey]['gatename']
+        allhelp[gatename] = gmanifest[gkey]['triggers']
 
     return(allhelp)
 

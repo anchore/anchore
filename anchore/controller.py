@@ -302,20 +302,28 @@ class Controller(object):
         else:
             policies = self.get_image_policies(image)
 
-        gmanifest = anchore_utils.create_gates_manifest()
-        
+        gmanifest = anchore_utils.generate_gates_manifest()
+
         success = True
         for gatecheck in policies.keys():
-            if gatecheck in gmanifest:
-                params = []
-                for trigger in policies[gatecheck].keys():
-                    if 'params' in policies[gatecheck][trigger] and policies[gatecheck][trigger]['params']:
-                        params.append(policies[gatecheck][trigger]['params'])
 
-                if not params:
-                    params = ['all']
+            # get all commands that match the gatecheck
+            gcommands = []
+            for gkey in gmanifest.keys():
+                if gmanifest[gkey]['gatename'] == gatecheck:
+                    gcommands.append(gkey)
 
-                cmd = [gmanifest[gatecheck]['command']] + [imgfile, self.config['image_data_store'], outputdir] + params
+            # assemble the params from the input policy for this gatecheck
+            params = []
+            for trigger in policies[gatecheck].keys():
+                if 'params' in policies[gatecheck][trigger] and policies[gatecheck][trigger]['params']:
+                    params.append(policies[gatecheck][trigger]['params'])
+
+            if not params:
+                params = ['all']
+
+            for command in gcommands:
+                cmd = [command] + [imgfile, self.config['image_data_store'], outputdir] + params
 
                 self._logger.debug("running gate command: " + str(' '.join(cmd)))
 
