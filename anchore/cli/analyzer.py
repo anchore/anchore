@@ -188,7 +188,7 @@ def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy
                     success = True
                     ecode = con.result_get_highest_action(result)
             except Exception as err:
-                anchore_print_err("failed to run gates: " + str(err))
+                anchore_print_err("failed to run gates")
                 ecode = 1
 
     contexts['anchore_allimages'].clear()

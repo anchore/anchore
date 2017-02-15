@@ -302,45 +302,50 @@ class Controller(object):
         else:
             policies = self.get_image_policies(image)
 
-        gmanifest = anchore_utils.generate_gates_manifest()
+        gmanifest, failedgates = anchore_utils.generate_gates_manifest()
+        if failedgates:
+            self._logger.error("some gates failed to run - check the gate(s) modules for errors: "  + str(','.join(failedgates)))
+            success = False
+        else:
+            success = True
+            for gatecheck in policies.keys():
+                # get all commands that match the gatecheck
+                gcommands = []
+                for gkey in gmanifest.keys():
+                    if gmanifest[gkey]['gatename'] == gatecheck:
+                        gcommands.append(gkey)
 
-        success = True
-        for gatecheck in policies.keys():
+                # assemble the params from the input policy for this gatecheck
+                params = []
+                for trigger in policies[gatecheck].keys():
+                    if 'params' in policies[gatecheck][trigger] and policies[gatecheck][trigger]['params']:
+                        params.append(policies[gatecheck][trigger]['params'])
 
-            # get all commands that match the gatecheck
-            gcommands = []
-            for gkey in gmanifest.keys():
-                if gmanifest[gkey]['gatename'] == gatecheck:
-                    gcommands.append(gkey)
+                if not params:
+                    params = ['all']
 
-            # assemble the params from the input policy for this gatecheck
-            params = []
-            for trigger in policies[gatecheck].keys():
-                if 'params' in policies[gatecheck][trigger] and policies[gatecheck][trigger]['params']:
-                    params.append(policies[gatecheck][trigger]['params'])
+                if gcommands:
+                    for command in gcommands:
+                        cmd = [command] + [imgfile, self.config['image_data_store'], outputdir] + params
 
-            if not params:
-                params = ['all']
+                        self._logger.debug("running gate command: " + str(' '.join(cmd)))
 
-            for command in gcommands:
-                cmd = [command] + [imgfile, self.config['image_data_store'], outputdir] + params
-
-                self._logger.debug("running gate command: " + str(' '.join(cmd)))
-
-                (rc, sout, cmdstring) = anchore_utils.run_command(cmd)
-                if rc:
-                    self._logger.error("FAILED")
-                    self._logger.error("\tCMD: " + str(cmdstring))
-                    self._logger.error("\tEXITCODE: " + str(rc))
-                    self._logger.error("\tOUTPUT: " + str(sout))
-                    success = False
+                        (rc, sout, cmdstring) = anchore_utils.run_command(cmd)
+                        if rc:
+                            self._logger.error("FAILED")
+                            self._logger.error("\tCMD: " + str(cmdstring))
+                            self._logger.error("\tEXITCODE: " + str(rc))
+                            self._logger.error("\tOUTPUT: " + str(sout))
+                            success = False
+                        else:
+                            self._logger.debug("")
+                            self._logger.debug("\tCMD: " + str(cmdstring))
+                            self._logger.debug("\tEXITCODE: " + str(rc))
+                            self._logger.debug("\tOUTPUT: " + str(sout))
+                            self._logger.debug("")
                 else:
-                    self._logger.debug("")
-                    self._logger.debug("\tCMD: " + str(cmdstring))
-                    self._logger.debug("\tEXITCODE: " + str(rc))
-                    self._logger.debug("\tOUTPUT: " + str(sout))
-                    self._logger.debug("")
-                    
+                    self._logger.warn("WARNING: policy contains entries but no gates were executed (no gates were found to match the specified policy entries)")
+
         if success:
             report = self.generate_gates_report(image)
             self.anchoreDB.save_gates_report(image.meta['imageId'], report)
@@ -451,7 +456,7 @@ class Controller(object):
             image = self.allimages[imageId]
 
             if not self.execute_gates(image, refresh=refresh):
-                raise Exception("One or more gates failed to execute")
+                raise Exception("one or more gates failed to execute")
 
             results, fullresults = self.evaluate_gates_results(image)
 

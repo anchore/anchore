@@ -345,22 +345,28 @@ def make_anchoretmpdir(tmproot):
         return(False)
 
 def generate_gates_manifest():
-    config = contexts['anchore_config']
     ret = {}
+    failedgates = []
 
+    config = contexts['anchore_config']
     gmanifest = contexts['anchore_db'].load_gates_manifest()
 
     # remove any modules that from manifest that are no longer present on FS
     for gcommand in gmanifest.keys():
         if not os.path.exists(gcommand):
             gmanifest.pop(gcommand, None)
+#        else:
+#            try:
+#                if gmanifest[gcommand]['returncode'] != 0:
+#                    failedgates.append(gmanifest[gcommand]['command'])
+#            except:
+#                pass
 
     # make list of all places gate modules can be
     gatesdir = '/'.join([config["scripts_dir"], "gates"])
     path_overrides = ['/'.join([config['user_scripts_dir'], 'gates'])]
     if config['extra_scripts_dir']:
         path_overrides = path_overrides + ['/'.join([config['extra_scripts_dir'], 'gates'])]
-    
         
     # either generate a new element for the module record in the manifest (if new module or module csum is different from what is in manifest), or skip
     for gdir in path_overrides + [gatesdir]:
@@ -376,7 +382,7 @@ def generate_gates_manifest():
             except:
                 csum = "N/A"
 
-            if script not in gmanifest or gmanifest[script]['csum'] == 'N/A' or gmanifest[script]['csum'] != csum:
+            if script not in gmanifest or gmanifest[script]['csum'] == 'N/A' or gmanifest[script]['csum'] != csum or gmanifest[script]['returncode'] != 0:
                 el = {
                     'status':'FAIL',
                     'returncode':1,
@@ -388,9 +394,8 @@ def generate_gates_manifest():
                     'type':'gate'
                 }
 
+                cmd = [script, 'stdout', "anchore_get_help"]
                 try:
-                    cmd = [script, 'stdout', "anchore_get_help"]
-
                     el['command'] = ' '.join(cmd)
 
                     (rc, sout, cmdstring) = run_command(cmd)
@@ -405,13 +410,15 @@ def generate_gates_manifest():
                         for gkey in data.keys():
                             el['gatename'] = gkey
                             el['triggers'] = data[gkey]
-                            #if gkey not in gates_info:
-                            #    gates_info[gkey] = {'command':script, 'triggers':data[gkey], 'csum':csum}
                     else:
-                        raise Exception("could not exec/generate help/trigger output for gate module (skipping): " + str(cmd))
+                        raise Exception("could not exec/generate help/trigger output for gate module: " + str(' '.join(cmd)))
                 except Exception as err:
-                    _logger.warn(str(err))
-                    pass
+                    _logger.warn("WARNING: " + str(err))
+
+                    cmdstring = ' '.join(cmd)
+                    if cmdstring not in failedgates:
+                        failedgates.append(cmdstring)
+
                 gmanifest[script] = el
             else:
                 _logger.debug("no change in module, skipping trigger info get: " + str(script))
@@ -419,10 +426,10 @@ def generate_gates_manifest():
     # save the resulting manifest
     contexts['anchore_db'].save_gates_manifest(gmanifest)
 
-    return(gmanifest)
+    return(gmanifest, failedgates)
 
 def discover_gates():
-    gmanifest = generate_gates_manifest()
+    gmanifest, failedgates = generate_gates_manifest()
     
     allhelp = {}
     for gkey in gmanifest:
