@@ -344,7 +344,7 @@ class Controller(object):
                             self._logger.debug("\tOUTPUT: " + str(sout))
                             self._logger.debug("")
                 else:
-                    self._logger.warn("WARNING: policy contains entries but no gates were executed (no gates were found to match the specified policy entries)")
+                    self._logger.warn("WARNING: gatecheck ("+str(gatecheck)+") line in policy, but no gates were found that match this gatecheck")
 
         if success:
             report = self.generate_gates_report(image)
