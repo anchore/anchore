@@ -1662,6 +1662,49 @@ def is_pkg_vuln(vtag, vpkg, flavor, ivers, iversonly, vvers):
 
     return(isvuln)
 
+def compare_package_versions(imageId, pkga, vera, pkgb, verb):
+    # if ret == 0, versions are equal
+    # if ret > 0, vers A is greater than version B
+    # if ret < 0, vers A is less than version B
+
+    fulla = '-'.join([str(pkga), str(vera)])
+    fullb = '-'.join([str(pkgb), str(verb)])
+    if fulla == fullb:
+        return(0)
+
+    distrometa = get_distro_from_imageId(imageId)
+    idistro = distrometa['DISTRO']
+    idistrovers = distrometa['DISTROVERS']
+    distrodict = get_distro_flavor(idistro, idistrovers)
+    flavor = distrodict['flavor']
+
+    if flavor == "RHEL":
+        fixfile = pkgb + "-" + verb + ".arch.rpm"
+        imagefile = pkga + "-" + vera + ".arch.rpm"
+        (n1, v1, r1, e1, a1) = splitFilename(imagefile)
+        (n2, v2, r2, e2, a2) = splitFilename(fixfile)
+        if rpm.labelCompare(('1', v1, r1), ('1', v2, r2)) < 0:
+            return(-1)
+        else:
+            return(1)
+
+    elif flavor == "DEB":
+        comp_rc = dpkg_compare_versions(vera, 'lt', verb)
+        if comp_rc == 0:
+            return(-1)
+        else:
+            return(1)
+    elif flavor == "ALPINE":
+        comp_rc = apkg_compare_versions(vera, 'lt', verb)
+        if comp_rc == 0:
+            return(-1)
+        else:
+            return(1)
+    else:
+        raise ValueError("unsupported distro, cannot compare package versions")
+
+    return(0)
+
 def image_context_add(imagelist, allimages, docker_cli=None, dockerfile=None, anchore_datadir=None, tmproot='/tmp', anchore_db=None, docker_images=None, must_be_analyzed=False, usertype=None, must_load_all=False):
     retlist = list()
     for i in imagelist:
