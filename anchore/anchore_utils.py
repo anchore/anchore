@@ -1346,7 +1346,30 @@ def cve_load_data(imageId, cve_data_context=None):
                 break
 
     if not cve_data:
-        raise ValueError("cannot find CVE data associated with the input container distro: ("+str(distrolist)+")")
+        dstrs = []
+        try:
+            for dtup in distrolist:
+                try:
+                    dname = str(dtup[0])
+                except:
+                    dname = "unknown_distro"
+
+                try:
+                    dvers = str(dtup[1])
+                    if dvers == '0':
+                        dvers = "unknown_version"
+                except:
+                    dvers = "unknown_version"
+
+                dstring = str(dname) + ":" + str(dvers)
+                if dstring not in dstrs:
+                    dstrs.append(dstring)
+        except Exception as err:
+            dstrs = ['unknown_distro:unknown_version']
+
+        msg = "no CVE data is currently available for the detected base distro type ("+str(','.join(dstrs))+")"
+        raise ValueError(str(msg))
+        #raise ValueError("cannot find CVE data associated with the input container distro: ("+str(distrolist)+")")
 
 
     last_update = 0
