@@ -1254,6 +1254,30 @@ def get_distro_from_path(inpath):
     if not meta['LIKEDISTRO']:
         meta['LIKEDISTRO'] = meta['DISTRO']
 
+    #
+    # some experimentation around alternative parsing of debian_version
+    #
+    #debmap = {
+    #    'sid':'unstable',
+    #    'stretch':'testing',
+    #    'jessie':'8',
+    #    'wheezy':'7',
+    #    'squeeze':'6',
+    #    'lenny':'5'
+    #}
+    #
+    #if meta['DISTRO'] == 'debian' and os.path.exists(os.path.join(inpath, 'etc', 'debian_version')):
+    #    with open(os.path.join(inpath, 'etc', 'debian_version'), 'r') as FH:
+    #        for line in FH.readlines():
+    #            line = line.strip()
+    #            for regmatch in ["(.*)/(.*)", "(.*)"]:
+    #                patt = re.match(regmatch, line)
+    #                if patt:
+    #                    for p in patt.groups():
+    #                        if p in debmap:
+    #                            meta['DISTROVERS'] = debmap[p]
+    #
+
     return(meta)
 
 def get_distro_flavor(distro, version, likedistro=None):
