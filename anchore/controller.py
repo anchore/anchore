@@ -63,6 +63,39 @@ class Controller(object):
                 if check not in policies[module]:
                     policies[module][check] = {}
 
+                if 'aptups' not in policies[module][check]:
+                    policies[module][check]['aptups'] = []
+
+                aptup = [action, modparams]
+                if aptup not in policies[module][check]['aptups']:
+                    policies[module][check]['aptups'].append(aptup)
+
+                policies[module][check]['action'] = action
+                policies[module][check]['params'] = modparams
+
+        return(policies)
+
+    def read_policy_orig(self, policydata):
+        policies = {}
+        for l in policydata:
+            l = l.strip()
+            patt = re.compile('^\s*#')
+
+            if (l and not patt.match(l)):
+                polinput = l.split(':')
+                module = polinput[0]
+                check = polinput[1]
+                action = polinput[2]
+                modparams = ""
+                if (len(polinput) > 3):
+                    modparams = ':'.join(polinput[3:])
+
+                if module not in policies:
+                    policies[module] = {}
+
+                if check not in policies[module]:
+                    policies[module][check] = {}
+
                 policies[module][check]['action'] = action
                 policies[module][check]['params'] = modparams
 
@@ -229,7 +262,6 @@ class Controller(object):
                     trigger = k
                     action = policies[check][trigger]['action']
 
-                    #r = {'imageId':image.meta['imageId'], 'check':m, 'trigger':k, 'output':v, 'action':policies[m][k]['action']}
                     r = {'imageId':imageId, 'check':check, 'triggerId':triggerId, 'trigger':trigger, 'output':output, 'action':action}
                     # this is where whitelist check should go
                     whitelisted = False
@@ -302,6 +334,8 @@ class Controller(object):
         else:
             policies = self.get_image_policies(image)
 
+        #print json.dumps(policies, indent=4)
+
         gmanifest, failedgates = anchore_utils.generate_gates_manifest()
         if failedgates:
             self._logger.error("some gates failed to run - check the gate(s) modules for errors: "  + str(','.join(failedgates)))
@@ -327,7 +361,6 @@ class Controller(object):
                 if gcommands:
                     for command in gcommands:
                         cmd = [command] + [imgfile, self.config['image_data_store'], outputdir] + params
-
                         self._logger.debug("running gate command: " + str(' '.join(cmd)))
 
                         (rc, sout, cmdstring) = anchore_utils.run_command(cmd)
@@ -463,7 +496,6 @@ class Controller(object):
             record = {}
             record['result'] = {}
 
-            #record['result']['header'] = ['Image_Id', 'Repo_Tag', 'Gate', 'Trigger', 'Check_Output', 'Gate_Action']        
             record['result']['header'] = ['Image_Id', 'Repo_Tag']
             if self.show_triggerIds:
                 record['result']['header'].append('Trigger_Id')
