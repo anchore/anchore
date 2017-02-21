@@ -586,7 +586,7 @@ class AnchoreImage(object):
             return(self.squash_tarfile_reverse(imagedir))
 
         self._logger.warn("no operation defined / squash driver found - returning success but no operation performed")
-        retrun(True)
+        return(True)
 
     def squash_docker_export(self, imagedir=None):
         if not imagedir:
