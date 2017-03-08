@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.1.2 (2017-03-08)
+
++ Lots of new anchore modules (run 'anchore query' for a list of new queries, and 'anchore gate --show-gatehelp' for a list of 
+  new policy/gate items)
++ Added gate modules for checking status of NPM and GEM packages (npm_check and gem_check)
++ Added gate modules for specifying license and package blacklists (license_blacklist and package_blacklist)
++ Added gate module that checks for package existance (check_package_info)
++ Added gate module that checks that base image up-to-date (check_image)
++ Added trigger to the dockerfile gate module for ensuring HEALTHCHECK is present in Dockerfiles
++ Added trigger to the dockerfile gate module for ensuring that a Dockerfile exists
++ Added query for listing files that are not known to be owned by any installed package
++ Added queries for getting more detail about installed packages (list-package-detail, list-package-licenses)
++ Minor bug fixes and error reporting improvements
+
 ## 1.1.1 (2017-02-14)
 
 + Added analyzer, gate, and query modules that allow searching and gating based on regular expression matches of file contents 
