@@ -37,6 +37,17 @@ triggers = {
     {
         'description':'triggers if the Dockerfile contains a VOLUME line',
         'params':'None'
+    },
+    'NOHEALTHCHECK':
+    {
+        'description':'triggers if the Dockerfile does not contain any HEALTHCHECK instructions',
+        'params':'None'
+
+    },
+    'NODOCKERFILE':
+    {
+        'description':'triggers if anchore analysis was performed without supplying a real Dockerfile',
+        'params':'None'
     }
 }
 
@@ -73,13 +84,23 @@ if params:
 # do something
 try:
     ireport = anchore.anchore_utils.load_image_report(imgid)
-    if 'dockerfile_mode' in ireport and ireport['dockerfile_mode'] == "Actual":
+
+    if 'dockerfile_mode' in ireport:
+        dockerfile_mode = ireport['dockerfile_mode']
+    else:
+        dockerfile_mode = "Unknown"
+
+    if dockerfile_mode != "Actual":
+        outlist.append("NODOCKERFILE Image was not analyzed with an actual Dockerfile")
+
+    if dockerfile_mode != "Unknown":
         if 'dockerfile_contents' in ireport:
             dockerfile_contents = ireport['dockerfile_contents']
             fromstr = None
             exposestr = None
             volumestr = None
             sudostr = None
+            healthcheckstr = None
 
             for line in dockerfile_contents.splitlines():
                 line = line.strip()
@@ -89,6 +110,8 @@ try:
                     exposestr = re.match("^\s*(EXPOSE|"+'EXPOSE'.lower()+")\s+(.*)", line).group(2)
                 elif re.match("^\s*(VOLUME|"+'VOLUME'.lower()+")\s+(.*)", line):
                     volumestr = str(line)
+                elif re.match("^\s*(HEALTHCHECK|"+'HEALTHCHECK'.lower()+")\s+(.*)", line):
+                    healthcheckstr = str(line)
                 elif re.match(".*sudo.*", line):
                     sudostr = str(line)
 
@@ -148,6 +171,9 @@ try:
 
             if volumestr:
                 outlist.append("VOLUMEPRESENT Dockerfile contains a VOLUME line: " + str(volumestr))
+
+            if not healthcheckstr:
+                outlist.append("NOHEALTHCHECK Dockerfile does not contain any HEALTHCHECK instructions")
 
             if sudostr:
                 outlist.append("SUDO Dockerfile contains a 'sudo' command: " + str(sudostr))

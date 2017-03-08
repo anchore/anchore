@@ -28,7 +28,7 @@ result = {}
 allimages = {}
 for imageId in config['images']:
     try:
-        image = anchore.anchore_image.AnchoreImage(imageId, config['anchore_config']['image_data_store'], allimages)
+        image = anchore.anchore_image.AnchoreImage(imageId, allimages=allimages)
 
         distro = image.get_distro()
         distro_vers = image.get_distro_vers()
