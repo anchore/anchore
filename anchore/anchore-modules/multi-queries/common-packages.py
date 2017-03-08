@@ -12,7 +12,7 @@ def get_next(image, allimages):
     imageId = image.meta['imageId']
     i = image.get_latest_userimage()
     if i:
-        nimage = anchore.anchore_image.AnchoreImage(i, config['anchore_config']['image_data_store'], allimages)
+        nimage = anchore.anchore_image.AnchoreImage(i, allimages=allimages)
         return([imageId] + get_next(nimage, allimages))
         
     return([imageId, image.get_earliest_base()])
@@ -32,7 +32,7 @@ outlist.append(["BaseId", "Package", "*Child_Images_With_Package"])
 allimages = {}
 tups = list()
 for imageId in config['images']:
-    image = anchore.anchore_image.AnchoreImage(imageId, config['anchore_config']['image_data_store'], allimages)
+    image = anchore.anchore_image.AnchoreImage(imageId, allimages=allimages)
     branch = get_next(image, allimages)
     for i in range(0, len(branch)-1):
         tup = [branch[i], branch[i+1]]

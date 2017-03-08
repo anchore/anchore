@@ -527,18 +527,6 @@ def discover_imageId(name):
         name_variants = []
         name_variants.append(name)
 
-#        cleanname = name
-#        for pre in ["", "sha256:", "docker.io/"]:
-#            cleanname = re.sub("^"+pre, "", cleanname)
-#            for post in ["", ":latest"]:
-#                cleanname = re.sub(post+"$", "", cleanname)
-
-#        for pre in ["", "sha256:", "docker.io/"]:
-#            for post in ["", ":latest"]:
-#                newname = pre+cleanname+post
-#                if newname not in name_variants:
-#                    name_variants.append(newname)
-
         try:
             docker_images = contexts['docker_images']
         except:
@@ -1759,7 +1747,7 @@ def compare_package_versions(imageId, pkga, vera, pkgb, verb):
 
     return(0)
 
-def image_context_add(imagelist, allimages, docker_cli=None, dockerfile=None, anchore_datadir=None, tmproot='/tmp', anchore_db=None, docker_images=None, must_be_analyzed=False, usertype=None, must_load_all=False):
+def image_context_add(imagelist, allimages, docker_cli=None, dockerfile=None, tmproot='/tmp', anchore_db=None, docker_images=None, must_be_analyzed=False, usertype=None, must_load_all=False):
     retlist = list()
     for i in imagelist:
         if i in allimages:
@@ -1769,7 +1757,7 @@ def image_context_add(imagelist, allimages, docker_cli=None, dockerfile=None, an
             raise Exception(errorstr)
         else:
             try:
-                newimage = anchore_image.AnchoreImage(i, anchore_datadir, docker_cli=docker_cli, allimages=allimages, dockerfile=dockerfile, tmpdirroot=tmproot, usertype=usertype, anchore_db=anchore_db, docker_images=docker_images)
+                newimage = anchore_image.AnchoreImage(i, docker_cli=docker_cli, allimages=allimages, dockerfile=dockerfile, tmpdirroot=tmproot, usertype=usertype, anchore_db=anchore_db, docker_images=docker_images)
             except Exception as err:
                 if must_load_all:
                     traceback.print_exc()
@@ -2176,3 +2164,61 @@ def run_command(command):
     _logger.debug("command complete: " + str(command))
 
     return(rc, sout, ' '.join(command))
+
+def parse_dockerimage_string(instr):
+    host = None
+    port = None
+    repo = None
+    tag = None
+
+    # get the host/port
+    patt = re.match("(.*?)/(.*)", instr)
+    if patt:
+        a = patt.group(1)
+        remain = patt.group(2)
+        patt = re.match("(.*?):(.*)", a)
+        if patt:
+            host = patt.group(1)
+            port = patt.group(2)
+        elif a == 'docker.io':
+            host = 'docker.io'
+            port = None
+        elif a == 'localhost' or a == 'localhost.localdomain':
+            host = a
+            port = None
+        else:
+            patt = re.match(".*\..*", a)
+            if patt:
+                host = a
+            else:
+                host = 'docker.io'
+                remain = instr
+            port = None
+
+    else:
+        host = 'docker.io'
+        port = None
+        remain = instr
+
+    # get the repo/tag
+    patt = re.match("(.*):(.*)", remain)
+    if patt:
+        repo = patt.group(1)
+        tag = patt.group(2)
+    else:
+        repo = remain
+        tag = "latest"
+
+    if not tag:
+        tag = "latest"
+
+    if port:
+        hostport = ':'.join([host, port])
+    else:
+        hostport = host
+
+    repotag = ':'.join([repo, tag])
+    outstr = '/'.join([hostport, repotag])
+
+    return(host, port, repo, tag, outstr)
+

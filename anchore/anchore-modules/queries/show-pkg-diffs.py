@@ -28,7 +28,7 @@ allimages = {}
 imageId = config['imgid']
 
 try:
-    image = anchore.anchore_image.AnchoreImage(imageId, config['anchore_config']['image_data_store'], allimages)
+    image = anchore.anchore_image.AnchoreImage(imageId, allimages=allimages)
     ipkgs = image.get_allpkgs()
 
     for fid in config['params']:
@@ -46,7 +46,7 @@ try:
                 if not anchore.anchore_utils.is_image_analyzed(fimageId):
                     raise Exception("imageId ("+str(fimageId)+") is not analyzed or analysis failed")
 
-                fimage = anchore.anchore_image.AnchoreImage(fimageId, config['anchore_config']['image_data_store'], allimages)
+                fimage = anchore.anchore_image.AnchoreImage(fimageId, allimages=allimages)
                 image_report = anchore.anchore_utils.diff_images(image.meta['imageId'], fimage.meta['imageId'])
                 fpkgs = fimage.get_allpkgs()
 

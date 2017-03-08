@@ -26,12 +26,11 @@ class Controller(object):
     def __init__(self, anchore_config, imagelist, allimages, force=False):
         self.config = anchore_config
         self.allimages = allimages
-        self.anchore_datadir = self.config['image_data_store']
         
         if len(imagelist) <= 0:
             raise Exception("No images given to evaluate")
 
-        self.images = anchore_utils.image_context_add(imagelist, allimages, docker_cli=contexts['docker_cli'], anchore_datadir=self.anchore_datadir, tmproot=self.config['tmpdir'], anchore_db=contexts['anchore_db'], docker_images=contexts['docker_images'], must_be_analyzed=True, must_load_all=True)
+        self.images = anchore_utils.image_context_add(imagelist, allimages, docker_cli=contexts['docker_cli'], tmproot=self.config['tmpdir'], anchore_db=contexts['anchore_db'], docker_images=contexts['docker_images'], must_be_analyzed=True, must_load_all=True)
 
         self.anchoreDB = contexts['anchore_db']
 
@@ -314,7 +313,6 @@ class Controller(object):
         success = True
 
         imagename = image.meta['imageId']
-        imagedir = image.anchore_imagedir
         gatesdir = '/'.join([self.config["scripts_dir"], "gates"])
         workingdir = '/'.join([self.config['anchore_data_dir'], 'querytmp'])
         outputdir = workingdir
@@ -392,7 +390,6 @@ class Controller(object):
         success = True
 
         imagename = image.meta['imageId']
-        imagedir = image.anchore_imagedir
         gatesdir = '/'.join([self.config["scripts_dir"], "gates"])
         workingdir = '/'.join([self.config['anchore_data_dir'], 'querytmp'])
         outputdir = workingdir
