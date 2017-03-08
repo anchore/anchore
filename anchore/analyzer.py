@@ -22,7 +22,6 @@ class Analyzer(object):
         self.config = anchore_config
         self.allimages = allimages
         self.force = force
-        self.anchore_datadir = self.config['image_data_store']
 
         self.dockerfile = None
         try:
@@ -48,7 +47,7 @@ class Analyzer(object):
 
         self._logger.debug("init input processed, loading input images: " + str(imagelist))
         
-        self.images = anchore_utils.image_context_add(imagelist, allimages, docker_cli=contexts['docker_cli'], dockerfile=self.dockerfile, anchore_datadir=self.anchore_datadir, tmproot=self.config['tmpdir'], anchore_db=contexts['anchore_db'], docker_images=contexts['docker_images'], usertype=usertype, must_load_all=True)
+        self.images = anchore_utils.image_context_add(imagelist, allimages, docker_cli=contexts['docker_cli'], dockerfile=self.dockerfile, tmproot=self.config['tmpdir'], anchore_db=contexts['anchore_db'], docker_images=contexts['docker_images'], usertype=usertype, must_load_all=True)
 
         self._logger.debug("loaded input images, checking that all input images have been loaded " + str(self.images))
 
@@ -102,7 +101,7 @@ class Analyzer(object):
         success = True
         analyzers = self.list_analyzers()
         imagename = image.meta['imagename']
-        outputdir = image.anchore_imagedir
+        #outputdir = image.anchore_imagedir
         shortid = image.meta['shortId']
         imagedir = None
 
@@ -352,12 +351,12 @@ class Analyzer(object):
             self._logger.error("analyzers failed to run on one or more images.")
             return (False)
 
-        if not self.skipgates:
-            # execute gates
-            self._logger.debug("running gates post-analysis: begin")
-            for imageId in toanalyze.keys():
-                c = controller.Controller(anchore_config=self.config, imagelist=[imageId], allimages=self.allimages).run_gates(refresh=True)
-            self._logger.debug("running gates post-analysis: end")
+        #if not self.skipgates:
+        #    # execute gates
+        #    self._logger.debug("running gates post-analysis: begin")
+        #    for imageId in toanalyze.keys():
+        #        c = controller.Controller(anchore_config=self.config, imagelist=[imageId], allimages=self.allimages).run_gates(refresh=True)
+        #    self._logger.debug("running gates post-analysis: end")
 
         self._logger.debug("main image analysis on images: " + str(self.images) + ": end")
         return (success)

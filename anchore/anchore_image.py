@@ -41,7 +41,7 @@ class AnchoreImage(object):
             except:
                 pass
 
-    def __init__(self, imagename, anchore_image_datadir, allimages, tmpdirroot="/tmp", dockerfile=None, docker_cli=None, anchore_db=None, docker_images=None, usertype=None):
+    def __init__(self, imagename, allimages={}, tmpdirroot="/tmp", dockerfile=None, docker_cli=None, anchore_db=None, docker_images=None, usertype=None):
         self._logger.debug("initializing image: " + str(imagename))
         # all members
         self.allimages = allimages
@@ -66,9 +66,6 @@ class AnchoreImage(object):
                      'shortparentId': None,
                      'usertype': usertype,
                      'sizebytes':0}
-
-        self.anchore_image_datadir = None
-        self.anchore_imagedir = None
 
         self.anchore_data = {}
 
@@ -98,16 +95,13 @@ class AnchoreImage(object):
             result = anchore_utils.discover_imageId(imagename)
             if not result:
                 raise Exception("could not locate image named ("+str(imagename)+") in anchore or local container system.")
-        except:
-            raise Exception("input image name ("+str(imagename)+") is ambiguous.")
+        except Exception as err:
+            raise Exception("input image name ("+str(imagename)+") is ambiguous. exception - " + str(err))
 
         self.meta['imageId'] = result
 
         if dockerfile and (os.stat(dockerfile).st_size <= 0 or not os.path.exists(dockerfile) or not os.path.isfile(dockerfile)):
             raise Exception("input dockerfile ("+str(dockerfile)+") is invalid.")
-
-        self.anchore_image_datadir = anchore_image_datadir
-        self.anchore_imagedir = os.path.join(anchore_image_datadir, self.meta['imageId'])
 
         # set up external contexts
         if docker_cli:
@@ -157,7 +151,7 @@ class AnchoreImage(object):
 
         newlist = list(self.anchore_familytree)
         while self.meta['imageId'] in newlist: newlist.remove(self.meta['imageId'])
-        anchore_utils.image_context_add(newlist, self.allimages, docker_cli=self.docker_cli, anchore_datadir=self.anchore_image_datadir, tmproot=self.tmpdirroot, anchore_db=self.anchore_db, docker_images=self.docker_images)
+        anchore_utils.image_context_add(newlist, self.allimages, docker_cli=self.docker_cli, tmproot=self.tmpdirroot, anchore_db=self.anchore_db, docker_images=self.docker_images)
 
     """ Image loading, discovering and saving """
     def load_image(self, dockerfile=None):
@@ -338,7 +332,7 @@ class AnchoreImage(object):
             if image_id: familytree.append(image_id)
             if parent_id:
                 if parent_id not in self.allimages:
-                    self.allimages[parent_id] = AnchoreImage(parent_id, anchore_image_datadir=self.anchore_image_datadir, allimages=self.allimages, tmpdirroot=self.tmpdirroot, docker_cli=self.docker_cli, anchore_db=self.anchore_db, docker_images=self.docker_images)
+                    self.allimages[parent_id] = AnchoreImage(parent_id, allimages=self.allimages, tmpdirroot=self.tmpdirroot, docker_cli=self.docker_cli, anchore_db=self.anchore_db, docker_images=self.docker_images)
                 nextimage = self.allimages[parent_id]
             else:
                 done = 1
@@ -435,7 +429,6 @@ class AnchoreImage(object):
 
     def is_analyzed(self):
         return(self.anchore_db.is_image_analyzed(self.meta['imageId']))
-        #return os.path.exists(self.anchore_imagedir + "/analyzers.done")
 
     """ get_ routines """
 
@@ -547,9 +540,6 @@ class AnchoreImage(object):
 
     def get_tag_history(self):
         return (self.anchore_tag_history)
-
-    def get_imagedir(self):
-        return (self.anchore_imagedir)
 
     def get_layers(self):
         return (self.anchore_layers)
@@ -879,10 +869,7 @@ class AnchoreImage(object):
                 while chunk:
                     OFH.write(chunk)
                     chunk = r.read(chunk_size)
-
-            #with open(imagetar, 'w') as OFH:
-            #    OFH.write(self.docker_cli.get_image(imageId).data)
-
+        
             sout = subprocess.check_output(["tar", "-C", imagedir, "-x", "-f", imagetar], stderr=DEVNULL)
 
         # store some metadata and dockerfile if present

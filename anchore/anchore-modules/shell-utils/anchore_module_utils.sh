@@ -58,7 +58,8 @@ function init_query_cmdline {
 
     anchore toolbox --image ${IMGID} show > ${OUTPUTDIR}/image.env 2>/dev/null
     if [ -f "${OUTPUTDIR}/image.env" -a -s "${OUTPUTDIR}/image.env" ]; then
-	export `cat ${OUTPUTDIR}/image.env`
+	#export `cat ${OUTPUTDIR}/image.env`
+	source ${OUTPUTDIR}/image.env
     fi
     rm -f ${OUTPUTDIR}/image.env
 

@@ -43,16 +43,20 @@ fname_regexps = list()
 if params:
     for param in params:
         try:
-            (key, value) = param.split("=")
-            if key == "FILECHECK_CONTENTREGEXP":
+            patt = re.match("FILECHECK_CONTENTREGEXP=(.*)", param)
+            if patt:
+                value = patt.group(1)
                 for regexp in value.split("|"):
                     content_regexps.append(regexp.encode('base64'))
-            elif key == "FILECHECK_NAMEREGEXP":
-                print value
+
+            patt = re.match("FILECHECK_NAMEREGEXP=(.*)", param)
+            if patt:
+                value = patt.group(1)
                 for regexp in value.split("|"):
                     fname_regexps.append(regexp.encode('base64'))
-        except:
-            pass
+        except Exception as err:
+            print "ERROR: failure parsing parameter strings - exception: " + str(err)
+            sys.exit(1)
 
 outlist = list()
 # look to see if the content search analyzer matched any files
