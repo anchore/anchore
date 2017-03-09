@@ -1789,22 +1789,31 @@ def diff_images(imageId, baseimageId):
                         output = {}
 
                         adata = areport[module_name][module_value][module_type]
-                        bdata = breport[module_name][module_value][module_type]
+                        try:
+                            bdata = breport[module_name][module_value][module_type]
+                        except:
+                            for btype in breport[module_name][module_value].keys():
+                                try:
+                                    bdata = breport[module_name][module_value][btype]
+                                    break
+                                except:
+                                    pass
 
-                        for akey in adata.keys():
-                            if akey not in bdata:
-                                output[akey] = "INIMG_NOTINBASE"
-                            elif adata[akey] != bdata[akey]:
-                                output[akey] = "VERSION_DIFF"
-                        for bkey in bdata.keys():
-                            if bkey not in adata:
-                                output[bkey] = "INBASE_NOTINIMG"
-                        if module_name not in ret:
-                            ret[module_name] = {}
-                        if module_value not in ret[module_name]:
-                            ret[module_name][module_value] = {}
+                        if adata and bdata:
+                            for akey in adata.keys():
+                                if akey not in bdata:
+                                    output[akey] = "INIMG_NOTINBASE"
+                                elif adata[akey] != bdata[akey]:
+                                    output[akey] = "VERSION_DIFF"
+                            for bkey in bdata.keys():
+                                if bkey not in adata:
+                                    output[bkey] = "INBASE_NOTINIMG"
+                            if module_name not in ret:
+                                ret[module_name] = {}
+                            if module_value not in ret[module_name]:
+                                ret[module_name][module_value] = {}
 
-                        ret[module_name][module_value][module_type] = output
+                            ret[module_name][module_value][module_type] = output
 
     return(ret)
 
