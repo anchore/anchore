@@ -10,7 +10,7 @@ from textwrap import fill
 import click
 
 from anchore.cli.common import anchore_print, anchore_print_err
-from anchore import navigator, controller, anchore_utils, anchore_auth, anchore_feeds
+from anchore import navigator, controller, anchore_utils, anchore_auth, anchore_feeds, anchore_policy
 from anchore.util import contexts, scripting
 
 config = {}
@@ -28,10 +28,12 @@ def toolbox(anchore_config, ctx, image):
 
     """
 
-    global config, imagelist, nav
+    global config, imagelist, nav, inputimagelist
+
     config = anchore_config
     ecode = 0
 
+    inputimagelist = [image]
     imagelist = [image]
 
     if ctx.invoked_subcommand not in ['import', 'delete', 'kubesync', 'images']:
@@ -631,3 +633,62 @@ def show():
 
     sys.exit(ecode)
 
+
+@toolbox.command(name='thing')
+@click.option('--polname', help='policy name', metavar='<polname>')
+@click.option('--polfile', help='policy file', metavar='<file>')
+@click.option('--wlname', help='whitelist name', metavar='<wlname>')
+@click.option('--wlfile', help='whitelist file', metavar='<file>')
+@click.option('--apply-global', help='apply global whitelist as well as input whitelist', is_flag=True)
+@click.option('--repotag', help='repotag name', metavar='<repotagname>')
+def thing(polname, polfile, wlname, wlfile, apply_global, repotag):
+    policies = {}
+    whitelists = {}
+    global_whitelist = {}
+    mappings = []
+    ecode = 0
+
+    if False:
+        # testing
+        pol0 = anchore_policy.read_policy(name='default', file='/root/.anchore/conf/anchore_gate.policy')
+        pol1 = anchore_policy.read_policy(name='dan0', file='/root/pol0')
+        policies.update(pol0)
+        policies.update(pol1)
+
+        wl0 = anchore_policy.read_whitelist(name='default', file='/root/.anchore/conf/anchore_global.whitelist')
+        wl1 = anchore_policy.read_whitelist(name='dan0', file='/root/wl0')
+        whitelists.update(wl0)
+        whitelists.update(wl1)
+
+        glob0 = anchore_policy.read_whitelist(name='global', file='/root/.anchore/conf/anchore_global.whitelist')
+        global_whitelist.update(glob0)
+
+        map0 = anchore_policy.create_mapping(policy_name='default', whitelist_name='default', repotagstrings=['centos:*', 'ubuntu:16.10', 'myanchore.com:5000/alpine:latest'])
+        map1 = anchore_policy.create_mapping(policy_name='dan0', whitelist_name='dan0', repotagstrings=['alpine', 'myanchore.com:5000/alpine:latest'])
+        mappings.append(map0)
+        mappings.append(map1)
+
+    # set up a little bundle based on input
+
+    try:
+        policies.update(anchore_policy.read_policy(name=polname, file=polfile))
+        whitelists.update(anchore_policy.read_whitelist(name=wlname, file=wlfile))
+        global_whitelist.update(anchore_policy.read_whitelist(name='global', file='/root/.anchore/conf/anchore_global.whitelist'))
+        mappings.append(anchore_policy.create_mapping(policy_name=polname, whitelist_name=wlname, repotagstrings=[repotag], apply_global=apply_global))
+    except Exception as err:
+        anchore_print_err("failed to set up mapping based on input: " + str(err))
+        ecode = 1
+    else:
+
+        bundle = anchore_policy.create_policy_bundle(name='default', policies=policies, policy_version='v1', whitelists=whitelists, whitelist_version='v1', global_whitelist=global_whitelist, global_whitelist_version='v1', mappings=mappings)
+
+        anchore_policy.write_policy_bundle(bundle=bundle, bundle_file="/tmp/bun.json")
+
+        print "Generated bundle from input polname/wlnam/repotags options: " + json.dumps(bundle, indent=4)
+        print "Running bundle: "
+        result = anchore_policy.run_bundle(anchore_config=config, imagelist=inputimagelist, bundle=bundle)
+        print "Evaluation results: " + json.dumps(result, indent=4)
+
+    contexts['anchore_allimages'].clear()
+
+    sys.exit(ecode)    

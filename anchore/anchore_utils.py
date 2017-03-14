@@ -2227,7 +2227,7 @@ def parse_dockerimage_string(instr):
         hostport = host
 
     repotag = ':'.join([repo, tag])
-    outstr = '/'.join([hostport, repotag])
 
-    return(host, port, repo, tag, outstr)
+    fulltag = '/'.join([hostport, repotag])
 
+    return(host, port, repo, tag, hostport, repotag, fulltag)

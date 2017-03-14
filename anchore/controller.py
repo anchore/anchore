@@ -9,7 +9,8 @@ import random
 import shutil
 import hashlib
 
-from anchore import anchore_utils
+from anchore import anchore_utils, anchore_policy
+
 import logging
 
 from anchore.util import scripting, contexts
@@ -40,6 +41,19 @@ class Controller(object):
         self.policy_override = None
         self.global_whitelist_override = None
         self.show_triggerIds = False
+
+    def read_global_whitelist(self, whitelistdata):
+        ret = []
+        
+        for item in whitelistdata:
+            try:
+                (k,v) = re.match("([^\s]*)\s*([^\s]*)", item).group(1,2)
+                if not re.match("^\s*#.*", k):
+                    ret.append([k, v])
+            except Exception as err:
+                pass
+
+        return(ret)
 
     def read_policy(self, policydata):
         policies = {}
@@ -134,7 +148,12 @@ class Controller(object):
         # checks are in default), and save (if there is a diff after
         # the merge)
 
-        policy_data = anchore_utils.read_plainfile_tolist(self.default_gatepol)
+        #policy_data = anchore_utils.read_plainfile_tolist(self.default_gatepol)
+        try:
+            policy = anchore_policy.read_policy(name='default', file=self.default_gatepol)
+            policy_data = policy['default']
+        except Exception as err:
+            policy_data = []
         default_policies = self.read_policy(policy_data)
 
         policy_data = self.anchoreDB.load_gate_policy(image.meta['imageId'])
@@ -163,13 +182,14 @@ class Controller(object):
             self._logger.debug("no global whitelist can be found, skipping")
 
         if whitelist_file:
-            whitelist_data = anchore_utils.read_kvfile_tolist(whitelist_file)
-
-        for item in whitelist_data:
-            if item[0] and not re.match("^#", item[0]) and len(item) > 1:
-                store = item[0:2]
-                ret.append(store)
-
+            whitelist_data = anchore_policy.read_whitelist(name='default', file=whitelist_file)
+            ret = self.read_global_whitelist(whitelist_data['default'])
+            #whitelist_data = anchore_utils.read_kvfile_tolist(whitelist_file)
+            
+        #for item in whitelist_data:
+        #    if item[0] and not re.match("^#", item[0]) and len(item) > 1:
+        #        store = item[0:2]
+        #        ret.append(store)
         return(ret)
 
     def load_whitelist(self, image):
@@ -229,7 +249,13 @@ class Controller(object):
         global_whitelist = self.load_global_whitelist()
 
         if self.policy_override:
-            policy_data = anchore_utils.read_plainfile_tolist(self.policy_override)
+            #policy_data = anchore_utils.read_plainfile_tolist(self.policy_override)
+            try:
+                policy = anchore_policy.read_policy(name='default', file=self.policy_override)
+                policy_data = policy['default']
+            except Exception as err:
+                policy_data = []
+
             policies = self.read_policy(policy_data)
         else:
             policies = self.get_image_policies(image)
@@ -252,7 +278,6 @@ class Controller(object):
                     if 'id' in json_output:
                         triggerId = str(json_output['id'])
                     if 'desc' in json_output:
-                        #output = output + " description="+outputdesc
                         output = str(json_output['desc'])
                 except:
                     pass
@@ -327,12 +352,15 @@ class Controller(object):
         anchore_utils.write_plainfile_fromstr(imgfile, image.meta['imageId'])
 
         if self.policy_override:
-            policy_data = anchore_utils.read_plainfile_tolist(self.policy_override)
+            #policy_data = anchore_utils.read_plainfile_tolist(self.policy_override)
+            try:
+                policy = anchore_policy.read_policy(name='default', file=self.policy_override)
+                policy_data = policy['default']
+            except Exception as err:
+                policy_data = []
             policies = self.read_policy(policy_data)
         else:
             policies = self.get_image_policies(image)
-
-        #print json.dumps(policies, indent=4)
 
         gmanifest, failedgates = anchore_utils.generate_gates_manifest()
         if failedgates:
@@ -376,69 +404,6 @@ class Controller(object):
                             self._logger.debug("")
                 else:
                     self._logger.warn("WARNING: gatecheck ("+str(gatecheck)+") line in policy, but no gates were found that match this gatecheck")
-
-        if success:
-            report = self.generate_gates_report(image)
-            self.anchoreDB.save_gates_report(image.meta['imageId'], report)
-            self._logger.info(image.meta['shortId'] + ": evaluated.")
-
-        self._logger.debug("gate policy evaluation for image "+str(image.meta['imagename'])+": end")
-        return(success)
-
-    def execute_gates_orig(self, image, refresh=True):
-        self._logger.debug("gate policy evaluation for image "+str(image.meta['imagename'])+": begin")
-        success = True
-
-        imagename = image.meta['imageId']
-        gatesdir = '/'.join([self.config["scripts_dir"], "gates"])
-        workingdir = '/'.join([self.config['anchore_data_dir'], 'querytmp'])
-        outputdir = workingdir
-        
-        self._logger.info(image.meta['shortId'] + ": evaluating policies ...")
-        
-        for d in [outputdir, workingdir]:
-            if not os.path.exists(d):
-                os.makedirs(d)
-
-        imgfile = '/'.join([workingdir, "queryimages." + str(random.randint(0, 99999999))])
-        anchore_utils.write_plainfile_fromstr(imgfile, image.meta['imageId'])
-
-        if self.policy_override:
-            policy_data = anchore_utils.read_plainfile_tolist(self.policy_override)
-            policies = self.read_policy(policy_data)
-        else:
-            policies = self.get_image_policies(image)
-
-        paramlist = list()
-        for p in policies.keys():
-            for t in policies[p].keys():
-                if 'params' in policies[p][t] and policies[p][t]['params']:
-                    paramlist.append(policies[p][t]['params'])
-        if len(paramlist) <= 0:
-            paramlist.append('all')
-
-        path_overrides = ['/'.join([self.config['user_scripts_dir'], 'gates'])]
-        if self.config['extra_scripts_dir']:
-            path_overrides = path_overrides + ['/'.join([self.config['extra_scripts_dir'], 'gates'])]
-
-        results = scripting.ScriptSetExecutor(path=gatesdir, path_overrides=path_overrides).execute(capture_output=True, fail_fast=True, cmdline=' '.join([imgfile, self.config['image_data_store'], outputdir, ' '.join(paramlist)]))
-
-        os.remove(imgfile)
-
-        for r in results:
-            (cmd, retcode, output) = r
-            if retcode:
-                self._logger.error("FAILED")
-                self._logger.error("\tCMD: " + cmd)
-                self._logger.error("\tEXITCODE: " + str(retcode))
-                self._logger.error("\tOUTPUT: " + output)
-                success = False
-            else:
-                self._logger.debug("")
-                self._logger.debug("\tCMD: " + cmd)
-                self._logger.debug("\tEXITCODE: " + str(retcode))
-                self._logger.debug("\tOUTPUT: " + output)
-                self._logger.debug("")
 
         if success:
             report = self.generate_gates_report(image)
@@ -537,8 +502,8 @@ class Controller(object):
         ret = {}
         for imageId in self.images:
             if imageId in self.allimages:
-                image = self.allimages[imageId]
-                image_pol = self.get_image_policies(image)
+                policy_data = self.anchoreDB.load_gate_policy(imageId)
+                image_pol = self.read_policy(policy_data)
                 ret[imageId] = image_pol
         return(ret)
 
@@ -550,7 +515,13 @@ class Controller(object):
         return(True)
 
     def updatepolicy(self, newpolicyfile):
-        policy_data = anchore_utils.read_plainfile_tolist(newpolicyfile)
+        #policy_data = anchore_utils.read_plainfile_tolist(newpolicyfile)
+        try:
+            policy = anchore_policy.read_policy(name='default', file=newpolicyfile)
+            policy_data = policy['default']
+        except Exception as err:
+            policy_data = []
+
         newpol = self.read_policy(policy_data)
         for imageId in self.images:
             if imageId in self.allimages:
@@ -598,9 +569,13 @@ class Controller(object):
                     else:
                         self._logger.info("Cannot find editor to use: please set the EDITOR environment variable and try again")
                         break
-                        ret = False
 
-                    newdata = anchore_utils.read_plainfile_tolist(thefile)
+                    #newdata = anchore_utils.read_plainfile_tolist(thefile)
+                    try:
+                        policy = anchore_policy.read_policy(name='default', file=thefile)
+                        newdata = policy['default']
+                    except Exception as err:
+                        newdata = []
 
                     if editpolicy:
                         self.anchoreDB.save_gate_policy(imageId, newdata)
