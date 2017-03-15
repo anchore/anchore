@@ -674,7 +674,7 @@ def thing(polname, polfile, wlname, wlfile, apply_global, repotag):
         policies.update(anchore_policy.read_policy(name=polname, file=polfile))
         whitelists.update(anchore_policy.read_whitelist(name=wlname, file=wlfile))
         global_whitelist.update(anchore_policy.read_whitelist(name='global', file='/root/.anchore/conf/anchore_global.whitelist'))
-        mappings.append(anchore_policy.create_mapping(policy_name=polname, whitelist_name=wlname, repotagstrings=[repotag], apply_global=apply_global))
+        mappings.append(anchore_policy.create_mapping(policy_name=polname, whitelist_name=wlname, repotagstrings=[repotag, 'centos:*', 'myanchore.com:5000/alpine:latest'], apply_global=apply_global))
     except Exception as err:
         anchore_print_err("failed to set up mapping based on input: " + str(err))
         ecode = 1
@@ -682,7 +682,7 @@ def thing(polname, polfile, wlname, wlfile, apply_global, repotag):
 
         bundle = anchore_policy.create_policy_bundle(name='default', policies=policies, policy_version='v1', whitelists=whitelists, whitelist_version='v1', global_whitelist=global_whitelist, global_whitelist_version='v1', mappings=mappings)
 
-        anchore_policy.write_policy_bundle(bundle=bundle, bundle_file="/tmp/bun.json")
+        #anchore_policy.write_policy_bundle(bundle=bundle, bundle_file="/tmp/bun.json")
 
         print "Generated bundle from input polname/wlnam/repotags options: " + json.dumps(bundle, indent=4)
         print "Running bundle: "

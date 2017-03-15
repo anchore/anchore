@@ -456,6 +456,17 @@ class AnchoreImage(object):
 
         return self.anchore_gates_eval_report
 
+    def get_digests(self):
+        if not self.docker_data:
+            return([])
+
+        ret = []
+        if 'RepoDigests' in self.docker_data:
+            for d in self.docker_data['RepoDigests']:
+                ret.append(re.sub("^.*@", "", d))
+
+        return(ret)
+
     def get_distro(self):
         if not self.anchore_analyzer_meta:
             self.anchore_analyzer_meta = anchore_utils.load_analysis_output(self.meta['imageId'], 'analyzer_meta', 'analyzer_meta')

@@ -2179,55 +2179,90 @@ def parse_dockerimage_string(instr):
     port = None
     repo = None
     tag = None
+    hostport = None
+    repotag = None
+    fulltag = None
+    digest = None
+    imageId = None
 
-    # get the host/port
-    patt = re.match("(.*?)/(.*)", instr)
-    if patt:
-        a = patt.group(1)
-        remain = patt.group(2)
-        patt = re.match("(.*?):(.*)", a)
+    patt = re.match(".*[^0-9A-Fa-f].*", instr)
+    if not patt:
+        imageId = instr
+        hostport = "localdocker"
+    else:
+
+        # get the host/port
+        patt = re.match("(.*?)/(.*)", instr)
         if patt:
-            host = patt.group(1)
-            port = patt.group(2)
-        elif a == 'docker.io':
+            a = patt.group(1)
+            remain = patt.group(2)
+            patt = re.match("(.*?):(.*)", a)
+            if patt:
+                host = patt.group(1)
+                port = patt.group(2)
+            elif a == 'docker.io':
+                host = 'docker.io'
+                port = None
+            elif a == 'localhost' or a == 'localhost.localdomain':
+                host = a
+                port = None
+            else:
+                patt = re.match(".*\..*", a)
+                if patt:
+                    host = a
+                else:
+                    host = 'docker.io'
+                    remain = instr
+                port = None
+
+        else:
             host = 'docker.io'
             port = None
-        elif a == 'localhost' or a == 'localhost.localdomain':
-            host = a
-            port = None
+            remain = instr
+
+        # get the repo/tag
+        patt = re.match("(.*)@(.*)", remain)
+        if patt:
+            repo = patt.group(1)
+            digest = patt.group(2)        
         else:
-            patt = re.match(".*\..*", a)
+            patt = re.match("(.*):(.*)", remain)
             if patt:
-                host = a
+                repo = patt.group(1)
+                tag = patt.group(2)
             else:
-                host = 'docker.io'
-                remain = instr
-            port = None
+                repo = remain
+                tag = "latest"
 
-    else:
-        host = 'docker.io'
-        port = None
-        remain = instr
+        if not tag:
+            tag = "latest"
 
-    # get the repo/tag
-    patt = re.match("(.*):(.*)", remain)
-    if patt:
-        repo = patt.group(1)
-        tag = patt.group(2)
-    else:
-        repo = remain
-        tag = "latest"
+        if port:
+            hostport = ':'.join([host, port])
+        else:
+            hostport = host
 
-    if not tag:
-        tag = "latest"
+        if digest:
+            repotag = '@'.join([repo, digest])
+        else:
+            repotag = ':'.join([repo, tag])
 
-    if port:
-        hostport = ':'.join([host, port])
-    else:
-        hostport = host
+        fulltag = '/'.join([hostport, repotag])
 
-    repotag = ':'.join([repo, tag])
+        if not digest:
+            digest = None
+        else:
+            tag = None
 
-    fulltag = '/'.join([hostport, repotag])
+    ret = {}
+    ret['host'] = host
+    ret['port'] = port
+    ret['repo'] = repo
+    ret['tag'] = tag
+    ret['hostport'] = hostport
+    ret['repotag'] = repotag
+    ret['fulltag'] = fulltag
+    ret['digest'] = digest
+    ret['imageId'] = imageId
 
-    return(host, port, repo, tag, hostport, repotag, fulltag)
+    return(ret)

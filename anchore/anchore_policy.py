@@ -52,6 +52,7 @@ def create_policy_bundle(name=None, policies={}, policy_version='v1', whitelists
 
     key = hashlib.md5(' '.join(sorted(json.dumps(ret, indent=4, sort_keys=True).splitlines()))).hexdigest()
     ret['id'] = key
+    _logger.debug("created bundle: ("+str(name)+") : " + json.dumps(ret.keys(), indent=4))
     return(ret)
 
 # R
@@ -110,15 +111,21 @@ def write_policy_bundle(bundle_file=None, bundle={}):
 # C
 def create_mapping(policy_name=None, whitelist_name=None, repotagstrings=[], apply_global=False):
     ret = {}
+
     ret['policy_name'] = policy_name
     ret['whitelist_name'] = whitelist_name
     ret['apply_global'] = apply_global
     ret['targets'] = {}
     for i in repotagstrings:
-        (host, port, repo, tag, hostport, repotag, fulltag) = anchore_utils.parse_dockerimage_string(i)            
+        image_info = anchore_utils.parse_dockerimage_string(i)
+        hostport = image_info.pop('hostport', "N/A")
+        repo = image_info.pop('repo', "N/A")
+        tag = image_info.pop('tag', "N/A")
+        imageId = image_info.pop('imageId', "N/A")
+        digest = image_info.pop('digest', "N/A")
         if hostport not in ret['targets']:
             ret['targets'][hostport] = []
-        ret['targets'][hostport].append({'repo':repo, 'tag':tag})
+        ret['targets'][hostport].append({'repo':repo, 'tag':tag, 'digest':digest, 'imageId':imageId})
 
     return(ret)
 
@@ -184,12 +191,18 @@ def read_policy(name=None, file=None, version='v1'):
 
     return(ret)
 
-def get_mapping_actions(image=None, bundle={}):
+def get_mapping_actions(image=None, imageId=None, digests=[], bundle={}):
     if not image or not bundle or not verify_policy_bundle(bundle=bundle):
         raise Exception("input error")
 
     ret = []
-    (host, port, repo, tag, hostport, repotag, fulltag) = anchore_utils.parse_dockerimage_string(image)
+
+    image_info = anchore_utils.parse_dockerimage_string(image)
+    hostport = image_info.pop('hostport', "N/A")
+    repo = image_info.pop('repo', "N/A")
+    tag = image_info.pop('tag', "N/A")
+    digest = image_info.pop('digest', "N/A")
+
     for m in bundle['mappings']:
         polname = m['policy_name']
         wlname = m['whitelist_name']
@@ -206,7 +219,15 @@ def get_mapping_actions(image=None, bundle={}):
             if hostport == registry:
                 for rt in m['targets'][registry]:
                     if repo == rt['repo']:
+                        doit = False
                         if rt['tag'] == '*' or rt['tag'] == tag:
+                            doit = True
+                        elif rt['digest'] == digest or rt['digest'] in digests:
+                            doit = True
+                        elif rt['imageId'] == imageId:
+                            doit = True
+
+                        if doit:
                             wldata = []
                             if apply_global:
                                 wldata = bundle['global_whitelists']['global']['data']
@@ -226,10 +247,15 @@ def run_bundle(anchore_config=None, bundle={}, imagelist=[]):
             ret[image]['bundle_id'] = bundle['id']
 
         imageId = anchore_utils.discover_imageId(image)
-        result = get_mapping_actions(image=image, bundle=bundle)
 
-        #with open("/tmp/mapping_actions.json", 'w') as OFH:
-        #    OFH.write(json.dumps(result, indent=4))
+        con = controller.Controller(anchore_config=anchore_config, imagelist=[imageId], allimages=contexts['anchore_allimages'], force=True)
+        try:
+            anchore_image = contexts['anchore_allimages'][imageId]
+            digests = anchore_image.get_digests()
+        except:
+            digests = []
+
+        result = get_mapping_actions(image=image, imageId=imageId, digests=digests, bundle=bundle)
 
         if result:
             for pol,wl in result:
@@ -242,7 +268,6 @@ def run_bundle(anchore_config=None, bundle={}, imagelist=[]):
                             OFH.write(l + "\n")
 
                 try:
-                    con = controller.Controller(anchore_config=anchore_config, imagelist=[imageId], allimages=contexts['anchore_allimages'], force=True)
                     gate_result = con.run_gates(policy=fnames['tmppol'], global_whitelist=fnames['tmpwl'], show_triggerIds=True, show_whitelisted=True)
                     ret[image]['result'] = gate_result
                 except Exception as err:
@@ -254,8 +279,8 @@ def run_bundle(anchore_config=None, bundle={}, imagelist=[]):
 
         else:
             ret[image]['result'] = {}
-            print "no match found in bundle policy mappings for image " + str(image) + " ("+str(imageId)+"): nothing to do."
-            
+            _logger.info("no match found in bundle policy mappings for image " + str(image) + " ("+str(imageId)+"): nothing to do.")
+
     return(ret)
 
 if __name__ == '__main__':
