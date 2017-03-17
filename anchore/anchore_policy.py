@@ -10,6 +10,53 @@ from anchore.util import contexts
 
 _logger = logging.getLogger(__name__)
 
+# interface operations
+
+
+def check():
+    if not load_policymeta():
+        return (False, "policys are not initialized: please run 'anchore policys sync' and try again")
+
+    #if not load_anchore_policys_list():
+    #    return (False, "policys list is empty: please run 'anchore policys sync' and try again")
+
+    return (True, "success")
+
+def sync_policymeta():
+    ret = {'success': False, 'text': "", 'status_code': 1}
+
+    if not os.path.exists("policybundle.json"):
+        ret['text'] = "temporary: put policy bundle in ./policybundle.json to simulate sync"
+        return(False, ret)
+
+    policymeta = {}
+    try:
+        with open("policybundle.json", 'r') as FH:
+            policymeta = json.loads(FH.read())
+    except Exception as err:
+        ret['text'] = "synced policy bundle is not valid JSON: exception - " +str(err)
+        return(False, ret)
+
+    for bundlename in policymeta.keys():
+        if not verify_policy_bundle(policymeta[bundlename]):
+            ret['text'] = "could not verify policy found in bundle input: ("+str(bundlename)+")"
+            return(False, ret)
+
+    record = {'text': 'unimplemented'}
+    if not contexts['anchore_db'].save_policymeta(policymeta):
+        ret['text'] = "cannot get list of policies from service\nMessage from server: " + record['text']
+        return (False, ret)
+
+    return(True, ret)
+
+def load_policymeta():
+    return(contexts['anchore_db'].load_policymeta())
+
+def save_policymeta(policymeta):
+    return(contexts['anchore_db'].save_policymeta(policymeta))
+
+
+
 # bundle
 
 # C
@@ -198,6 +245,7 @@ def get_mapping_actions(image=None, imageId=None, digests=[], bundle={}):
     ret = []
 
     image_info = anchore_utils.parse_dockerimage_string(image)
+
     hostport = image_info.pop('hostport', "N/A")
     repo = image_info.pop('repo', "N/A")
     tag = image_info.pop('tag', "N/A")
@@ -216,23 +264,35 @@ def get_mapping_actions(image=None, imageId=None, digests=[], bundle={}):
             continue
 
         for registry in m['targets'].keys():
-            if hostport == registry:
+            if hostport == registry or registry == '*':
                 for rt in m['targets'][registry]:
-                    if repo == rt['repo']:
+                    _logger.debug("checking mapping for image ("+str(image_info)+") match (" + str(rt)+")")
+
+                    if repo == rt['repo'] or rt['repo'] == '*':
                         doit = False
+                        matchstring = "N/A"
                         if rt['tag'] == '*' or rt['tag'] == tag:
+                            matchstring = "found mapping match ("+str(image)+"): " + ','.join([registry, rt['repo'], rt['tag']])
                             doit = True
                         elif rt['digest'] == digest or rt['digest'] in digests:
+                            matchstring = "found mapping match: ("+str(image)+"): " + ','.join([registry, rt['digest']])
                             doit = True
                         elif rt['imageId'] == imageId:
+                            matchstring = "found mapping match: ("+str(image)+"): " + ','.join([registry, rt['imageId']])
                             doit = True
 
                         if doit:
+                            _logger.debug("match found for image ("+str(image_info)+") match (" + str(rt)+")")
+                            _logger.info(matchstring)
                             wldata = []
                             if apply_global:
                                 wldata = bundle['global_whitelists']['global']['data']
                             wldata = list(set(wldata + bundle['whitelists'][wlname]['data']))
-                            ret.append( ( bundle['policies'][polname]['data'], wldata ) )
+                            ret.append( ( bundle['policies'][polname]['data'], wldata, polname,wlname,apply_global) )
+                        else:
+                            _logger.debug("no match found for image ("+str(image_info)+") match (" + str(rt)+")")
+                    else:
+                        _logger.debug("no match found for image ("+str(image_info)+") match (" + str(rt)+")")
 
     return(ret)
 
@@ -245,6 +305,8 @@ def run_bundle(anchore_config=None, bundle={}, imagelist=[]):
         if image not in ret:
             ret[image] = {}
             ret[image]['bundle_id'] = bundle['id']
+            ret[image]['bundle_name'] = bundle['name']
+            ret[image]['evaluations'] = []
 
         imageId = anchore_utils.discover_imageId(image)
 
@@ -256,9 +318,8 @@ def run_bundle(anchore_config=None, bundle={}, imagelist=[]):
             digests = []
 
         result = get_mapping_actions(image=image, imageId=imageId, digests=digests, bundle=bundle)
-
         if result:
-            for pol,wl in result:
+            for pol,wl,polname,wlname,applywl in result:
                 fnames = {}
                 for (fname, data) in [('tmppol', pol), ('tmpwl', wl)]:
                     thefile = os.path.join(anchore_config['tmpdir'], fname)
@@ -269,7 +330,18 @@ def run_bundle(anchore_config=None, bundle={}, imagelist=[]):
 
                 try:
                     gate_result = con.run_gates(policy=fnames['tmppol'], global_whitelist=fnames['tmpwl'], show_triggerIds=True, show_whitelisted=True)
-                    ret[image]['result'] = gate_result
+                    evalel = {
+                        'results': list(),
+                        'policy_name':"N/A",
+                        'whitelist_name':"N/A"
+                    }
+                    
+                    evalel['results'] = gate_result
+                    evalel['policy_name'] = polname
+                    evalel['whitelist_name'] = wlname
+                    evalel['apply_global_whitelist'] = applywl
+                    ret[image]['evaluations'].append(evalel)
+
                 except Exception as err:
                     _logger.error("policy evaluation error: " + str(err))
                 finally:
@@ -279,7 +351,7 @@ def run_bundle(anchore_config=None, bundle={}, imagelist=[]):
 
         else:
             ret[image]['result'] = {}
-            _logger.info("no match found in bundle policy mappings for image " + str(image) + " ("+str(imageId)+"): nothing to do.")
+            _logger.info("no match found in bundle ("+str(bundle['name'])+") policy mappings for image " + str(image) + " ("+str(imageId)+"): nothing to do.")
 
     return(ret)
 

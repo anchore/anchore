@@ -17,6 +17,7 @@ import logs
 import toolbox
 import login
 import feeds
+import policybundle
 import anchore.anchore_image_db, anchore.anchore_utils
 
 from anchore.util import contexts
@@ -197,6 +198,7 @@ main_entry.add_command(login.login)
 main_entry.add_command(login.logout)
 main_entry.add_command(login.whoami)
 main_entry.add_command(feeds.feeds)
+main_entry.add_command(policybundle.policybundle)
 
 def anchore_pre_flight_check(ctx):
     # helper checks

@@ -260,3 +260,11 @@ class AnchoreImageDB(object):
     def delete_feed_group_data(self, feed, group, datafilename):
         self._logger.debug("AnchoreDB: parent unimplemented: driver has not implemented this anchoreDB operation")
         return(False)
+        
+    def save_policymeta(self, policymeta):
+        self._logger.debug("AnchoreDB: parent unimplemented: driver has not implemented this anchoreDB operation")
+        return(False)
+
+    def load_policymeta(self):
+        self._logger.debug("AnchoreDB: parent unimplemented: driver has not implemented this anchoreDB operation")
+        return(False)

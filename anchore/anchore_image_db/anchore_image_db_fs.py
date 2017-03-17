@@ -25,12 +25,15 @@ class AnchoreImageDB_FS(anchore_image_db_base.AnchoreImageDB):
             try:
                 dbdir = dbconfig['db_dir']
                 feeddir = dbconfig['feed_dir']
+                policydir = dbconfig['policy_dir']
             except:
                 dbdir = None
                 feeddir = None
+                policydir = None
         except:
             dbdir = None
             feeddir = None
+            policydir = None
             dbconfig = None
 
         try:
@@ -47,6 +50,11 @@ class AnchoreImageDB_FS(anchore_image_db_base.AnchoreImageDB):
             oldfeeddir = config['feeds_dir']
         except:
             oldfeeddir = None
+
+        try:
+            oldpolicydir = config['policy_dir']
+        except:
+            oldpolicydir = None
 
         # for image data
         if dbdir and basedir:
@@ -74,14 +82,29 @@ class AnchoreImageDB_FS(anchore_image_db_base.AnchoreImageDB):
         else:
             feedrootdir = None
 
+        # for policy bundles from anchore.io
+        if policydir and basedir:
+            # try to construct a dir off the db config options
+            if not os.path.isabs(policydir):
+                policyrootdir = os.path.join(basedir, policydir)
+            else:
+                policyrootdir = policydir
+        elif oldpolicydir:
+            # use the old method
+            policyrootdir = oldpolicydir
+        else:
+            policyrootdir = None
+
         self._logger.debug("using directory for anchore image data: " + str(imagerootdir))
         self._logger.debug("using directory for anchore feed data: " + str(feedrootdir))
+        self._logger.debug("using directory for anchore policy data: " + str(policyrootdir))
 
         self.imagerootdir = imagerootdir
         self.feedrootdir = feedrootdir
+        self.policyrootdir = policyrootdir
         
         try:
-            for d in [self.imagerootdir, self.feedrootdir]:
+            for d in [self.imagerootdir, self.feedrootdir, self.policyrootdir]:
                 if not os.path.exists(d):
                     try:
                         os.makedirs(d)
@@ -727,3 +750,24 @@ class AnchoreImageDB_FS(anchore_image_db_base.AnchoreImageDB):
 
         return(ret)
         
+    def save_policymeta(self, policymeta):
+        basedir = self.policyrootdir
+        policyfile = os.path.join(basedir, "policymeta.json")
+        if policymeta:
+            with open(policyfile, 'w') as OFH:
+                OFH.write(json.dumps(policymeta))
+            return(True)
+        return(False)
+
+    def load_policymeta(self):
+        ret = {}
+
+        basedir = self.policyrootdir
+        policyfile = os.path.join(basedir, "policymeta.json")
+        policymeta = {}
+        if os.path.exists(policyfile):
+            with open(policyfile, 'r') as FH:
+                ret = json.loads(FH.read())
+
+        return(ret)
+

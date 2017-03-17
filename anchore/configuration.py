@@ -27,10 +27,13 @@ class AnchoreConfiguration (object):
     DEFAULT_ANCHORE_CLIENT_URL = 'https://ancho.re/v1/account/users'
     DEFAULT_ANCHORE_TOKEN_URL = 'https://ancho.re/oauth/token'
     DEFAULT_ANCHORE_FEEDS_URL = 'https://ancho.re/v1/service/feeds'
+    DEFAULT_ANCHORE_POLICY_URL = 'https://ancho.re/v1/service/policy'
     DEFAULT_ANCHORE_AUTH_CONN_TIMEOUT = 5
     DEFAULT_ANCHORE_AUTH_MAX_RETRIES = 3
     DEFAULT_ANCHORE_FEEDS_CONN_TIMEOUT = 10
     DEFAULT_ANCHORE_FEEDS_MAX_RETRIES = 3
+    DEFAULT_ANCHORE_POLICY_CONN_TIMEOUT = 10
+    DEFAULT_ANCHORE_POLICY_MAX_RETRIES = 3
     DEFAULT_ANCHORE_DB_DRIVER = "anchore_image_db_fs"
     DEFAULT_ANCHORE_SQUASH_DRIVER = "docker_export"
 
@@ -46,6 +49,10 @@ class AnchoreConfiguration (object):
         'feeds_url': DEFAULT_ANCHORE_FEEDS_URL,
         'feeds_conn_timeout': DEFAULT_ANCHORE_FEEDS_CONN_TIMEOUT,
         'feeds_max_retries': DEFAULT_ANCHORE_FEEDS_MAX_RETRIES,
+        'policy_dir': 'policy',
+        'policy_url': DEFAULT_ANCHORE_POLICY_URL,
+        'policy_conn_timeout': DEFAULT_ANCHORE_POLICY_CONN_TIMEOUT,
+        'policy_max_retries': DEFAULT_ANCHORE_POLICY_MAX_RETRIES,
         'image_data_store': 'data',
         'tmpdir': DEFAULT_TMP_DIR,
         'pkg_dir': DEFAULT_PKG_DIR,
@@ -102,6 +109,9 @@ class AnchoreConfiguration (object):
 
             if not os.path.isabs(self.data['feeds_dir']):
                 self.data['feeds_dir'] = os.path.join(self.data['anchore_data_dir'], self.data['feeds_dir'])
+
+            if not os.path.isabs(self.data['policy_dir']):
+                self.data['policy_dir'] = os.path.join(self.data['anchore_data_dir'], self.data['policy_dir'])
 
             if not os.path.isabs(self.data['user_scripts_dir']):
                 self.data['user_scripts_dir'] = os.path.join(self.data['anchore_data_dir'], self.data['user_scripts_dir'])

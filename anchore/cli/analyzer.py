@@ -1,7 +1,7 @@
 import sys
 import click
 
-from anchore import analyzer, controller, anchore_utils
+from anchore import analyzer, controller, anchore_utils, anchore_policy
 from anchore.cli.common import build_image_list, anchore_print, anchore_print_err, extended_help_option
 from anchore.util import contexts
 
@@ -62,6 +62,7 @@ Edit the gate policy for 'nginx:latest':
 @click.option('--listpolicy', is_flag=True, help='List the current gate policy for specified image(s).')
 @click.option('--updatepolicy', help='Store the input gate policy file as the policy for specified image(s).', type=click.Path(exists=True), metavar='<file>')
 @click.option('--policy', help='Use the specified policy file instead of the default.', type=click.Path(exists=True), metavar='<file>')
+@click.option('--run-bundle', help='Use the specified bundle to run gate checks (see "anchore policy sync" to get your bundles from anchore.io)', metavar='<bundlename>')
 @click.option('--show-gatehelp', help='Show all gate names, triggers, and params that can be used to build an anchore policy', is_flag=True)
 @click.option('--show-policytemplate', help='Generate policy template based on all installed gate/triggers', is_flag=True)
 @click.option('--whitelist', is_flag=True, help='Edit evaluated gate triggers and optionally whitelist them.')
@@ -70,7 +71,7 @@ Edit the gate policy for 'nginx:latest':
 @click.option('--show-whitelisted', is_flag=True, help='Show gate triggers even if whitelisted (with annotation).')
 @click.pass_obj
 @extended_help_option(extended_help=gate_extended_help)
-def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy, rmpolicy, listpolicy, updatepolicy, policy, show_gatehelp, show_policytemplate, whitelist, global_whitelist, show_triggerids, show_whitelisted):
+def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy, rmpolicy, listpolicy, updatepolicy, policy, run_bundle, show_gatehelp, show_policytemplate, whitelist, global_whitelist, show_triggerids, show_whitelisted):
     """
     Runs gate checks on the specified image(s) or edits the image's gate policy.
     The --editpolicy option is only valid for a single image.
@@ -119,9 +120,16 @@ def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy
     if policy and (editpolicy or whitelist or listpolicy or updatepolicy or rmpolicy):
         raise click.BadOptionUsage('Cannot use other policy options when --policy <file> is specified.')
 
+    if (policy and run_bundle):
+        raise click.BadOptionUsage('Cannot use both --policy and --run_bundle at the same time.')
+
+    if (run_bundle and (editpolicy or whitelist or listpolicy or updatepolicy or rmpolicy)):
+        raise click.BadOptionUsage('Cannot use other policy options when --run_bundle <bundlename> is specified.')
+
     try:
         imagedict = build_image_list(anchore_config, image, imagefile, not (image or imagefile), include_allanchore)
         imagelist = imagedict.keys()
+        inputimagelist = list(imagelist)
 
         try:
             ret = anchore_utils.discover_imageIds(imagelist)
@@ -178,6 +186,26 @@ def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy
                         anchore_print(record, do_formatting=True)
                 except Exception as err:
                     anchore_print_err("failed to list policies: " + str(err))
+                    ecode = 1
+        elif run_bundle:
+            if not anchore_policy.check():
+                anchore_print_err("run-bundle specified, but it appears as though no policy bundles have been synced yet: run 'anchore policybundle sync' to get your latest bundles from anchore.io")
+                ecode = 1
+            else:
+                policymeta = anchore_policy.load_policymeta()
+                if run_bundle in policymeta:
+                    bundle = policymeta[run_bundle]
+                    result = anchore_policy.run_bundle(anchore_config=anchore_config, imagelist=inputimagelist, bundle=bundle)
+                    for image in result.keys():
+                        for gate_result in result[image]['evaluations']:
+                            anchore_print("")
+                            anchore_print("")
+                            anchore_print("Policy="+gate_result['policy_name']+" Whitelist="+str(gate_result['whitelist_name'])+" ApplyGlobalWhitelist="+str(gate_result['apply_global_whitelist']))
+                            #print gate_result['whitelist_name']
+                            #print gate_result['apply_global_whitelist']
+                            anchore_utils.print_result(anchore_config, gate_result['results'])
+                else:
+                    anchore_print_err("cannot locate specified bundle name ("+str(run_bundle)+") in synced policy bundles.")
                     ecode = 1
         else:
             try:
