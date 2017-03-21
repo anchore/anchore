@@ -200,9 +200,7 @@ def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy
                         for gate_result in result[image]['evaluations']:
                             anchore_print("")
                             anchore_print("")
-                            anchore_print("Policy="+gate_result['policy_name']+" Whitelist="+str(gate_result['whitelist_name'])+" ApplyGlobalWhitelist="+str(gate_result['apply_global_whitelist']))
-                            #print gate_result['whitelist_name']
-                            #print gate_result['apply_global_whitelist']
+                            anchore_print("Run_Bundle="+run_bundle+" Policy="+gate_result['policy_name']+" Whitelist="+str(gate_result['whitelist_name'])+" ApplyGlobalWhitelist="+str(gate_result['apply_global_whitelist']))
                             anchore_utils.print_result(anchore_config, gate_result['results'])
                 else:
                     anchore_print_err("cannot locate specified bundle name ("+str(run_bundle)+") in synced policy bundles.")

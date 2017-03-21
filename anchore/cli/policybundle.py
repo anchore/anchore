@@ -21,22 +21,29 @@ def policybundle(anchore_config):
     emsg = ""
     success = True
 
-    try:
+    if True:
+        # temporary
         rc, msg = anchore_policy.check()
         if not rc:
-            anchore_print("initializing policy metadata: ...")
-            rc, ret = anchore_policy.sync_policymeta()
+            anchore_print("initialization disabled until download supported, skipping.")
+    else:
+        # the real one
+        try:
+            rc, msg = anchore_policy.check()
             if not rc:
-                emsg = "could not sync policy metadata from service: " + ret['text']
-                success = False
+                anchore_print("initializing policy metadata: ...")
+                rc, ret = anchore_policy.sync_policymeta()
+                if not rc:
+                    emsg = "could not sync policy metadata from service: " + ret['text']
+                    success = False
 
-    except Exception as err:
-        anchore_print_err('operation failed')
-        sys.exit(1)
+        except Exception as err:
+            anchore_print_err('operation failed')
+            sys.exit(1)
 
-    if not success:
-        anchore_print_err(emsg)
-        sys.exit(1)
+        if not success:
+            anchore_print_err(emsg)
+            sys.exit(1)
 
 @policybundle.command(name='show', short_help='Show detailed info on specific policy')
 @click.argument('policyname')
@@ -90,7 +97,8 @@ def list(showdetail):
     sys.exit(ecode)
 
 @policybundle.command(name='sync', short_help="Sync (download) latest policies from the Anchore.io service.")
-def sync():
+@click.option('--bundlefile', help='Sync the stored policy bundle from a file, instead of download from anchore.io.', type=click.Path(exists=True), metavar='<file>')
+def sync(bundlefile):
     """
     Sync (download) latest policies from the Anchore.io service.
 
@@ -98,7 +106,7 @@ def sync():
 
     ecode = 0
     try:
-        rc, ret = anchore_policy.sync_policymeta()
+        rc, ret = anchore_policy.sync_policymeta(bundlefile=bundlefile)
         if not rc:
             anchore_print_err(ret['text'])
             ecode = 1

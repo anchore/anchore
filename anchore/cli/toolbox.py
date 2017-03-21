@@ -633,7 +633,6 @@ def show():
 
     sys.exit(ecode)
 
-
 @toolbox.command(name='thing')
 @click.option('--polname', help='policy name', metavar='<polname>')
 @click.option('--polfile', help='policy file', metavar='<file>')

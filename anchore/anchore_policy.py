@@ -22,20 +22,36 @@ def check():
 
     return (True, "success")
 
-def sync_policymeta():
+def sync_policymeta(bundlefile=None):
     ret = {'success': False, 'text': "", 'status_code': 1}
 
-    if not os.path.exists("policybundle.json"):
-        ret['text'] = "temporary: put policy bundle in ./policybundle.json to simulate sync"
-        return(False, ret)
+    policyurl = contexts['anchore_config']['policy_url']
+    policy_timeout = contexts['anchore_config']['policy_conn_timeout']
+    policy_maxretries = contexts['anchore_config']['policy_max_retries']
 
     policymeta = {}
-    try:
-        with open("policybundle.json", 'r') as FH:
-            policymeta = json.loads(FH.read())
-    except Exception as err:
-        ret['text'] = "synced policy bundle is not valid JSON: exception - " +str(err)
+
+    # temporary read from FS
+    if bundlefile:
+        if not os.path.exists(bundlefile):
+            ret['text'] = "no such file ("+str(bundlefile)+")"
+            return(False, ret)
+        try:
+            with open(bundlefile, 'r') as FH:
+                policymeta = json.loads(FH.read())
+        except Exception as err:
+            ret['text'] = "synced policy bundle cannot be read/is not valid JSON: exception - " +str(err)
+            return(False, ret)
+    else:
+        ret['text'] = "download sync not yet available: use anchore sync --bundlefile <bundle.json>"
         return(False, ret)
+
+        #record = anchore.anchore_auth.anchore_auth_get(contexts['anchore_auth'], policyurl, timeout=policy_timeout, retries=policy_maxretries)
+        #if record['success']:
+        #    policymeta = json.loads(record['text'])
+        #else:
+        #    ret['text'] = "failed to download policybundle: message from server - " + record['text']
+        #    return(False, ret)
 
     for bundlename in policymeta.keys():
         if not verify_policy_bundle(policymeta[bundlename]):
@@ -182,7 +198,7 @@ def create_mapping(policy_name=None, whitelist_name=None, repotagstrings=[], app
 def verify_whitelist(whitelistdata=[], version='v1'):
     ret = True
 
-    if not whitelistdata or not isinstance(whitelistdata, list):
+    if not isinstance(whitelistdata, list):
         ret = False
 
     if version == 'v1':
@@ -212,7 +228,7 @@ def read_whitelist(name=None, file=None, version='v1'):
 def verify_policy(policydata=[], version='v1'):
     ret = True
 
-    if not policydata or not isinstance(policydata, list):
+    if not isinstance(policydata, list):
         ret = False
 
     if version == 'v1':
@@ -220,7 +236,6 @@ def verify_policy(policydata=[], version='v1'):
         pass
 
     return(ret)
-
 
 def read_policy(name=None, file=None, version='v1'):
     if not name or not file:
@@ -271,13 +286,13 @@ def get_mapping_actions(image=None, imageId=None, digests=[], bundle={}):
                     if repo == rt['repo'] or rt['repo'] == '*':
                         doit = False
                         matchstring = "N/A"
-                        if rt['tag'] == '*' or rt['tag'] == tag:
+                        if tag and (rt['tag'] == '*' or rt['tag'] == tag):
                             matchstring = "found mapping match ("+str(image)+"): " + ','.join([registry, rt['repo'], rt['tag']])
                             doit = True
-                        elif rt['digest'] == digest or rt['digest'] in digests:
+                        elif digest and (rt['digest'] == digest or rt['digest'] in digests):
                             matchstring = "found mapping match: ("+str(image)+"): " + ','.join([registry, rt['digest']])
                             doit = True
-                        elif rt['imageId'] == imageId:
+                        elif imageId and (rt['imageId'] == imageId):
                             matchstring = "found mapping match: ("+str(image)+"): " + ','.join([registry, rt['imageId']])
                             doit = True
 
