@@ -272,6 +272,25 @@ class Controller(object):
                     elif r in policies_whitelist['ignore']:
                         whitelisted = True
                         whitelist_type = "image"
+                    else:
+                        # look for prefix wildcards
+                        try:
+                            for [gmod, gtriggerId] in global_whitelist:
+                                if gmod == m:
+                                    patt = re.match("(.*)\*", gtriggerId)
+                                    if patt:
+                                        prefix_triggerId = patt.group(1)
+                                        if re.match("^"+re.escape(prefix_triggerId), triggerId):
+                                            whitelisted = True
+                                            whitelist_type = "global"
+                                            break
+                        except Exception as err:
+                            _logger.warn("problem with prefix wildcard match routine - exception: " + str(err))
+                            
+
+                            
+                        
+
                     
                     fullr = {}
                     fullr.update(r)
