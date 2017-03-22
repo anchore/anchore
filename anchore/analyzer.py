@@ -414,15 +414,11 @@ class Analyzer(object):
         self._logger.debug("images to be analyzed: " + str(toanalyze.keys()))
         for imageId in toanalyze.keys():
             image = toanalyze[imageId]
-            #print('Would analyze: {}'.format(imageId))
             success = self.run_analyzers(image)
 
             if not success:
                 self._logger.error("analyzer failed to run on image " + str(image.meta['imagename']) + ", skipping the rest")
                 break
-
-        # Testing only
-        #return True
 
         if not success:
             self._logger.error("analyzers failed to run on one or more images.")
