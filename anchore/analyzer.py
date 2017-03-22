@@ -7,11 +7,96 @@ import tempfile
 import hashlib
 import time
 import logging
-
+from collections import OrderedDict
 import controller
 from anchore import anchore_utils
 from anchore.util import scripting
 from anchore.util import contexts
+
+
+class SelectionStrategy(object):
+    """
+    A particular selection strategy for determining which layers/images are analyzed on a single image analysis path.
+    This is base class to be extended for specific strategies
+    """
+
+    def evaluate_familytree(self, family_tree, image_set):
+        """
+        Evaluate strategy for the given family tree and return a dict of images to analyze that match the strategy
+
+        :param family_tree: the family tree to traverse and evaluate
+        :param image_set: list of all images in the context
+        :return:
+        """
+
+        if family_tree is None or image_set is None:
+            raise ValueError('Cannot execute analysis strategy on None image or image with no familytree data')
+
+        toanalyze = OrderedDict()
+        tree_len = len(family_tree)
+        for i in family_tree:
+            image = image_set[i]
+            if self._should_analyze_image(image, family_tree.index(i), tree_len):
+                toanalyze[image.meta['imageId']] = image
+
+        return toanalyze
+
+    def _should_analyze_image(self, image, pos, count):
+        """
+        Should the given image be analyzed based on the config and cmd params
+        :param image: AnchoreImage object
+        :param pos: integer index of the image in the family tree
+        :param count: tree size integer
+        :return: boolean
+        """
+
+        raise NotImplementedError('Base type')
+
+
+class SelectAllStrategy(SelectionStrategy):
+    """
+    Analyze all images in the family tree.
+    """
+    def _should_analyze_image(self, image, pos, count):
+        return True
+
+
+class NoIntermediateStrategy(SelectionStrategy):
+    """
+    Analyze only non-intermediate images. Intermediate images are not marked, or have 'none' as the usertype, but also
+    include first and last images
+    """
+
+    def _should_analyze_image(self, image, pos, count):
+        return (not image.is_intermediate()) or (pos == 0 or pos == count - 1)
+
+
+class BaseOnlyStrategy(SelectionStrategy):
+    """
+    Analyze only non-intermediate images. Intermediate images are not marked, or have 'none' as the usertype, but also
+    include first and last images
+    """
+
+    def _should_analyze_image(self, image, pos, count):
+        return image.is_base() or (pos == 0 or pos == count - 1)
+
+
+class FirstLastStrategy(SelectionStrategy):
+    """
+    Analyze only images that are first or last in the tree
+    """
+
+    def _should_analyze_image(self, image, pos, count):
+        return pos == 0 or pos == count - 1
+
+
+strategies = {
+    'BaseOnly': BaseOnlyStrategy,
+    'FirstLast': FirstLastStrategy,
+    'All': SelectAllStrategy,
+    'NoIntermediates': NoIntermediateStrategy
+}
+
 
 class Analyzer(object):
     _logger = logging.getLogger(__name__)
@@ -35,6 +120,11 @@ class Analyzer(object):
             self.skipgates = args['skipgates']
         except:
             pass
+
+        #self.analyze_familytree = args.get('analyze_familytree', False) if args else False
+
+        # Instantiate the appropriate strategy
+        self.selection_strategy = strategies.get(args.get('selection_strategy', 'NoIntermediates'))() if args else FirstLastStrategy()
 
         try:
             if 'isbase' in args and args['isbase']:
@@ -313,40 +403,26 @@ class Analyzer(object):
         self._logger.debug("main image analysis on images: " + str(self.images) + ": begin")
         # analyze image and all of its family members
         success = True
-        toanalyze = {}
-        comparehash = {}
-        linkhash = {}
+        toanalyze = OrderedDict()
 
         # calculate all images to be analyzed
         for imageId in self.images:
             coreimage = self.allimages[imageId]
-
-            toanalyze[coreimage.meta['imageId']] = coreimage
-
-            base = False
-            lastimage = coreimage
-            for i in coreimage.anchore_familytree:
-                image = self.allimages[i]
-                toanalyze[image.meta['imageId']] = image
-
-                if (image.meta['shortId'] != coreimage.meta['shortId'] and not image.is_intermediate()):
-                    comparehash[coreimage.meta['shortId'] + image.meta['shortId']] = [coreimage, image]
-                    comparehash[lastimage.meta['shortId'] + image.meta['shortId']] = [lastimage, image]
-                    if not base and image.is_base():
-                        base = image
-                    lastimage = image
-
-            if base:
-                linkhash[image.meta['imageId']] = base.meta['imageId']
+            toanalyze.update(self.selection_strategy.evaluate_familytree(coreimage.anchore_familytree, self.allimages))
 
         # execute analyzers
         self._logger.debug("images to be analyzed: " + str(toanalyze.keys()))
         for imageId in toanalyze.keys():
             image = toanalyze[imageId]
+            #print('Would analyze: {}'.format(imageId))
             success = self.run_analyzers(image)
+
             if not success:
                 self._logger.error("analyzer failed to run on image " + str(image.meta['imagename']) + ", skipping the rest")
                 break
+
+        # Testing only
+        #return True
 
         if not success:
             self._logger.error("analyzers failed to run on one or more images.")
