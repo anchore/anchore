@@ -286,11 +286,6 @@ class Controller(object):
                                             break
                         except Exception as err:
                             _logger.warn("problem with prefix wildcard match routine - exception: " + str(err))
-                            
-
-                            
-                        
-
                     
                     fullr = {}
                     fullr.update(r)
