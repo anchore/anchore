@@ -250,11 +250,11 @@ strategies = ['BaseOnly', ]
 @click.option('--dockerfile', help='Dockerfile of the image to analyze.', type=click.Path(exists=True), metavar='<file>')
 @click.option('--imagetype', help='Specify the type of image that is being analyzed (use "none" if unknown).', metavar='<typetext>')
 @click.option('--skipgates', is_flag=True, help='Do not run gates as part of analysis.')
-@click.option('--selectionstrategy', type=click.Choice(analyzer.strategies.keys()), help='Name of strategy to use for analyzing images in the history of the requested images. Identified by parentIds/imageid in `docker history` output.', default='All')
+@click.option('--layerstrategy', type=click.Choice(analyzer.strategies.keys()), help='Name of strategy to use for analyzing images in the history of the requested images. Identified by parentIds/imageid in `docker history` output.', default='BaseOnly')
 @click.option('--excludefile', help='Name of file containing images to exclude during analysis. Each line is an image name/id', type=click.Path(exists=True), metavar='<file>')
 @click.pass_obj
 @extended_help_option(extended_help=analyze_extended_help)
-def analyze(anchore_config, force, image, imagefile, include_allanchore, dockerfile, imagetype, skipgates, selectionstrategy, excludefile):
+def analyze(anchore_config, force, image, imagefile, include_allanchore, dockerfile, imagetype, skipgates, layerstrategy, excludefile):
     """
     Invokes the anchore analyzer on the specified image(s).
 
@@ -325,7 +325,7 @@ def analyze(anchore_config, force, image, imagefile, include_allanchore, dockerf
                 allimages = {}
                 count = 0
 
-            args.update({'dockerfile': imagedict[imageId]['dockerfile'], 'skipgates': skipgates, 'selection_strategy': selectionstrategy})
+            args.update({'dockerfile': imagedict[imageId]['dockerfile'], 'skipgates': skipgates, 'selection_strategy': layerstrategy})
 
             inlist = [imageId]
             try:

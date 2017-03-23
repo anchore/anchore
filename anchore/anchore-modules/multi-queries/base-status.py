@@ -42,20 +42,34 @@ for imageId in config['images']:
         humanname = idata['meta']['humanname']
 
         realbaseid = None
+        familytree = []
+        # get the earliest image Id in the familytree as a baseline for the base id
         if idata and 'familytree' in idata and len(idata['familytree']) > 0:
-            realbaseid = idata['familytree'][0]
+            familytree = idata['familytree']
+            realbaseid = familytree[0]
             
+        # get the current fromline and fromID of the image's FROM
         (thefrom, thefromid) = anchore.anchore_utils.discover_from_info(idata['dockerfile_contents'])
+
+        # look for an image in the actual familytree that has or has had the tag in the image's FROM line
+        if thefrom and familytree:
+            for f in familytree:
+                fdata = anchore.anchore_utils.load_image_report(f)
+                if fdata and 'anchore_all_tags' in fdata:
+                    if thefrom in fdata['anchore_all_tags']:
+                        # found it, this is the real imageID of the image that has/has had the tar in image's FROM line
+                        realbaseid = f
+                        break
 
         if realbaseid and thefromid:
             if realbaseid == imageId:
                 outlist.append([imageId, humanname, thefrom, realbaseid, 'N/A', 'up-to-date'])
             elif thefromid == 'scratch' or thefromid == '<unknown>':
                 outlist.append([imageId, humanname, thefrom, realbaseid, 'N/A', 'N/A'])
-            elif realbaseid != thefromid:
+            elif thefromid not in idata['familytree']:
                 outlist.append([imageId, humanname, thefrom, realbaseid, thefromid, 'out-of-date'])
             else:
-                outlist.append([imageId, humanname, thefrom, realbaseid, thefromid, 'up-to-date'])
+                outlist.append([imageId, humanname, thefrom, thefromid, thefromid, 'up-to-date'])
 
         else:
             warns.append("imageId ("+imageId+"): could not evaluate base status: fromline="+str(thefrom)+" realbaseid="+str(realbaseid)+" fromid="+str(thefromid))
