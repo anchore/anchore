@@ -84,7 +84,7 @@ def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy
     success = True
 
     # special option, does not need any image inputs
-    if show_gatehelp:
+    if show_gatehelp:        
         try:
             gate_info = anchore_utils.discover_gates()
             anchore_print(gate_info, do_formatting=True)
@@ -188,7 +188,7 @@ def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy
                     success = True
                     ecode = con.result_get_highest_action(result)
             except Exception as err:
-                anchore_print_err("failed to run gates: " + str(err))
+                anchore_print_err("failed to run gates")
                 ecode = 1
 
     contexts['anchore_allimages'].clear()

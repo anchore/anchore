@@ -102,6 +102,86 @@ def delete(dontask):
         ecode = 1
     sys.exit(ecode)
 
+@toolbox.command(name='savebundle', short_help="Create a tarball of a local docker image in a way that can be loaded into anchore elsewhere for analysis")
+@click.option('--destdir', help='Destination directory for bundled container images', metavar='<path>')
+def savebundle(destdir):
+
+    if not nav:
+        sys.exit(1)
+
+    if not destdir:
+        destdir = "/tmp/"
+
+    imagedir = anchore_utils.make_anchoretmpdir(destdir)
+
+    ecode = 0
+    try:
+        anchore_print("Bundling images: " + ' '.join(nav.get_images()) + " to " + imagedir)
+
+        anchoreDB = contexts['anchore_db']
+        docker_cli = contexts['docker_cli']
+        
+        for imageId in nav.get_images():
+            try:
+                container = docker_cli.create_container(imageId, 'true')
+            except Exception as err:
+                _logger.error("unable to run create container for exporting: " + str(self.meta['imageId']) + ": error: " + str(err))
+                return(False)
+            else:
+                bundle_rootfs = os.path.join(imagedir, imageId + "_dockerexport.tar")
+                with open(bundle_rootfs, 'w') as FH:
+                    tar = docker_cli.export(container.get('Id'))
+                    while not tar.closed:
+                        FH.write(tar.read(4096*16))
+            try:
+                docker_cli.remove_container(container=container.get('Id'), force=True)
+            except:
+                _logger.error("unable to delete (cleanup) temporary container - proceeding but zombie container may be left in docker: " + str(err))
+
+            image_report_final = os.path.join(imagedir, 'image_report.json')
+            rdata = contexts['anchore_allimages'][imageId].generate_image_report()
+            with open(image_report_final, 'w') as FH:
+                FH.write(json.dumps(rdata))
+
+            rootfsdir = anchore_utils.make_anchoretmpdir(imagedir)
+
+            bundle_rootfs_final = os.path.join(imagedir, 'squashed.tar')
+            bundle_final = os.path.join(imagedir, imageId + "_anchore.tar")
+
+            tarcmd = ["tar", "-C", rootfsdir, "-x", "-f", bundle_rootfs]
+            try:
+                import subprocess
+                subprocess.check_output(tarcmd)
+            except Exception as err:
+                print str(err)
+
+            tarcmd = ["tar", "-C", rootfsdir, "-c", "-f", bundle_rootfs_final, '.']
+            try:
+                import subprocess
+                subprocess.check_output(tarcmd)
+            except Exception as err:
+                print str(err)
+
+            os.remove(bundle_rootfs)
+            shutil.rmtree(rootfsdir)
+
+            tarcmd = ["tar", "-C", imagedir, "-c", "-f", bundle_final, 'squashed.tar', 'image_report.json']
+            try:
+                import subprocess
+                subprocess.check_output(tarcmd)
+            except Exception as err:
+                print str(err)
+
+            os.remove(bundle_rootfs_final)
+            os.remove(image_report_final)
+
+    except:
+        anchore_print_err("operation failed")
+        ecode = 1
+        
+    sys.exit(ecode)
+    
+
 @toolbox.command(name='unpack', short_help="Unpack the specified image into a temp location")
 @click.option('--destdir', help='Destination directory for unpacked container image', metavar='<path>')
 def unpack(destdir):
@@ -236,7 +316,7 @@ def setup_module_dev(destdir):
     sys.exit(ecode)
 
 @toolbox.command(name='show-dockerfile')
-def generate_dockerfile():
+def show_dockerfile():
     """Generate (or display actual) image Dockerfile"""
 
     if not nav:
@@ -244,9 +324,9 @@ def generate_dockerfile():
 
     ecode = 0
     try:
-        result = nav.get_dockerfile_contents()
+        result = nav.run_query(['show-dockerfile', 'all'])
         if result:
-            anchore_utils.print_result(config, result, outputmode='raw')
+            anchore_utils.print_result(config, result)
 
     except:
         anchore_print_err("operation failed")
@@ -266,7 +346,7 @@ def show_layers():
 
     ecode = 0
     try:
-        result = nav.get_layers()
+        result = nav.run_query(['show-layers', 'all'])
         if result:
             anchore_utils.print_result(config, result)
 
@@ -286,7 +366,7 @@ def show_familytree():
 
     ecode = 0
     try:
-        result = nav.get_familytree()
+        result = nav.run_query(['show-familytree', 'all'])
         if result:
             anchore_utils.print_result(config, result)
 
@@ -482,7 +562,6 @@ def images(no_trunc):
                     atype = "<none>"
 
                 distrometa = anchore_utils.get_distro_from_imageId(imageId)
-                #distrodict = anchore_utils.get_distro_flavor(distrometa['DISTRO'], distrometa['DISTROVERS'])
                 distro = distrometa['DISTRO'] + "/" + distrometa['DISTROVERS']
 
                 amanifest = anchoreDB.load_analyzer_manifest(imageId)
@@ -494,7 +573,6 @@ def images(no_trunc):
                             latest = ts
                 
                 if latest:
-                    #timestr = datetime.datetime.fromtimestamp(int(latest)).strftime('%Y-%m-%d %H:%M:%S')
                     timestr = datetime.datetime.fromtimestamp(int(latest)).strftime('%m-%d-%Y %H:%M:%S')
                 else:
                     timestr = "Not Analyzed"

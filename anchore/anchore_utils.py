@@ -88,8 +88,11 @@ def init_analyzer_cmdline(argv, name):
 def init_gate_cmdline(argv, gate_name, gate_help={}):
     if len(argv) > 2 and argv[2] == 'anchore_get_help':
         if gate_help:
-            thefile = os.path.join(argv[1], gate_name + ".help")
-            update_file_jsonstr(json.dumps(gate_help), thefile)
+            if argv[1] != 'stdout':
+                gate_help_json = json.dumps(gate_help)
+                thefile = os.path.join(argv[1], gate_name + ".help")
+                update_file_jsonstr(gate_help_json, thefile)
+            print json.dumps({gate_name:gate_help})
         sys.exit(0)
         
     ret = init_query_cmdline(argv, gate_name)
@@ -130,10 +133,6 @@ def init_query_cmdline(argv, paramhelp):
     ret['images'] = images
 
     ret['dirs'] = {}
-    #ret['dirs']['datadir'] = argv[2]
-    #ret['dirs']['imgdir'] = '/'.join([ret['dirs']['datadir'], ret['imgid'], 'image_output'])
-    #ret['dirs']['analyzerdir'] = '/'.join([ret['dirs']['datadir'], ret['imgid'], 'analyzer_output'])
-    #ret['dirs']['gatesdir'] = '/'.join([ret['dirs']['datadir'], ret['imgid'], 'gates_output'])
 
     ret['dirs']['outputdir'] = argv[3]
 
@@ -345,7 +344,101 @@ def make_anchoretmpdir(tmproot):
     except:
         return(False)
 
+def generate_gates_manifest():
+    ret = {}
+    failedgates = []
+
+    config = contexts['anchore_config']
+    gmanifest = contexts['anchore_db'].load_gates_manifest()
+
+    # remove any modules that from manifest that are no longer present on FS
+    for gcommand in gmanifest.keys():
+        if not os.path.exists(gcommand):
+            gmanifest.pop(gcommand, None)
+#        else:
+#            try:
+#                if gmanifest[gcommand]['returncode'] != 0:
+#                    failedgates.append(gmanifest[gcommand]['command'])
+#            except:
+#                pass
+
+    # make list of all places gate modules can be
+    gatesdir = '/'.join([config["scripts_dir"], "gates"])
+    path_overrides = ['/'.join([config['user_scripts_dir'], 'gates'])]
+    if config['extra_scripts_dir']:
+        path_overrides = path_overrides + ['/'.join([config['extra_scripts_dir'], 'gates'])]
+        
+    # either generate a new element for the module record in the manifest (if new module or module csum is different from what is in manifest), or skip
+    for gdir in path_overrides + [gatesdir]:
+        for gcmd in os.listdir(gdir):
+            script = os.path.join(gdir, gcmd)
+            if re.match(".*~$|.*#$|.*\.pyc", gcmd) or not os.access(script, os.R_OK ^ os.X_OK):
+                # skip tmp and pyc modules
+                continue
+
+            try:
+                with open(script, 'r') as FH:
+                    csum = hashlib.md5(FH.read()).hexdigest()
+            except:
+                csum = "N/A"
+
+            if script not in gmanifest or gmanifest[script]['csum'] == 'N/A' or gmanifest[script]['csum'] != csum or gmanifest[script]['returncode'] != 0:
+                el = {
+                    'status':'FAIL',
+                    'returncode':1,
+                    'timestamp':time.time(),
+                    'command':"",
+                    'csum':csum,
+                    'gatename':"",
+                    'triggers':{},
+                    'type':'gate'
+                }
+
+                cmd = [script, 'stdout', "anchore_get_help"]
+                try:
+                    el['command'] = ' '.join(cmd)
+
+                    (rc, sout, cmdstring) = run_command(cmd)
+                    el['returncode'] = rc
+                    if rc == 0:
+                        el['status'] = 'SUCCESS'
+                        try:
+                            data = json.loads(sout)
+                        except:
+                            data = {}
+
+                        for gkey in data.keys():
+                            el['gatename'] = gkey
+                            el['triggers'] = data[gkey]
+                    else:
+                        raise Exception("could not exec/generate help/trigger output for gate module: " + str(' '.join(cmd)))
+                except Exception as err:
+                    _logger.warn("WARNING: " + str(err))
+
+                    cmdstring = ' '.join(cmd)
+                    if cmdstring not in failedgates:
+                        failedgates.append(cmdstring)
+
+                gmanifest[script] = el
+            else:
+                _logger.debug("no change in module, skipping trigger info get: " + str(script))
+
+    # save the resulting manifest
+    contexts['anchore_db'].save_gates_manifest(gmanifest)
+
+    return(gmanifest, failedgates)
+
 def discover_gates():
+    gmanifest, failedgates = generate_gates_manifest()
+    
+    allhelp = {}
+    for gkey in gmanifest:
+        gatename = gmanifest[gkey]['gatename']
+        allhelp[gatename] = gmanifest[gkey]['triggers']
+
+    return(allhelp)
+
+def discover_gates_orig():
     config = contexts['anchore_config']
     ret = {}
 
@@ -433,18 +526,6 @@ def discover_imageId(name):
 
         name_variants = []
         name_variants.append(name)
-
-#        cleanname = name
-#        for pre in ["", "sha256:", "docker.io/"]:
-#            cleanname = re.sub("^"+pre, "", cleanname)
-#            for post in ["", ":latest"]:
-#                cleanname = re.sub(post+"$", "", cleanname)
-
-#        for pre in ["", "sha256:", "docker.io/"]:
-#            for post in ["", ":latest"]:
-#                newname = pre+cleanname+post
-#                if newname not in name_variants:
-#                    name_variants.append(newname)
 
         try:
             docker_images = contexts['docker_images']
@@ -1161,6 +1242,30 @@ def get_distro_from_path(inpath):
     if not meta['LIKEDISTRO']:
         meta['LIKEDISTRO'] = meta['DISTRO']
 
+    #
+    # some experimentation around alternative parsing of debian_version
+    #
+    #debmap = {
+    #    'sid':'unstable',
+    #    'stretch':'testing',
+    #    'jessie':'8',
+    #    'wheezy':'7',
+    #    'squeeze':'6',
+    #    'lenny':'5'
+    #}
+    #
+    #if meta['DISTRO'] == 'debian' and os.path.exists(os.path.join(inpath, 'etc', 'debian_version')):
+    #    with open(os.path.join(inpath, 'etc', 'debian_version'), 'r') as FH:
+    #        for line in FH.readlines():
+    #            line = line.strip()
+    #            for regmatch in ["(.*)/(.*)", "(.*)"]:
+    #                patt = re.match(regmatch, line)
+    #                if patt:
+    #                    for p in patt.groups():
+    #                        if p in debmap:
+    #                            meta['DISTROVERS'] = debmap[p]
+    #
+
     return(meta)
 
 def get_distro_flavor(distro, version, likedistro=None):
@@ -1221,7 +1326,7 @@ def get_distro_flavor(distro, version, likedistro=None):
 
     return(ret)
 
-def cve_load_data_imageId(imageId, cve_data_context=None):
+def cve_load_data(imageId, cve_data_context=None):
     cve_data = None
     
     distrometa = get_distro_from_imageId(imageId)
@@ -1278,16 +1383,15 @@ def cve_load_data_imageId(imageId, cve_data_context=None):
         raise ValueError(str(msg))
         #raise ValueError("cannot find CVE data associated with the input container distro: ("+str(distrolist)+")")
 
-    return (dstr, cve_data)
 
-def cve_load_data(image, cve_data_context=None):
+    last_update = 0
+    try:
+        d = anchore_feeds.load_anchore_feed_group_datameta('vulnerabilities', dstr)
+        last_update = d['last_update']
+    except:
+        pass
 
-    cve_data = None
-    imageId = image.meta['imageId']
-
-    (dst, ret) = cve_load_data_imageId(imageId, cve_data_context=cve_data_context)
-
-    return(ret)
+    return (last_update, dstr, cve_data)
 
 def cve_scanimages(images, pkgmap, flavor, cve_data):
     results = {}
@@ -1600,7 +1704,50 @@ def is_pkg_vuln(vtag, vpkg, flavor, ivers, iversonly, vvers):
 
     return(isvuln)
 
-def image_context_add(imagelist, allimages, docker_cli=None, dockerfile=None, anchore_datadir=None, tmproot='/tmp', anchore_db=None, docker_images=None, must_be_analyzed=False, usertype=None, must_load_all=False):
+def compare_package_versions(imageId, pkga, vera, pkgb, verb):
+    # if ret == 0, versions are equal
+    # if ret > 0, vers A is greater than version B
+    # if ret < 0, vers A is less than version B
+
+    fulla = '-'.join([str(pkga), str(vera)])
+    fullb = '-'.join([str(pkgb), str(verb)])
+    if fulla == fullb:
+        return(0)
+
+    distrometa = get_distro_from_imageId(imageId)
+    idistro = distrometa['DISTRO']
+    idistrovers = distrometa['DISTROVERS']
+    distrodict = get_distro_flavor(idistro, idistrovers)
+    flavor = distrodict['flavor']
+
+    if flavor == "RHEL":
+        fixfile = pkgb + "-" + verb + ".arch.rpm"
+        imagefile = pkga + "-" + vera + ".arch.rpm"
+        (n1, v1, r1, e1, a1) = splitFilename(imagefile)
+        (n2, v2, r2, e2, a2) = splitFilename(fixfile)
+        if rpm.labelCompare(('1', v1, r1), ('1', v2, r2)) < 0:
+            return(-1)
+        else:
+            return(1)
+
+    elif flavor == "DEB":
+        comp_rc = dpkg_compare_versions(vera, 'lt', verb)
+        if comp_rc == 0:
+            return(-1)
+        else:
+            return(1)
+    elif flavor == "ALPINE":
+        comp_rc = apkg_compare_versions(vera, 'lt', verb)
+        if comp_rc == 0:
+            return(-1)
+        else:
+            return(1)
+    else:
+        raise ValueError("unsupported distro, cannot compare package versions")
+
+    return(0)
+
+def image_context_add(imagelist, allimages, docker_cli=None, dockerfile=None, tmproot='/tmp', anchore_db=None, docker_images=None, must_be_analyzed=False, usertype=None, must_load_all=False):
     retlist = list()
     for i in imagelist:
         if i in allimages:
@@ -1610,7 +1757,7 @@ def image_context_add(imagelist, allimages, docker_cli=None, dockerfile=None, an
             raise Exception(errorstr)
         else:
             try:
-                newimage = anchore_image.AnchoreImage(i, anchore_datadir, docker_cli=docker_cli, allimages=allimages, dockerfile=dockerfile, tmpdirroot=tmproot, usertype=usertype, anchore_db=anchore_db, docker_images=docker_images)
+                newimage = anchore_image.AnchoreImage(i, docker_cli=docker_cli, allimages=allimages, dockerfile=dockerfile, tmpdirroot=tmproot, usertype=usertype, anchore_db=anchore_db, docker_images=docker_images)
             except Exception as err:
                 if must_load_all:
                     traceback.print_exc()
@@ -1642,22 +1789,31 @@ def diff_images(imageId, baseimageId):
                         output = {}
 
                         adata = areport[module_name][module_value][module_type]
-                        bdata = breport[module_name][module_value][module_type]
+                        try:
+                            bdata = breport[module_name][module_value][module_type]
+                        except:
+                            for btype in breport[module_name][module_value].keys():
+                                try:
+                                    bdata = breport[module_name][module_value][btype]
+                                    break
+                                except:
+                                    pass
 
-                        for akey in adata.keys():
-                            if akey not in bdata:
-                                output[akey] = "INIMG_NOTINBASE"
-                            elif adata[akey] != bdata[akey]:
-                                output[akey] = "VERSION_DIFF"
-                        for bkey in bdata.keys():
-                            if bkey not in adata:
-                                output[bkey] = "INBASE_NOTINIMG"
-                        if module_name not in ret:
-                            ret[module_name] = {}
-                        if module_value not in ret[module_name]:
-                            ret[module_name][module_value] = {}
+                        if adata and bdata:
+                            for akey in adata.keys():
+                                if akey not in bdata:
+                                    output[akey] = "INIMG_NOTINBASE"
+                                elif adata[akey] != bdata[akey]:
+                                    output[akey] = "VERSION_DIFF"
+                            for bkey in bdata.keys():
+                                if bkey not in adata:
+                                    output[bkey] = "INBASE_NOTINIMG"
+                            if module_name not in ret:
+                                ret[module_name] = {}
+                            if module_value not in ret[module_name]:
+                                ret[module_name][module_value] = {}
 
-                        ret[module_name][module_value][module_type] = output
+                            ret[module_name][module_value][module_type] = output
 
     return(ret)
 
@@ -1998,4 +2154,80 @@ def get_files_from_path(inpath):
 
 def grouper(inlist, chunksize):
     return (inlist[pos:pos + chunksize] for pos in xrange(0, len(inlist), chunksize))
+
+def run_command(command):
+    rc = 1
+    sout = ""
+
+    try:
+        _logger.debug("running command: " + str(command))
+        sout = subprocess.check_output(command, stderr=subprocess.STDOUT)
+        sout = sout.decode('utf8')
+        rc = 0
+    except subprocess.CalledProcessError as err:
+        sout = err.output.decode('utf8')
+        rc = err.returncode
+    except Exception as err:
+        sout = str(err)
+        rc = 1
+    _logger.debug("command complete: " + str(command))
+
+    return(rc, sout, ' '.join(command))
+
+def parse_dockerimage_string(instr):
+    host = None
+    port = None
+    repo = None
+    tag = None
+
+    # get the host/port
+    patt = re.match("(.*?)/(.*)", instr)
+    if patt:
+        a = patt.group(1)
+        remain = patt.group(2)
+        patt = re.match("(.*?):(.*)", a)
+        if patt:
+            host = patt.group(1)
+            port = patt.group(2)
+        elif a == 'docker.io':
+            host = 'docker.io'
+            port = None
+        elif a == 'localhost' or a == 'localhost.localdomain':
+            host = a
+            port = None
+        else:
+            patt = re.match(".*\..*", a)
+            if patt:
+                host = a
+            else:
+                host = 'docker.io'
+                remain = instr
+            port = None
+
+    else:
+        host = 'docker.io'
+        port = None
+        remain = instr
+
+    # get the repo/tag
+    patt = re.match("(.*):(.*)", remain)
+    if patt:
+        repo = patt.group(1)
+        tag = patt.group(2)
+    else:
+        repo = remain
+        tag = "latest"
+
+    if not tag:
+        tag = "latest"
+
+    if port:
+        hostport = ':'.join([host, port])
+    else:
+        hostport = host
+
+    repotag = ':'.join([repo, tag])
+    outstr = '/'.join([hostport, repotag])
+
+    return(host, port, repo, tag, outstr)
 

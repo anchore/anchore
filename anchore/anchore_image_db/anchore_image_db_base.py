@@ -129,6 +129,14 @@ class AnchoreImageDB(object):
         self._logger.debug("AnchoreDB: parent unimplemented: driver has not implemented this anchoreDB operation")
         return(False)
 
+    def load_gates_manifest(self):
+        self._logger.debug("AnchoreDB: parent unimplemented: driver has not implemented this anchoreDB operation")
+        return(False)
+
+    def save_gates_manifest(self, data):
+        self._logger.debug("AnchoreDB: parent unimplemented: driver has not implemented this anchoreDB operation")
+        return(False)
+
     def load_gates_report(self, imageId):
         self._logger.debug("AnchoreDB: parent unimplemented: driver has not implemented this anchoreDB operation")
         return(False)

@@ -1,12 +1,9 @@
 #!/usr/bin/env python
 
 import sys
-import os
 import json
-import re
-import rpm
-from rpmUtils.miscutils import splitFilename
-from anchore import anchore_image
+import time
+
 import anchore.anchore_utils
 
 gate_name = "ANCHORESEC"
@@ -36,6 +33,11 @@ triggers = {
         'description':'triggers if a vulnerability of UNKNOWN severity is found',
         'params':'none'
     },
+    'FEEDOUTOFDATE':
+    {
+        'description':'triggers if the CVE data is older than the window specified by the parameter MAXAGE (unit is number of days)',
+        'params':'MAXAGE'
+    },
     'UNSUPPORTEDDISTRO':
     {
         'description':'triggers if a vulnerability scan cannot be run against the image due to lack of vulnerability feed data for the images distro',
@@ -61,11 +63,19 @@ try:
 except:
     params = None
 
-cvedirroot = '/'.join([config['anchore_config']['image_data_store'], "../cve-data"])
+parsed_params = {}
+if params:
+    for paramstr in params:
+        try:
+            key, val = paramstr.split("=")
+            parsed_params[key] = list()
+            for p in val.split(","):
+                parsed_params[key].append(p)
+        except:
+            pass
 
 try:
-    image = anchore_image.AnchoreImage(imgid, config['anchore_config']['image_data_store'], {})
-    cve_data = anchore.anchore_utils.cve_load_data(image)
+    last_update, distro, cve_data = anchore.anchore_utils.cve_load_data(imgid)
     report = anchore.anchore_utils.cve_scanimage(cve_data, imgid)
 except Exception as err:
     import traceback
@@ -77,6 +87,17 @@ except Exception as err:
     sys.exit(0)
 
 outlist = list()
+
+# check for feed freshness
+if 'MAXAGE' in parsed_params:
+    try:
+        for minage in parsed_params['MAXAGE']:
+            mintime = time.time() - int(int(minage) * 86400)
+            if last_update < mintime:
+                outlist.append("FEEDOUTOFDATE The vulnerability feed for this image distro is older than MAXAGE ("+str(minage)+") days")
+    except Exception as err:
+        outlist.append("FEEDOUTOFDATE Cannot perform data feed up-to-date check - message from server: " + str(err))
+
 for k in report.keys():
     for cvepkg in report[k]:
         vuln = cvepkg
@@ -96,7 +117,6 @@ for k in report.keys():
             t = "VULNUNKNOWN"
 
         d = {'id':cve, 'desc':sev + " Vulnerability found in package - " + pkg + " (" + cve + " - " + url + ")"}
-        #outlist.append(t + " " + sev + " Vulnerability found in package - " + pkg + " (" + cve + " - " + url + ")")
         outlist.append(t + " " + json.dumps(d))
 
 anchore.anchore_utils.save_gate_output(imgid, gate_name, outlist)

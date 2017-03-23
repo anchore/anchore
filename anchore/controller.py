@@ -26,13 +26,11 @@ class Controller(object):
     def __init__(self, anchore_config, imagelist, allimages, force=False):
         self.config = anchore_config
         self.allimages = allimages
-        self.force = force        
-        self.anchore_datadir = self.config['image_data_store']
         
         if len(imagelist) <= 0:
             raise Exception("No images given to evaluate")
 
-        self.images = anchore_utils.image_context_add(imagelist, allimages, docker_cli=contexts['docker_cli'], anchore_datadir=self.anchore_datadir, tmproot=self.config['tmpdir'], anchore_db=contexts['anchore_db'], docker_images=contexts['docker_images'], must_be_analyzed=True, must_load_all=True)
+        self.images = anchore_utils.image_context_add(imagelist, allimages, docker_cli=contexts['docker_cli'], tmproot=self.config['tmpdir'], anchore_db=contexts['anchore_db'], docker_images=contexts['docker_images'], must_be_analyzed=True, must_load_all=True)
 
         self.anchoreDB = contexts['anchore_db']
 
@@ -44,6 +42,39 @@ class Controller(object):
         self.show_triggerIds = False
 
     def read_policy(self, policydata):
+        policies = {}
+        for l in policydata:
+            l = l.strip()
+            patt = re.compile('^\s*#')
+
+            if (l and not patt.match(l)):
+                polinput = l.split(':')
+                module = polinput[0]
+                check = polinput[1]
+                action = polinput[2]
+                modparams = ""
+                if (len(polinput) > 3):
+                    modparams = ':'.join(polinput[3:])
+
+                if module not in policies:
+                    policies[module] = {}
+
+                if check not in policies[module]:
+                    policies[module][check] = {}
+
+                if 'aptups' not in policies[module][check]:
+                    policies[module][check]['aptups'] = []
+
+                aptup = [action, modparams]
+                if aptup not in policies[module][check]['aptups']:
+                    policies[module][check]['aptups'].append(aptup)
+
+                policies[module][check]['action'] = action
+                policies[module][check]['params'] = modparams
+
+        return(policies)
+
+    def read_policy_orig(self, policydata):
         policies = {}
         for l in policydata:
             l = l.strip()
@@ -230,7 +261,6 @@ class Controller(object):
                     trigger = k
                     action = policies[check][trigger]['action']
 
-                    #r = {'imageId':image.meta['imageId'], 'check':m, 'trigger':k, 'output':v, 'action':policies[m][k]['action']}
                     r = {'imageId':imageId, 'check':check, 'triggerId':triggerId, 'trigger':trigger, 'output':output, 'action':action}
                     # this is where whitelist check should go
                     whitelisted = False
@@ -283,15 +313,87 @@ class Controller(object):
         success = True
 
         imagename = image.meta['imageId']
-        imagedir = image.anchore_imagedir
         gatesdir = '/'.join([self.config["scripts_dir"], "gates"])
         workingdir = '/'.join([self.config['anchore_data_dir'], 'querytmp'])
         outputdir = workingdir
         
-        if not self.force and os.path.exists(imagedir + "/gates.done"):
-            self._logger.info(image.meta['shortId'] + ": evaluated.")
-            return(True)
+        self._logger.info(image.meta['shortId'] + ": evaluating policies ...")
+        
+        for d in [outputdir, workingdir]:
+            if not os.path.exists(d):
+                os.makedirs(d)
 
+        imgfile = '/'.join([workingdir, "queryimages." + str(random.randint(0, 99999999))])
+        anchore_utils.write_plainfile_fromstr(imgfile, image.meta['imageId'])
+
+        if self.policy_override:
+            policy_data = anchore_utils.read_plainfile_tolist(self.policy_override)
+            policies = self.read_policy(policy_data)
+        else:
+            policies = self.get_image_policies(image)
+
+        #print json.dumps(policies, indent=4)
+
+        gmanifest, failedgates = anchore_utils.generate_gates_manifest()
+        if failedgates:
+            self._logger.error("some gates failed to run - check the gate(s) modules for errors: "  + str(','.join(failedgates)))
+            success = False
+        else:
+            success = True
+            for gatecheck in policies.keys():
+                # get all commands that match the gatecheck
+                gcommands = []
+                for gkey in gmanifest.keys():
+                    if gmanifest[gkey]['gatename'] == gatecheck:
+                        gcommands.append(gkey)
+
+                # assemble the params from the input policy for this gatecheck
+                params = []
+                for trigger in policies[gatecheck].keys():
+                    if 'params' in policies[gatecheck][trigger] and policies[gatecheck][trigger]['params']:
+                        params.append(policies[gatecheck][trigger]['params'])
+
+                if not params:
+                    params = ['all']
+
+                if gcommands:
+                    for command in gcommands:
+                        cmd = [command] + [imgfile, self.config['image_data_store'], outputdir] + params
+                        self._logger.debug("running gate command: " + str(' '.join(cmd)))
+
+                        (rc, sout, cmdstring) = anchore_utils.run_command(cmd)
+                        if rc:
+                            self._logger.error("FAILED")
+                            self._logger.error("\tCMD: " + str(cmdstring))
+                            self._logger.error("\tEXITCODE: " + str(rc))
+                            self._logger.error("\tOUTPUT: " + str(sout))
+                            success = False
+                        else:
+                            self._logger.debug("")
+                            self._logger.debug("\tCMD: " + str(cmdstring))
+                            self._logger.debug("\tEXITCODE: " + str(rc))
+                            self._logger.debug("\tOUTPUT: " + str(sout))
+                            self._logger.debug("")
+                else:
+                    self._logger.warn("WARNING: gatecheck ("+str(gatecheck)+") line in policy, but no gates were found that match this gatecheck")
+
+        if success:
+            report = self.generate_gates_report(image)
+            self.anchoreDB.save_gates_report(image.meta['imageId'], report)
+            self._logger.info(image.meta['shortId'] + ": evaluated.")
+
+        self._logger.debug("gate policy evaluation for image "+str(image.meta['imagename'])+": end")
+        return(success)
+
+    def execute_gates_orig(self, image, refresh=True):
+        self._logger.debug("gate policy evaluation for image "+str(image.meta['imagename'])+": begin")
+        success = True
+
+        imagename = image.meta['imageId']
+        gatesdir = '/'.join([self.config["scripts_dir"], "gates"])
+        workingdir = '/'.join([self.config['anchore_data_dir'], 'querytmp'])
+        outputdir = workingdir
+        
         self._logger.info(image.meta['shortId'] + ": evaluating policies ...")
         
         for d in [outputdir, workingdir]:
@@ -384,14 +486,13 @@ class Controller(object):
             image = self.allimages[imageId]
 
             if not self.execute_gates(image, refresh=refresh):
-                raise Exception("One or more gates failed to execute")
+                raise Exception("one or more gates failed to execute")
 
             results, fullresults = self.evaluate_gates_results(image)
 
             record = {}
             record['result'] = {}
 
-            #record['result']['header'] = ['Image_Id', 'Repo_Tag', 'Gate', 'Trigger', 'Check_Output', 'Gate_Action']        
             record['result']['header'] = ['Image_Id', 'Repo_Tag']
             if self.show_triggerIds:
                 record['result']['header'].append('Trigger_Id')
