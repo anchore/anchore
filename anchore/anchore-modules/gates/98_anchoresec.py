@@ -33,6 +33,31 @@ triggers = {
         'description':'triggers if a vulnerability of UNKNOWN severity is found',
         'params':'none'
     },
+    'PKGVULNLOW':
+    {
+        'description':'triggers if a vulnerability of LOW severity is found, along with a named package',
+        'params':'none'
+    },
+    'PKGVULNMEDIUM':
+    {
+        'description':'triggers if a vulnerability of MEDIUM severity is found, along with a named package',
+        'params':'none'
+    },
+    'PKGVULNHIGH':
+    {
+        'description':'triggers if a vulnerability of HIGH severity is found, along with a named package',
+        'params':'none'
+    },
+    'PKGVULNCRITICAL':
+    {
+        'description':'triggers if a vulnerability of CRITICAL severity is found, along with a named package',
+        'params':'none'
+    },
+    'PKGVULNUNKNOWN':
+    {
+        'description':'triggers if a vulnerability of UNKNOWN severity is found, along with a named package',
+        'params':'none'
+    },
     'FEEDOUTOFDATE':
     {
         'description':'triggers if the CVE data is older than the window specified by the parameter MAXAGE (unit is number of days)',
@@ -107,17 +132,25 @@ for k in report.keys():
         url = vuln['url']
         if sev == 'Low':
             t = "VULNLOW"
+            tt = "PKGVULNLOW"
         elif sev == 'Medium':
             t = "VULNMEDIUM"
+            tt = "PKGVULNMEDIUM"
         elif sev == "High":
             t = "VULNHIGH"
+            tt = "PKGVULNHIGH"
         elif sev == "Critical":
             t = "VULNCRITICAL"
+            tt = "PKGVULNCRITICAL"
         else:
             t = "VULNUNKNOWN"
+            tt = "PKGVULNUNKNOWN"
 
         d = {'id':cve, 'desc':sev + " Vulnerability found in package - " + pkg + " (" + cve + " - " + url + ")"}
         outlist.append(t + " " + json.dumps(d))
+
+        d = {'id':cve+"+"+pkg, 'desc':sev + " Vulnerability found in package - " + pkg + " (" + cve + " - " + url + ")"}
+        outlist.append(tt + " " + json.dumps(d))
 
 anchore.anchore_utils.save_gate_output(imgid, gate_name, outlist)
 
