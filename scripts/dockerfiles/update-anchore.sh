@@ -1,5 +1,7 @@
 #!/bin/bash
 
+anchore system status
+
 if [ -d "/root/anchore_modules/" ]; then
     for p in `ls -1 /root/anchore_modules/anchore-modules*.rpm 2>/dev/null`
     do
