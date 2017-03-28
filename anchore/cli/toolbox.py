@@ -450,8 +450,11 @@ def export(outfile):
 
     if ecode == 0:
         try:
-            with open(outfile, 'w') as OFH:
-                OFH.write(json.dumps(savelist))
+            if outfile == '-':
+                print json.dumps(savelist, indent=4)
+            else:
+                with open(outfile, 'w') as OFH:
+                    OFH.write(json.dumps(savelist))
         except Exception as err:
             anchore_print_err("operation failed: " + str(err))
             ecode = 1
