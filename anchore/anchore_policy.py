@@ -319,7 +319,7 @@ def run_bundle(anchore_config=None, bundle={}, imagelist=[]):
     for image in imagelist:
         if image not in ret:
             ret[image] = {}
-            ret[image]['bundle_id'] = bundle['id']
+            #ret[image]['bundle_id'] = bundle['id']
             ret[image]['bundle_name'] = bundle['name']
             ret[image]['evaluations'] = []
 

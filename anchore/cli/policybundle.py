@@ -55,9 +55,16 @@ def show(policyname):
     ecode = 0
     try:
         policymeta = anchore_policy.load_policymeta()
-        if policyname in policymeta:
-            result = policymeta[policyname]
-            anchore_print({policyname: result}, do_formatting=True)
+        
+        matchpolicyid = None
+        for policyid in policymeta:
+            if policymeta[policyid]['name'] == policyname:
+                matchpolicyid = policyid
+                break
+
+        if matchpolicyid:
+            result = policymeta[matchpolicyid]
+            anchore_print({matchpolicyid+"("+policyname+")": result}, do_formatting=True)
         else:
             anchore_print_err('Unknown policy name. Valid policies can be seen withe the "list" command')
             ecode = 1
@@ -84,10 +91,12 @@ def list(showdetail):
         else:
             output = {}
             for policy in policymeta.keys():
-                output[policy] = {}
-                output[policy]['policies'] = policymeta[policy]['policies'].keys()
-                output[policy]['whitelists'] = policymeta[policy]['whitelists'].keys()
-                output[policy]['global_whitelists'] = policymeta[policy]['global_whitelists'].keys()
+                name = policymeta[policy]['name']
+                output[name] = {}
+                output[name]['id'] = policy
+                output[name]['policies'] = policymeta[policy]['policies'].keys()
+                output[name]['whitelists'] = policymeta[policy]['whitelists'].keys()
+                output[name]['global_whitelists'] = policymeta[policy]['global_whitelists'].keys()
                 #output[policy]['mappings'] = policymeta[policy]['mappings']
             anchore_print(output, do_formatting=True)
     except Exception as err:

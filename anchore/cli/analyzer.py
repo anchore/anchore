@@ -193,8 +193,15 @@ def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy
                 ecode = 1
             else:
                 policymeta = anchore_policy.load_policymeta()
-                if run_bundle in policymeta:
-                    bundle = policymeta[run_bundle]
+
+                matchpolicyid = None
+                for policyid in policymeta:
+                    if policymeta[policyid]['name'] == run_bundle:
+                        matchpolicyid = policyid
+                        break
+
+                if matchpolicyid:
+                    bundle = policymeta[matchpolicyid]
                     result = anchore_policy.run_bundle(anchore_config=anchore_config, imagelist=inputimagelist, bundle=bundle)
                     for image in result.keys():
                         for gate_result in result[image]['evaluations']:
