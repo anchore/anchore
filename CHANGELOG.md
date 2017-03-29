@@ -1,9 +1,14 @@
 # Changelog
 
+## 1.1.3 (2017-03-29)
+
++ New option to analyze (--layerstrategy) which allows the user to select which intermediate images are analyzed between the specified image and the earliest image in the familytree.  The default behavior now is to analyze only images marked as 'base' in the familytree, as well as the specified image and the earliest image in the tree.
++ Added ability to use a prefix wildcard (*) character in anchore global whitelists
++ Added new triggers (PKGVULN*) to the ANCHORESEC gate, which allows global whitelisting of CVE+PKG vulnerabilities
+	
 ## 1.1.2 (2017-03-08)
 
-+ Lots of new anchore modules (run 'anchore query' for a list of new queries, and 'anchore gate --show-gatehelp' for a list of 
-  new policy/gate items)
++ Lots of new anchore modules (run 'anchore query' for a list of new queries, and 'anchore gate --show-gatehelp' for a list of new policy/gate items)
 + Added gate modules for checking status of NPM and GEM packages (npm_check and gem_check)
 + Added gate modules for specifying license and package blacklists (license_blacklist and package_blacklist)
 + Added gate module that checks for package existance (check_package_info)
