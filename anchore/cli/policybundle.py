@@ -96,8 +96,8 @@ def list(showdetail):
                 output[name]['id'] = policy
                 output[name]['policies'] = policymeta[policy]['policies'].keys()
                 output[name]['whitelists'] = policymeta[policy]['whitelists'].keys()
-                output[name]['global_whitelists'] = policymeta[policy]['global_whitelists'].keys()
-                #output[policy]['mappings'] = policymeta[policy]['mappings']
+                #output[name]['global_whitelists'] = policymeta[policy]['global_whitelists'].keys()
+                #output[name]['mappings'] = policymeta[policy]['mappings']
             anchore_print(output, do_formatting=True)
     except Exception as err:
         anchore_print_err('operation failed')

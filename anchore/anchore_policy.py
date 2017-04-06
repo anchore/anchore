@@ -12,7 +12,6 @@ _logger = logging.getLogger(__name__)
 
 # interface operations
 
-
 def check():
     if not load_policymeta():
         return (False, "policys are not initialized: please run 'anchore policys sync' and try again")
@@ -65,13 +64,16 @@ def sync_policymeta(bundlefile=None):
 
     return(True, ret)
 
-def load_policymeta():
-    return(contexts['anchore_db'].load_policymeta())
+def load_policymeta(policymetafile=None):
+    if policymetafile:
+        with open(policymetafile, 'r') as FH:
+            ret = json.loads(FH.read())
+    else:
+        ret = contexts['anchore_db'].load_policymeta()
+    return(ret)
 
 def save_policymeta(policymeta):
     return(contexts['anchore_db'].save_policymeta(policymeta))
-
-
 
 # bundle
 
@@ -81,7 +83,7 @@ def create_policy_bundle(name=None, policies={}, policy_version='v1', whitelists
         'name':name,
         'policies':{},
         'whitelists':{},
-        'global_whitelists':{},
+        #'global_whitelists':{},
         'mappings':[]
     }
         
@@ -102,13 +104,13 @@ def create_policy_bundle(name=None, policies={}, policy_version='v1', whitelists
         key = hashlib.md5(' '.join(sorted(json.dumps(ret['whitelists'][f]['data'], indent=4, sort_keys=True).splitlines()))).hexdigest()
         ret['whitelists'][f]['id'] = key
 
-    for f in global_whitelist:
-        if f not in ret['global_whitelists']:
-            ret['global_whitelists'][f] = {}
-        ret['global_whitelists'][f]['anchore_global_whitelist_version'] = global_whitelist_version
-        ret['global_whitelists'][f]['data'] = global_whitelist[f]
-        key = hashlib.md5(' '.join(sorted(json.dumps(ret['global_whitelists'][f]['data'], indent=4, sort_keys=True).splitlines()))).hexdigest()
-        ret['global_whitelists'][f]['id'] = key
+    #for f in global_whitelist:
+    #    if f not in ret['global_whitelists']:
+    #        ret['global_whitelists'][f] = {}
+    #    ret['global_whitelists'][f]['anchore_global_whitelist_version'] = global_whitelist_version
+    #    ret['global_whitelists'][f]['data'] = global_whitelist[f]
+    #    key = hashlib.md5(' '.join(sorted(json.dumps(ret['global_whitelists'][f]['data'], indent=4, sort_keys=True).splitlines()))).hexdigest()
+    #    ret['global_whitelists'][f]['id'] = key
 
     for m in mappings:
         ret['mappings'].append(m)
@@ -172,23 +174,25 @@ def write_policy_bundle(bundle_file=None, bundle={}):
 # mapping
 
 # C
-def create_mapping(policy_name=None, whitelist_name=None, repotagstrings=[], apply_global=False):
+def create_mapping(map_name=None, policy_name=None, whitelists=[], repotagstring=None):
     ret = {}
 
-    ret['policy_name'] = policy_name
-    ret['whitelist_name'] = whitelist_name
-    ret['apply_global'] = apply_global
-    ret['targets'] = {}
-    for i in repotagstrings:
-        image_info = anchore_utils.parse_dockerimage_string(i)
-        hostport = image_info.pop('hostport', "N/A")
-        repo = image_info.pop('repo', "N/A")
-        tag = image_info.pop('tag', "N/A")
-        imageId = image_info.pop('imageId', "N/A")
-        digest = image_info.pop('digest', "N/A")
-        if hostport not in ret['targets']:
-            ret['targets'][hostport] = []
-        ret['targets'][hostport].append({'repo':repo, 'tag':tag, 'digest':digest, 'imageId':imageId})
+    ret['name'] = map_name
+    ret['policy'] = policy_name
+    ret['whitelists'] = whitelists
+
+    image_info = anchore_utils.get_all_image_info(repotagstring)
+    registry = image_info.pop('registry', "N/A")
+    repo = image_info.pop('repo', "N/A")
+    tag = image_info.pop('tag', "N/A")
+    imageId = image_info.pop('imageId', "N/A")
+    digest = image_info.pop('digest', "N/A")
+
+    ret['registry'] = registry
+    ret['repo'] = repo
+    ret['tag'] = tag
+    ret['digest'] = digest
+    ret['imageId'] = imageId
 
     return(ret)
 
@@ -209,15 +213,18 @@ def verify_whitelist(whitelistdata=[], version='v1'):
 
 
 def read_whitelist(name=None, file=None, version='v1'):
-    if not name or not file:
+    if not name:
         raise Exception("bad input: " + str(name) + " : " + str(file))
 
-    if not os.path.exists(file):
-        raise Exception("input file does not exist: " + str(file))
+    if file:
+        if not os.path.exists(file):
+            raise Exception("input file does not exist: " + str(file))
 
-    wdata = anchore_utils.read_plainfile_tolist(file)
-    if not verify_whitelist(whitelistdata=wdata, version=version):
-        raise Exception("cannot verify whitelist data read from file as valid")
+        wdata = anchore_utils.read_plainfile_tolist(file)
+        if not verify_whitelist(whitelistdata=wdata, version=version):
+            raise Exception("cannot verify whitelist data read from file as valid")
+    else:
+        wdata = []
 
     ret = {}
     ret[name] = wdata
@@ -253,61 +260,121 @@ def read_policy(name=None, file=None, version='v1'):
 
     return(ret)
 
-def get_mapping_actions(image=None, imageId=None, digests=[], bundle={}):
+def get_mapping_actions(image=None, imageId=None, in_digests=[], bundle={}):
     if not image or not bundle or not verify_policy_bundle(bundle=bundle):
         raise Exception("input error")
 
     ret = []
+    
+    image_infos = []
 
-    image_info = anchore_utils.parse_dockerimage_string(image)
+    image_info = anchore_utils.get_all_image_info(image)
+    if image_info and image_info not in image_infos:
+        image_infos.append(image_info)
 
-    hostport = image_info.pop('hostport', "N/A")
-    repo = image_info.pop('repo', "N/A")
-    tag = image_info.pop('tag', "N/A")
-    digest = image_info.pop('digest', "N/A")
+    #print "IINFO: " + json.dumps(image_info, indent=4)
 
+    #else:
+    #    image_report = anchore_utils.load_image_report(imageId)
+    #    if image_report:
+    #        for tag in image_report['anchore_all_tags']:
+    #            #image_info = anchore_utils.parse_dockerimage_string(tag)
+    #            image_info = anchore_utils.get_all_image_info(tag)
+    #            if image_info and image_info not in image_infos:
+    #                image_infos.append(image_info)
+
+    #_logger.info("II: " + json.dumps(image_info, indent=4))
+        
     for m in bundle['mappings']:
-        polname = m['policy_name']
-        wlname = m['whitelist_name']
-        apply_global = m['apply_global']
+        polname = m['policy']
+        wlnames = m['whitelists']
 
-        if polname not in bundle['policies']:
-            _logger.info("policy not in bundle: " + str(polname))
-            continue
-        if wlname not in bundle['whitelists']:
-            _logger.info("whitelist not in bundle" + str(wlname))
-            continue
+        for image_info in image_infos:
+            #_logger.info("IMAGE INFO: " + str(image_info))
+            ii = {}
+            ii.update(image_info)
+            registry = ii.pop('registry', "N/A")
+            repo = ii.pop('repo', "N/A")
 
-        for registry in m['targets'].keys():
-            if hostport == registry or registry == '*':
-                for rt in m['targets'][registry]:
-                    _logger.debug("checking mapping for image ("+str(image_info)+") match (" + str(rt)+")")
+            tags = []
+            fulltag = ii.pop('fulltag', "N/A")
+            if fulltag != 'N/A':
+                tinfo = anchore_utils.parse_dockerimage_string(fulltag)
+                if 'tag' in tinfo and tinfo['tag']:
+                    tag = tinfo['tag']
 
-                    if repo == rt['repo'] or rt['repo'] == '*':
-                        doit = False
-                        matchstring = "N/A"
-                        if tag and (rt['tag'] == '*' or rt['tag'] == tag):
-                            matchstring = "found mapping match ("+str(image)+"): " + ','.join([registry, rt['repo'], rt['tag']])
-                            doit = True
-                        elif digest and (rt['digest'] == digest or rt['digest'] in digests):
-                            matchstring = "found mapping match: ("+str(image)+"): " + ','.join([registry, rt['digest']])
-                            doit = True
-                        elif imageId and (rt['imageId'] == imageId):
-                            matchstring = "found mapping match: ("+str(image)+"): " + ','.join([registry, rt['imageId']])
-                            doit = True
+            for t in [image, fulltag]:
+                tinfo = anchore_utils.parse_dockerimage_string(t)
+                if 'tag' in tinfo and tinfo['tag'] and tinfo['tag'] not in tags:
+                    tags.append(tinfo['tag'])
 
-                        if doit:
-                            _logger.debug("match found for image ("+str(image_info)+") match (" + str(rt)+")")
-                            _logger.info(matchstring)
-                            wldata = []
-                            if apply_global:
-                                wldata = bundle['global_whitelists']['global']['data']
-                            wldata = list(set(wldata + bundle['whitelists'][wlname]['data']))
-                            ret.append( ( bundle['policies'][polname]['data'], wldata, polname,wlname,apply_global) )
-                        else:
-                            _logger.debug("no match found for image ("+str(image_info)+") match (" + str(rt)+")")
+            #tags = [image, tag]
+            #for t in image_info['tags']:
+            #    tinfo = anchore_utils.parse_dockerimage_string(t)
+            #    if 'tag' in tinfo and tinfo['tag']:
+            #        tags.append(tinfo['tag'])
+
+            digest = ii.pop('digest', "N/A")
+            digests = [digest]
+            for d in image_info['digests']:
+                dinfo = anchore_utils.parse_dockerimage_string(d)
+                if 'digest' in dinfo and dinfo['digest']:
+                    digests.append(dinfo['digest'])
+                                
+            if polname not in bundle['policies']:
+                _logger.info("policy not in bundle: " + str(polname))
+                continue
+
+            skip=False
+            for wlname in wlnames:
+                if wlname not in bundle['whitelists']:
+                    _logger.info("whitelist not in bundle" + str(wlname))
+                    skip=True
+            if skip:
+                continue
+
+            #print "TAGS: " + str(tags)
+            #print "IINFO: " + json.dumps([repo, registry, tag], indent=4)
+            #print "MREG: " + json.dumps(m, indent=4)
+
+            mregistry = m['registry']
+            mrepo = m['repo']
+            mtag = m['tag']
+            mdigest = m['digest']
+            mimageId = m['imageId']
+            mname = m['name']
+
+            if registry == mregistry or mregistry == '*':
+                _logger.debug("checking mapping for image ("+str(image_info)+") match.")
+
+                if repo == mrepo or mrepo == '*':
+                    doit = False
+                    matchstring = mname + ": N/A"
+                    if tag and (mtag == '*' or mtag == tag or mtag in tags):
+                        matchstring = mname + ":" + ','.join([mregistry, mrepo, mtag])
+                        doit = True
+                    elif digest and (mdigest == digest or mdigest in in_digests or mdigest in digests):
+                        matchstring = mname + ":" + ','.join([mregistry, mrepo, mdigest])
+                        doit = True
+                    elif imageId and (mimageId == imageId):
+                        matchstring = mname + ":" + ','.join([mregistry, mrepo, mimageId])
+                        doit = True
+
+                    if doit:
+                        _logger.info("match found for image ("+str(image_info['pullstring'])+") match: " + str(matchstring))
+
+                        wldata = []
+                        wldataset = set()
+                        for wlname in wlnames:
+                            wldataset = set(list(wldataset) + bundle['whitelists'][wlname]['data'])
+                        wldata = list(wldataset)
+
+                        ret.append( ( bundle['policies'][polname]['data'], wldata, polname,wlnames, matchstring) )
+                        return(ret)
                     else:
-                        _logger.debug("no match found for image ("+str(image_info)+") match (" + str(rt)+")")
+                        _logger.debug("no match found for image ("+str(image_info)+") match.")
+                else:
+                    _logger.debug("no match found for image ("+str(image_info)+") match.")
 
     return(ret)
 
@@ -319,7 +386,6 @@ def run_bundle(anchore_config=None, bundle={}, imagelist=[]):
     for image in imagelist:
         if image not in ret:
             ret[image] = {}
-            #ret[image]['bundle_id'] = bundle['id']
             ret[image]['bundle_name'] = bundle['name']
             ret[image]['evaluations'] = []
 
@@ -332,9 +398,9 @@ def run_bundle(anchore_config=None, bundle={}, imagelist=[]):
         except:
             digests = []
 
-        result = get_mapping_actions(image=image, imageId=imageId, digests=digests, bundle=bundle)
+        result = get_mapping_actions(image=image, imageId=imageId, in_digests=digests, bundle=bundle)
         if result:
-            for pol,wl,polname,wlname,applywl in result:
+            for pol,wl,polname,wlnames,mapmatch in result:
                 fnames = {}
                 for (fname, data) in [('tmppol', pol), ('tmpwl', wl)]:
                     thefile = os.path.join(anchore_config['tmpdir'], fname)
@@ -348,13 +414,18 @@ def run_bundle(anchore_config=None, bundle={}, imagelist=[]):
                     evalel = {
                         'results': list(),
                         'policy_name':"N/A",
-                        'whitelist_name':"N/A"
+                        'whitelist_names':"N/A",
+                        'policy_data':list(),
+                        'whitelist_data':list(),
+                        'mapmatch':"N/A",
                     }
                     
                     evalel['results'] = gate_result
                     evalel['policy_name'] = polname
-                    evalel['whitelist_name'] = wlname
-                    evalel['apply_global_whitelist'] = applywl
+                    evalel['whitelist_names'] = wlnames
+                    evalel['policy_data'] = pol
+                    evalel['whitelist_data'] = wl
+                    evalel['mapmatch'] = mapmatch
                     ret[image]['evaluations'].append(evalel)
 
                 except Exception as err:
@@ -380,10 +451,12 @@ if __name__ == '__main__':
     policies.update(pol0)
     policies.update(pol1)
 
+    gl0 = read_whitelist(name="global")
     wl0 = read_whitelist(name='default', file='/root/.anchore/conf/anchore_global.whitelist')
+    whitelists.update(gl0)
     whitelists.update(wl0)
 
-    map0 = create_mapping(policy_name='default', whitelist_name='default', repotagstrings=['centos:*', 'alpine', 'ubuntu:16.10', 'myanchore.com:5000/alpine:latest'])
+    map0 = create_mapping(map_name="default", policy_name='default', whitelists=['default'], repotagstring='centos:*')
     mappings.append(map0)
 
 

@@ -267,7 +267,6 @@ def load_analysis_output(imageId, module_name, module_value):
 def load_gate_output(imageId, gate_name):
     return(contexts['anchore_db'].load_gate_report(imageId, gate_name))
 
-
 def load_image_report(imageId):
     return(contexts['anchore_db'].load_image_report(imageId))
 
@@ -2174,21 +2173,148 @@ def run_command(command):
 
     return(rc, sout, ' '.join(command))
 
+# this function attempts to get *ALL* known information about an image and normalize
+def get_all_image_info(instr, do_verify=False, docker_cli=None):
+    ret = {
+        'imageId': None,
+        'tags': [],
+        'tag': None,
+        'digests': [],
+        'digest': None,
+        'registry': None,
+        'repo': None,
+        'fulltag': None,
+        'fulldigest': None,
+        'pullstring': None,
+        'local_docker_tags': [],
+    }
+
+    image_info = parse_dockerimage_string(instr)
+    for k in image_info:
+        if image_info[k] and k in ret:
+            ret[k] = image_info[k]
+    
+    inspect_string = None
+    ddata = {}
+    for i in [instr, 'imageId', 'fulldigest', 'fulltag']:
+        if i in ret and ret[i]:
+            inspect_string = ret[i]
+        else:
+            inspect_string = i
+            
+        if not docker_cli:
+            cli = contexts['docker_cli']
+            try:
+                ddata = cli.inspect_image(inspect_string)
+            except:
+                pass
+        if ddata:
+            break
+
+
+    # find the best (latest) docker inspect data for the image
+    if ddata:
+        try:
+            if 'RepoTags' in ddata:
+                ret['local_docker_tags'] = ddata['RepoTags']
+
+            if 'RepoDigests' in ddata and not ddata['RepoDigests']:
+                # this is a local build case
+                ret['registry'] = 'localbuild'
+                ret['fulltag'] = ret['repo'] + ":" + ret['tag']
+                ret['pullstring'] = None
+        except Exception as err:
+            pass
+
+    if not ddata and ret['imageId']:
+        image_report = load_image_report(ret['imageId'])
+        ddata = image_report['docker_data']
+
+    if 'Id' in ddata:
+        if not ret['imageId']:
+            ret['imageId'] = re.sub("^sha256:", "", ddata['Id'])        
+
+    if 'RepoDigests' in ddata:
+        ret['digests'] = ddata['RepoDigests']
+
+    if 'RepoTags' in ddata:
+        ret['tags'] = ddata['RepoTags']
+
+    for d in ret['digests']:
+        dinfo = parse_dockerimage_string(d)
+        for t in ret['tags']:
+            tinfo = parse_dockerimage_string(t)
+            if dinfo['registry'] == tinfo['registry'] and dinfo['repo'] == tinfo['repo']:
+                regmatch = dinfo['registry']
+                repomatch = dinfo['repo']
+                break
+            else:
+                regmatch = dinfo['registry']
+                repomatch = dinfo['repo']
+
+    if not ret['registry'] and not ret['repo'] and regmatch and repomatch:
+        ret['registry'] = regmatch
+        ret['repo'] = repomatch
+        
+    if not ret['tag']:
+        for tag in ddata['RepoTags']:
+            sub_image_info = parse_dockerimage_string(tag)
+            sreg = sub_image_info['registry']
+            srepo = sub_image_info['repo']
+            stag = sub_image_info['tag']
+            if ret['registry'] == sreg and ret['repo'] == srepo:
+                ret['tag'] = stag
+                ret['fulltag'] = tag
+
+    if not ret['digest']:
+        for digest in ret['digests']:
+            patt = re.match("(.*)/(.*)@(.*)", digest)
+            if patt:
+                dreg = patt.group(1)
+                drepo = patt.group(2)
+                ddig = patt.group(3)
+                if ret['registry'] == dreg and ret['repo'] == drepo:
+                    ret['digest'] = ddig
+                    ret['fulldigest'] = digest
+                    break
+
+    if not ret['pullstring'] and ret['registry'] != 'localbuild':
+        if ret['fulldigest']:
+            ret['pullstring'] = ret['fulldigest']
+        elif ret['fulltag']:
+            ret['pullstring'] = ret['fulltag']
+
+    if do_verify:
+        # verify the result:
+        verified = True
+        for k in ret.keys():
+            if k != 'local_docker_tags' and not ret[k]:
+                verified = False
+                break
+
+        if not verified:
+            _logger.warn("image cannot be normalized: " + json.dumps(ret, indent=4))
+            ret = {}
+
+    return(ret)
+    
+
 def parse_dockerimage_string(instr):
     host = None
     port = None
     repo = None
     tag = None
-    hostport = None
+    registry = None
     repotag = None
     fulltag = None
+    fulldigest = None
     digest = None
     imageId = None
 
     patt = re.match(".*[^0-9A-Fa-f].*", instr)
     if not patt:
         imageId = instr
-        hostport = "localdocker"
+        #registry = "localdocker"
     else:
 
         # get the host/port
@@ -2238,31 +2364,43 @@ def parse_dockerimage_string(instr):
             tag = "latest"
 
         if port:
-            hostport = ':'.join([host, port])
+            registry = ':'.join([host, port])
         else:
-            hostport = host
+            registry = host
 
         if digest:
             repotag = '@'.join([repo, digest])
         else:
             repotag = ':'.join([repo, tag])
 
-        fulltag = '/'.join([hostport, repotag])
+        fulltag = '/'.join([registry, repotag])
 
         if not digest:
             digest = None
         else:
+            fulldigest = registry + '/' + repo + '@' + digest
             tag = None
+            fulltag = None
+            repotag = None
 
     ret = {}
     ret['host'] = host
     ret['port'] = port
     ret['repo'] = repo
     ret['tag'] = tag
-    ret['hostport'] = hostport
+    ret['registry'] = registry
     ret['repotag'] = repotag
     ret['fulltag'] = fulltag
     ret['digest'] = digest
+    ret['fulldigest'] = fulldigest
     ret['imageId'] = imageId
+
+    if ret['fulldigest']:
+        ret['pullstring'] = ret['fulldigest']
+    elif ret['fulltag']:
+        ret['pullstring'] = ret['fulltag']
+    else:
+        ret['pullstring'] = None
+
 
     return(ret)
