@@ -286,8 +286,8 @@ def get_mapping_actions(image=None, imageId=None, in_digests=[], bundle={}):
     #_logger.info("II: " + json.dumps(image_info, indent=4))
         
     for m in bundle['mappings']:
-        polname = m['policy']
-        wlnames = m['whitelists']
+        polname = m['policy_id']
+        wlnames = m['whitelist_ids']
 
         for image_info in image_infos:
             #_logger.info("IMAGE INFO: " + str(image_info))
@@ -321,13 +321,25 @@ def get_mapping_actions(image=None, imageId=None, in_digests=[], bundle={}):
                 if 'digest' in dinfo and dinfo['digest']:
                     digests.append(dinfo['digest'])
                                 
-            if polname not in bundle['policies']:
+            p_ids = []
+            p_names = []
+            for p in bundle['policies']:
+                p_ids.append(p['id'])
+                p_names.append(p['name'])
+
+            wl_ids = []
+            wl_names = []
+            for wl in bundle['whitelists']:
+                wl_ids.append(wl['id'])
+                wl_names.append(wl['name'])
+                
+            if polname not in p_ids:
                 _logger.info("policy not in bundle: " + str(polname))
                 continue
 
             skip=False
             for wlname in wlnames:
-                if wlname not in bundle['whitelists']:
+                if wlname not in wl_ids:
                     _logger.info("whitelist not in bundle" + str(wlname))
                     skip=True
             if skip:
@@ -337,12 +349,23 @@ def get_mapping_actions(image=None, imageId=None, in_digests=[], bundle={}):
             #print "IINFO: " + json.dumps([repo, registry, tag], indent=4)
             #print "MREG: " + json.dumps(m, indent=4)
 
-            mregistry = m['registry']
-            mrepo = m['repo']
-            mtag = m['tag']
-            mdigest = m['digest']
-            mimageId = m['imageId']
             mname = m['name']
+            mregistry = m['registry']
+            mrepo = m['repository']
+            if m['image']['type'] == 'tag':
+                mtag = m['image']['value']
+                mdigest = None
+                mimageId = None
+            elif m['image']['type'] == 'digest':
+                mdigest = m['image']['value']
+                mtag = None
+                mimageId = None
+            elif m['image']['type'] == 'id':
+                mimageId = m['image']['value']
+                mtag = None
+                mdigest = None
+            else:
+                mtag = mdigest = mimageId = None
 
             if registry == mregistry or mregistry == '*':
                 _logger.debug("checking mapping for image ("+str(image_info)+") match.")
@@ -366,10 +389,13 @@ def get_mapping_actions(image=None, imageId=None, in_digests=[], bundle={}):
                         wldata = []
                         wldataset = set()
                         for wlname in wlnames:
-                            wldataset = set(list(wldataset) + bundle['whitelists'][wlname]['data'])
+                            #wldataset = set(list(wldataset) + bundle['whitelists'][wlname]['data'])
+                            wldataset = set(list(wldataset) + extract_whitelist_data(bundle, wlname))
                         wldata = list(wldataset)
 
-                        ret.append( ( bundle['policies'][polname]['data'], wldata, polname,wlnames, matchstring) )
+                        poldata = extract_policy_data(bundle, polname)
+                        #print "PDATA: " + json.dumps(poldata, indent=4)
+                        ret.append( ( poldata, wldata, polname,wlnames, matchstring) )
                         return(ret)
                     else:
                         _logger.debug("no match found for image ("+str(image_info)+") match.")
@@ -378,7 +404,43 @@ def get_mapping_actions(image=None, imageId=None, in_digests=[], bundle={}):
 
     return(ret)
 
-def run_bundle(anchore_config=None, bundle={}, imagelist=[]):
+def extract_policy_data(bundle, polid):
+    for pol in bundle['policies']:
+        if polid == pol['id']:
+            return(format_policy_data(pol))
+
+def format_policy_data(poldata):
+    ret = []
+    version = poldata['version']
+    if poldata['version'] == '1_0':
+        for item in poldata['rules']:
+            #print json.dumps(item, indent=4)
+            polline = ':'.join([item['gate'], item['trigger'], item['action'], ""])
+
+            if 'params' in item:
+                for param in item['params']:
+                    polline = polline + param['name'] + '=' + param['value'] + " "
+            ret.append(polline)
+            
+    return(ret)
+
+def format_whitelist_data(wldata):
+    ret = []
+    version = wldata['version']
+    if wldata['version'] == '1_0':
+        for item in wldata['items']:
+            ret.append(' '.join([item['gate'], item['trigger_id']]))
+
+    return(ret)
+        
+
+def extract_whitelist_data(bundle, wlid):
+    for wl in bundle['whitelists']:
+        if wlid == wl['id']:
+            return(format_whitelist_data(wl))
+            
+
+def run_bundle(anchore_config=None, bundle={}, imagelist=[], matchtag=None):
     if not anchore_config or not bundle or not imagelist or not verify_policy_bundle(bundle=bundle):
         raise Exception("input error")
 
@@ -398,7 +460,12 @@ def run_bundle(anchore_config=None, bundle={}, imagelist=[]):
         except:
             digests = []
 
-        result = get_mapping_actions(image=image, imageId=imageId, in_digests=digests, bundle=bundle)
+        if matchtag:
+            matchimage = matchtag
+        else:
+            matchimage = image
+
+        result = get_mapping_actions(image=matchimage, imageId=imageId, in_digests=digests, bundle=bundle)
         if result:
             for pol,wl,polname,wlnames,mapmatch in result:
                 fnames = {}

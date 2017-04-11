@@ -59,6 +59,7 @@ diffdata = anchore.anchore_utils.diff_images(imageId, baseId)
 try:
     isdiff = False
     pkgdiffs = diffdata.pop('package_list', {}).pop('pkgs.all', {})
+
     for module_type in pkgdiffs.keys():
         for pkg in pkgdiffs[module_type].keys():
             isdiff = True
