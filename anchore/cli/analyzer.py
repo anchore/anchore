@@ -200,14 +200,12 @@ def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy
 
                 matchpolicyid = None
                 for policyid in policymeta:
-                    if policyid == run_bundle or policymeta[policyid]['name'] == run_bundle:
+                    if policyid == run_bundle or policymeta[policyid]['name'] == run_bundle or policymeta[policyid]['id']:
                         matchpolicyid = policyid
                         break
 
                 if matchpolicyid:
                     import json
-                    #print "HERE"
-                    #print "HERE: " + json.dumps(bundle, indent=4)
                     bundle = policymeta[matchpolicyid]
                     result = anchore_policy.run_bundle(anchore_config=anchore_config, imagelist=inputimagelist, matchtag=usetag, bundle=bundle)
                     for image in result.keys():

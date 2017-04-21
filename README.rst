@@ -18,9 +18,9 @@ To get started on CentOS 7 as root:
 
 ``https://docs.docker.com/engine/installation/linux/centos/``
 
-2) install some packages that full functionality of anchore will require
+2) install some packages that full functionality of anchore will require (run as root or with sudo)
 
-``yum install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm``
+``yum install epel-release``
 
 ``yum install python-pip rpm-python dpkg``
 
@@ -30,7 +30,7 @@ To get started on Ubuntu 15.10/16.04 as root:
 
 ``https://docs.docker.com/engine/installation/linux/ubuntulinux/``
 
-2) install some packages that full functionality of anchore will require
+2) install some packages that full functionality of anchore will require (run as root or with sudo)
 
 ``apt-get install python-pip python-rpm yum``
 
