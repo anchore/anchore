@@ -52,10 +52,11 @@ def sync_policymeta(bundlefile=None):
         #    ret['text'] = "failed to download policybundle: message from server - " + record['text']
         #    return(False, ret)
 
-    for bundlename in policymeta.keys():
-        if not verify_policy_bundle(policymeta[bundlename]):
-            ret['text'] = "could not verify policy found in bundle input: ("+str(bundlename)+")"
-            return(False, ret)
+    #for bundlename in policymeta.keys():
+    
+    if not verify_policy_bundle(policymeta):
+        ret['text'] = "could not verify policy found in bundle input"
+        return(False, ret)
 
     record = {'text': 'unimplemented'}
     if not contexts['anchore_db'].save_policymeta(policymeta):

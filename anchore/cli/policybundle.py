@@ -45,38 +45,39 @@ def policybundle(anchore_config):
             anchore_print_err(emsg)
             sys.exit(1)
 
-@policybundle.command(name='show', short_help='Show detailed info on specific policy')
-@click.argument('policyname')
-def show(policyname):
-    """
-    Show detailed policy information
+if False:
+    @policybundle.command(name='show', short_help='Show detailed info on specific policy')
+    @click.argument('policyname')
+    def show(policyname):
+        """
+        Show detailed policy information
 
-    """
-    ecode = 0
-    try:
-        policymeta = anchore_policy.load_policymeta()
-        
-        matchpolicyid = None
-        for policyid in policymeta:
-            if policymeta[policyid]['name'] == policyname:
-                matchpolicyid = policyid
-                break
+        """
+        ecode = 0
+        try:
+            policymeta = anchore_policy.load_policymeta()
 
-        if matchpolicyid:
-            result = policymeta[matchpolicyid]
-            anchore_print({matchpolicyid+"("+policyname+")": result}, do_formatting=True)
-        else:
-            anchore_print_err('Unknown policy name. Valid policies can be seen withe the "list" command')
+            matchpolicyid = None
+            for policyid in policymeta:
+                if policymeta[policyid]['name'] == policyname:
+                    matchpolicyid = policyid
+                    break
+
+            if matchpolicyid:
+                result = policymeta[matchpolicyid]
+                anchore_print({matchpolicyid+"("+policyname+")": result}, do_formatting=True)
+            else:
+                anchore_print_err('Unknown policy name. Valid policies can be seen withe the "list" command')
+                ecode = 1
+        except Exception as err:
+            anchore_print_err('operation failed')
             ecode = 1
-    except Exception as err:
-        anchore_print_err('operation failed')
-        ecode = 1
 
-    sys.exit(ecode)
+        sys.exit(ecode)
 
-@policybundle.command(name='list', short_help="List all policies.")
-@click.option('--showdetail', help='Along with the policy name, show all details for all policies', is_flag=True)
-def list(showdetail):
+@policybundle.command(name='show', short_help="Show bundle information.")
+@click.option('--details', help='Show all details of the bundle', is_flag=True)
+def show(details):
     """
     Show list of Anchore data policies.
 
@@ -86,18 +87,19 @@ def list(showdetail):
     try:
         policymeta = anchore_policy.load_policymeta()
 
-        if showdetail:
+        if details:
             anchore_print(policymeta, do_formatting=True)
+
         else:
             output = {}
-            for policy in policymeta.keys():
-                name = policymeta[policy]['name']
-                output[name] = {}
-                output[name]['id'] = policy
-                output[name]['policies'] = policymeta[policy]['policies'].keys()
-                output[name]['whitelists'] = policymeta[policy]['whitelists'].keys()
-                #output[name]['global_whitelists'] = policymeta[policy]['global_whitelists'].keys()
-                #output[name]['mappings'] = policymeta[policy]['mappings']
+
+            name = policymeta['name']
+            output[name] = {}
+            output[name]['id'] = policymeta['id']
+            output[name]['policies'] = policymeta['policies']
+            output[name]['whitelists'] = policymeta['whitelists']
+            output[name]['mappings'] = policymeta['mappings']
+
             anchore_print(output, do_formatting=True)
     except Exception as err:
         anchore_print_err('operation failed')

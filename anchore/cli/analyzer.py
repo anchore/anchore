@@ -65,8 +65,8 @@ Edit the gate policy for 'nginx:latest':
 @click.option('--listpolicy', is_flag=True, help='List the current gate policy for specified image(s).')
 @click.option('--updatepolicy', help='Store the input gate policy file as the policy for specified image(s).', type=click.Path(exists=True), metavar='<file>')
 @click.option('--policy', help='Use the specified policy file instead of the default.', type=click.Path(exists=True), metavar='<file>')
-@click.option('--run-bundle', help='Use the specified bundle to run gate checks (see "anchore policy sync" to get your bundles from anchore.io)', metavar='<bundlename>')
-@click.option('--bundlefile', help='Use the specified bundle file instead of the stored bundles from "anchore policybundle sync".', type=click.Path(exists=True), metavar='<file>')
+@click.option('--run-bundle', help='Evaluate using an anchore policy bundle (see "anchore policybundle sync" to get your bundle from anchore.io)', is_flag=True)
+@click.option('--bundlefile', help='Use the specified bundle JSON from specified file instead of the stored bundle from "anchore policybundle sync".', type=click.Path(exists=True), metavar='<file>')
 @click.option('--usetag', help='User the specified tag to evaluate the input image when using --run-bundle', metavar='<imagetag>')
 @click.option('--show-gatehelp', help='Show all gate names, triggers, and params that can be used to build an anchore policy', is_flag=True)
 @click.option('--show-policytemplate', help='Generate policy template based on all installed gate/triggers', is_flag=True)
@@ -129,7 +129,7 @@ def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy
         raise click.BadOptionUsage('Cannot use both --policy and --run_bundle at the same time.')
 
     if (run_bundle and (editpolicy or whitelist or listpolicy or updatepolicy or rmpolicy)):
-        raise click.BadOptionUsage('Cannot use other policy options when --run_bundle <bundlename> is specified.')
+        raise click.BadOptionUsage('Cannot use other policy options when --run_bundle is specified.')
 
     try:
         imagedict = build_image_list(anchore_config, image, imagefile, not (image or imagefile), include_allanchore)
@@ -199,17 +199,17 @@ def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy
             else:
                 policymeta = anchore_policy.load_policymeta(policymetafile=bundlefile)
 
-                matchpolicyid = None
-                if policymeta['name'] == run_bundle or policymeta['id'] == run_bundle:
-                    matchpolicyid = True
+                matchpolicyid = True
+                #if policymeta['name'] == run_bundle or policymeta['id'] == run_bundle:
+                #    matchpolicyid = True
 
                 if matchpolicyid:
                     bundle = policymeta
-
+                    bundleId = bundle['id']
                     result = anchore_policy.run_bundle(anchore_config=anchore_config, imagelist=inputimagelist, matchtag=usetag, bundle=bundle)
                     for image in result.keys():
                         for gate_result in result[image]['evaluations']:
-                            _logger.info("Run_Bundle="+run_bundle+" Policy="+gate_result['policy_name']+" Whitelists="+str(gate_result['whitelist_names']))
+                            _logger.info("BundleId="+bundleId+" Policy="+gate_result['policy_name']+" Whitelists="+str(gate_result['whitelist_names']))
                             if anchore_config.cliargs['json']:
                                 import json
                                 print json.dumps(gate_result)
