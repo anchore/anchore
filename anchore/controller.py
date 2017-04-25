@@ -302,15 +302,19 @@ class Controller(object):
                         try:
                             for [gmod, gtriggerId] in global_whitelist:
                                 if gmod == m:
-                                    patt = re.match("(.*)\*", gtriggerId)
-                                    if patt:
-                                        prefix_triggerId = patt.group(1)
-                                        if re.match("^"+re.escape(prefix_triggerId), triggerId):
-                                            whitelisted = True
-                                            whitelist_type = "global"
-                                            break
+                                    matchtoks = []
+                                    for tok in gtriggerId.split("*"):
+                                        matchtoks.append(re.escape(tok))
+                                    rematch = "^" + '(.*)'.join(matchtoks) + "$"
+                                    self._logger.debug("checking regexp wl<->triggerId for match: " + str(rematch) + " : " + str(triggerId))
+                                    if re.match(rematch, triggerId):
+                                        self._logger.debug("found wildcard whitelist match")
+                                        whitelisted = True
+                                        whitelist_type = "global"
+                                        break
+
                         except Exception as err:
-                            _logger.warn("problem with prefix wildcard match routine - exception: " + str(err))
+                            self._logger.warn("problem with prefix wildcard match routine - exception: " + str(err))
                     
                     fullr = {}
                     fullr.update(r)
