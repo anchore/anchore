@@ -68,6 +68,8 @@ def load_policymeta(policymetafile=None):
     if policymetafile:
         with open(policymetafile, 'r') as FH:
             ret = json.loads(FH.read())
+            cleanstr = json.dumps(ret).encode('utf8')
+            ret = json.loads(cleanstr)
     else:
         ret = contexts['anchore_db'].load_policymeta()
     return(ret)
@@ -125,6 +127,8 @@ def read_policy_bundle(bundle_file=None):
     ret = {}
     with open(bundle_file, 'r') as FH:
         ret = json.loads(FH.read())
+        cleanstr = json.dumps(ret).encode('utf8')
+        ret = json.loads(cleanstr)
 
     if not verify_policy_bundle(bundle=ret):
         raise Exception("cannot verify loaded policy bundle: " + str(bundle_file))
@@ -272,19 +276,6 @@ def get_mapping_actions(image=None, imageId=None, in_digests=[], bundle={}):
     if image_info and image_info not in image_infos:
         image_infos.append(image_info)
 
-    #print "IINFO: " + json.dumps(image_info, indent=4)
-
-    #else:
-    #    image_report = anchore_utils.load_image_report(imageId)
-    #    if image_report:
-    #        for tag in image_report['anchore_all_tags']:
-    #            #image_info = anchore_utils.parse_dockerimage_string(tag)
-    #            image_info = anchore_utils.get_all_image_info(tag)
-    #            if image_info and image_info not in image_infos:
-    #                image_infos.append(image_info)
-
-    #_logger.info("II: " + json.dumps(image_info, indent=4))
-        
     for m in bundle['mappings']:
         polname = m['policy_id']
         wlnames = m['whitelist_ids']
@@ -307,12 +298,6 @@ def get_mapping_actions(image=None, imageId=None, in_digests=[], bundle={}):
                 tinfo = anchore_utils.parse_dockerimage_string(t)
                 if 'tag' in tinfo and tinfo['tag'] and tinfo['tag'] not in tags:
                     tags.append(tinfo['tag'])
-
-            #tags = [image, tag]
-            #for t in image_info['tags']:
-            #    tinfo = anchore_utils.parse_dockerimage_string(t)
-            #    if 'tag' in tinfo and tinfo['tag']:
-            #        tags.append(tinfo['tag'])
 
             digest = ii.pop('digest', "N/A")
             digests = [digest]
@@ -344,10 +329,6 @@ def get_mapping_actions(image=None, imageId=None, in_digests=[], bundle={}):
                     skip=True
             if skip:
                 continue
-
-            #print "TAGS: " + str(tags)
-            #print "IINFO: " + json.dumps([repo, registry, tag], indent=4)
-            #print "MREG: " + json.dumps(m, indent=4)
 
             mname = m['name']
             mregistry = m['registry']
@@ -383,8 +364,10 @@ def get_mapping_actions(image=None, imageId=None, in_digests=[], bundle={}):
                         matchstring = mname + ":" + ','.join([mregistry, mrepo, mimageId])
                         doit = True
 
+                    matchstring = matchstring.encode('utf8')
                     if doit:
-                        _logger.info("match found for image ("+str(image_info['pullstring'])+") match: " + str(matchstring))
+                        #_logger.info("match found for image ("+str(image_info['pullstring'])+") match: " + str(matchstring))
+                        _logger.info("match found for image ("+str(matchstring))#+") match: " + str(matchstring))
 
                         wldata = []
                         wldataset = set()
@@ -394,7 +377,7 @@ def get_mapping_actions(image=None, imageId=None, in_digests=[], bundle={}):
                         wldata = list(wldataset)
 
                         poldata = extract_policy_data(bundle, polname)
-                        #print "PDATA: " + json.dumps(poldata, indent=4)
+
                         ret.append( ( poldata, wldata, polname,wlnames, matchstring) )
                         return(ret)
                     else:
@@ -412,9 +395,8 @@ def extract_policy_data(bundle, polid):
 def format_policy_data(poldata):
     ret = []
     version = poldata['version']
-    if poldata['version'] == '1_0':
+    if poldata['version'] == 'v1':
         for item in poldata['rules']:
-            #print json.dumps(item, indent=4)
             polline = ':'.join([item['gate'], item['trigger'], item['action'], ""])
 
             if 'params' in item:
@@ -422,14 +404,19 @@ def format_policy_data(poldata):
                     polline = polline + param['name'] + '=' + param['value'] + " "
             ret.append(polline)
             
+    else:
+        raise Exception ("detected policy version format in bundle not supported: " + str(version))
+
     return(ret)
 
 def format_whitelist_data(wldata):
     ret = []
     version = wldata['version']
-    if wldata['version'] == '1_0':
+    if wldata['version'] == 'v1':
         for item in wldata['items']:
             ret.append(' '.join([item['gate'], item['trigger_id']]))
+    else:
+        raise Exception ("detected whitelist version format in bundle not supported: " + str(version))
 
     return(ret)
         

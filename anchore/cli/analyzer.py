@@ -1,6 +1,7 @@
 import sys
 import click
 import logging
+import json
 
 from anchore import analyzer, controller, anchore_utils, anchore_policy
 from anchore.cli.common import build_image_list, anchore_print, anchore_print_err, extended_help_option
@@ -199,14 +200,12 @@ def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy
                 policymeta = anchore_policy.load_policymeta(policymetafile=bundlefile)
 
                 matchpolicyid = None
-                for policyid in policymeta:
-                    if policyid == run_bundle or policymeta[policyid]['name'] == run_bundle or policymeta[policyid]['id']:
-                        matchpolicyid = policyid
-                        break
+                if policymeta['name'] == run_bundle or policymeta['id'] == run_bundle:
+                    matchpolicyid = True
 
                 if matchpolicyid:
-                    import json
-                    bundle = policymeta[matchpolicyid]
+                    bundle = policymeta
+
                     result = anchore_policy.run_bundle(anchore_config=anchore_config, imagelist=inputimagelist, matchtag=usetag, bundle=bundle)
                     for image in result.keys():
                         for gate_result in result[image]['evaluations']:
