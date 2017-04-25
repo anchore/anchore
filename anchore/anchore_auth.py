@@ -79,7 +79,6 @@ def anchore_auth_save(anchore_auth, auth_file):
     if not anchore_auth or not auth_file:
         return (False)
 
-    # print "saving new anchore auth"
     try:
         with os.fdopen(os.open(auth_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0600), 'w') as OFH:
             OFH.write(json.dumps(anchore_auth))

@@ -9,8 +9,10 @@ from anchore import anchore_auth
 
 
 @click.command(name='login', short_help='Log in to the Anchore service.')
+@click.option('--user', help='Login with specified anchore.io username')
+@click.option('--passfile', help='Read single line from specified file and use as password')
 @click.pass_obj
-def login(anchore_config):
+def login(anchore_config, user, passfile):
     """
     Log into Anchore service using your username/password from anchore.io.
     """
@@ -18,13 +20,20 @@ def login(anchore_config):
     ecode = 0
 
     try:
-        if os.getenv('ANCHOREUSER'):
+        if user:
+            anchore_print("Using user from cmdline option: " + str(user))
+            username = user
+        elif os.getenv('ANCHOREUSER'):
             anchore_print("Using user from environment (ANCHOREUSER)")
             username = os.getenv('ANCHOREUSER')
         else:
             username = raw_input("Username: ")
 
-        if os.getenv('ANCHOREPASS'):
+        if passfile:
+            anchore_print("Using password from cmdline option: " + str(passfile))
+            with open(passfile, "r") as FH:
+                password = FH.read().strip()
+        elif os.getenv('ANCHOREPASS'):
             anchore_print("Using password from environment (ANCHOREPASS)")
             password = os.getenv('ANCHOREPASS')
         else:
