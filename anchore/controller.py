@@ -301,7 +301,14 @@ class Controller(object):
                         # look for prefix wildcards
                         try:
                             for [gmod, gtriggerId] in global_whitelist:
-                                if gmod == m:
+                                if gmod == m:                                    
+                                    # special case for backward compat
+                                    try:
+                                        if gmod == 'ANCHORESEC' and not re.match(".*\*.*", gtriggerId) and re.match("^CVE.*|^RHSA.*", gtriggerId):
+                                            gtriggerId = gtriggerId + "*"
+                                    except Exception as err:
+                                        self._logger.warn("problem with backward compat modification of whitelist trigger - exception: " + str(err))
+
                                     matchtoks = []
                                     for tok in gtriggerId.split("*"):
                                         matchtoks.append(re.escape(tok))
