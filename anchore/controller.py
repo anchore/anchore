@@ -9,7 +9,8 @@ import random
 import shutil
 import hashlib
 
-from anchore import anchore_utils, anchore_policy
+#from anchore import anchore_utils#, anchore_policy
+import anchore_policy, anchore_utils
 
 import logging
 
@@ -41,78 +42,6 @@ class Controller(object):
         self.policy_override = None
         self.global_whitelist_override = None
         self.show_triggerIds = False
-
-    def read_global_whitelist(self, whitelistdata):
-        ret = []
-        
-        for item in whitelistdata:
-            try:
-                (k,v) = re.match("([^\s]*)\s*([^\s]*)", item).group(1,2)
-                if not re.match("^\s*#.*", k):
-                    ret.append([k, v])
-            except Exception as err:
-                pass
-
-        return(ret)
-
-    def read_policy(self, policydata):
-        policies = {}
-        for l in policydata:
-            l = l.strip()
-            patt = re.compile('^\s*#')
-
-            if (l and not patt.match(l)):
-                polinput = l.split(':')
-                module = polinput[0]
-                check = polinput[1]
-                action = polinput[2]
-                modparams = ""
-                if (len(polinput) > 3):
-                    modparams = ':'.join(polinput[3:])
-
-                if module not in policies:
-                    policies[module] = {}
-
-                if check not in policies[module]:
-                    policies[module][check] = {}
-
-                if 'aptups' not in policies[module][check]:
-                    policies[module][check]['aptups'] = []
-
-                aptup = [action, modparams]
-                if aptup not in policies[module][check]['aptups']:
-                    policies[module][check]['aptups'].append(aptup)
-
-                policies[module][check]['action'] = action
-                policies[module][check]['params'] = modparams
-
-        return(policies)
-
-    def read_policy_orig(self, policydata):
-        policies = {}
-        for l in policydata:
-            l = l.strip()
-            patt = re.compile('^\s*#')
-
-            if (l and not patt.match(l)):
-                polinput = l.split(':')
-                module = polinput[0]
-                check = polinput[1]
-                action = polinput[2]
-                modparams = ""
-                if (len(polinput) > 3):
-                    modparams = ':'.join(polinput[3:])
-
-                if module not in policies:
-                    policies[module] = {}
-
-                if check not in policies[module]:
-                    policies[module][check] = {}
-
-                policies[module][check]['action'] = action
-                policies[module][check]['params'] = modparams
-
-        return(policies)
 
     def merge_policies(self, poldst, polsrc):
         polret = copy.deepcopy(poldst)
@@ -148,16 +77,15 @@ class Controller(object):
         # checks are in default), and save (if there is a diff after
         # the merge)
 
-        #policy_data = anchore_utils.read_plainfile_tolist(self.default_gatepol)
         try:
             policy = anchore_policy.read_policy(name='default', file=self.default_gatepol)
             policy_data = policy['default']
         except Exception as err:
             policy_data = []
-        default_policies = self.read_policy(policy_data)
+        default_policies = anchore_policy.structure_policy(policy_data)
 
         policy_data = self.anchoreDB.load_gate_policy(image.meta['imageId'])
-        image_policies = self.read_policy(policy_data)
+        image_policies = anchore_policy.structure_policy(policy_data)
 
         if image_policies and default_policies:
             policies = self.merge_policies(image_policies, default_policies)
@@ -183,13 +111,8 @@ class Controller(object):
 
         if whitelist_file:
             whitelist_data = anchore_policy.read_whitelist(name='default', file=whitelist_file)
-            ret = self.read_global_whitelist(whitelist_data['default'])
-            #whitelist_data = anchore_utils.read_kvfile_tolist(whitelist_file)
+            ret = anchore_policy.structure_whitelist(whitelist_data['default'])
             
-        #for item in whitelist_data:
-        #    if item[0] and not re.match("^#", item[0]) and len(item) > 1:
-        #        store = item[0:2]
-        #        ret.append(store)
         return(ret)
 
     def load_whitelist(self, image):
@@ -256,7 +179,7 @@ class Controller(object):
             except Exception as err:
                 policy_data = []
 
-            policies = self.read_policy(policy_data)
+            policies = anchore_policy.structure_policy(policy_data)
         else:
             policies = self.get_image_policies(image)
 
@@ -383,7 +306,7 @@ class Controller(object):
                 policy_data = policy['default']
             except Exception as err:
                 policy_data = []
-            policies = self.read_policy(policy_data)
+            policies = anchore_policy.structure_policy(policy_data)
         else:
             policies = self.get_image_policies(image)
 
@@ -528,7 +451,7 @@ class Controller(object):
         for imageId in self.images:
             if imageId in self.allimages:
                 policy_data = self.anchoreDB.load_gate_policy(imageId)
-                image_pol = self.read_policy(policy_data)
+                image_pol = anchore_policy.structure_policy(policy_data)
                 ret[imageId] = image_pol
         return(ret)
 
@@ -547,7 +470,7 @@ class Controller(object):
         except Exception as err:
             policy_data = []
 
-        newpol = self.read_policy(policy_data)
+        newpol = anchore_policy.structure_policy(policy_data)
         for imageId in self.images:
             if imageId in self.allimages:
                 try:

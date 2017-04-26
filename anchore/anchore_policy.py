@@ -4,6 +4,7 @@ import re
 import sys
 import logging
 import hashlib
+import uuid
 import jsonschema
 
 import controller
@@ -80,46 +81,63 @@ def save_policymeta(policymeta):
 
 # bundle
 
+# convert
+def convert_to_policy_bundle(name="default", version='v1', policy_file=None, policy_version='v1', whitelist_files=[], whitelist_version='v1'):
+    policies = {}
+    p = read_policy(name=str(uuid.uuid4()), file=policy_file)
+    policies.update(p)
+
+    whitelists = {}
+    for wf in whitelist_files:
+        w = read_whitelist(name=str(uuid.uuid4()), file=wf)
+        whitelists.update(w)
+
+    m = create_mapping(map_name="default", policy_name=policies.keys()[0], whitelists=whitelists.keys(), repotagstring='*:*')
+    mappings.append(m)
+
+    bundle = create_policy_bundle(name='default', policies=policies, policy_version=policy_version, whitelists=whitelists, whitelist_version=whitelist_version, mappings=mappings)
+    
+    if not verify_policy_bundle(bundle=bundle):
+        return({})
+
+    return(bundle)
+
 # C
-def create_policy_bundle(name=None, policies={}, policy_version='v1', whitelists={}, whitelist_version='v1', global_whitelist={}, global_whitelist_version='v1', mappings=[]):
+def create_policy_bundle(name=None, version='v1', policies={}, policy_version='v1', whitelists={}, whitelist_version='v1', mappings=[]):
     ret = {
+        'id': str(uuid.uuid4()),
         'name':name,
-        'policies':{},
-        'whitelists':{},
-        #'global_whitelists':{},
+        'version':version,
+        'policies':[],
+        'whitelists':[],
         'mappings':[]
     }
         
     for f in policies:
-        if f not in ret['policies']:
-            ret['policies'][f] = {}
-        ret['policies'][f]['anchore_policy_version'] = policy_version
-        ret['policies'][f]['data'] = policies[f]
-        key = hashlib.md5(' '.join(sorted(json.dumps(ret['policies'][f]['data'], indent=4, sort_keys=True).splitlines()))).hexdigest()
-        ret['policies'][f]['id'] = key
-    
+        el = {
+            'version':policy_version,
+            'id':f,
+            'name':f,
+            'rules':[]
+        }
+        
+        el['rules'] = unformat_policy_data(policies[f])
+        ret['policies'].append(el)
 
     for f in whitelists:
-        if f not in ret['whitelists']:
-            ret['whitelists'][f] = {}
-        ret['whitelists'][f]['anchore_whitelist_version'] = whitelist_version
-        ret['whitelists'][f]['data'] = whitelists[f]
-        key = hashlib.md5(' '.join(sorted(json.dumps(ret['whitelists'][f]['data'], indent=4, sort_keys=True).splitlines()))).hexdigest()
-        ret['whitelists'][f]['id'] = key
-
-    #for f in global_whitelist:
-    #    if f not in ret['global_whitelists']:
-    #        ret['global_whitelists'][f] = {}
-    #    ret['global_whitelists'][f]['anchore_global_whitelist_version'] = global_whitelist_version
-    #    ret['global_whitelists'][f]['data'] = global_whitelist[f]
-    #    key = hashlib.md5(' '.join(sorted(json.dumps(ret['global_whitelists'][f]['data'], indent=4, sort_keys=True).splitlines()))).hexdigest()
-    #    ret['global_whitelists'][f]['id'] = key
+        el = {
+            'version':whitelist_version,
+            'id':f,
+            'name':f,
+            'items':[]
+        }
+        
+        el['items'] = unformat_whitelist_data(whitelists[f])
+        ret['whitelists'].append(el)
 
     for m in mappings:
         ret['mappings'].append(m)
 
-    key = hashlib.md5(' '.join(sorted(json.dumps(ret, indent=4, sort_keys=True).splitlines()))).hexdigest()
-    ret['id'] = key
     _logger.debug("created bundle: ("+str(name)+") : " + json.dumps(ret.keys(), indent=4))
     return(ret)
 
@@ -191,10 +209,10 @@ def write_policy_bundle(bundle_file=None, bundle={}):
 # C
 def create_mapping(map_name=None, policy_name=None, whitelists=[], repotagstring=None):
     ret = {}
-
+    
     ret['name'] = map_name
-    ret['policy'] = policy_name
-    ret['whitelists'] = whitelists
+    ret['policy_id'] = policy_name
+    ret['whitelist_ids'] = whitelists
 
     image_info = anchore_utils.get_all_image_info(repotagstring)
     registry = image_info.pop('registry', "N/A")
@@ -204,10 +222,12 @@ def create_mapping(map_name=None, policy_name=None, whitelists=[], repotagstring
     digest = image_info.pop('digest', "N/A")
 
     ret['registry'] = registry
-    ret['repo'] = repo
-    ret['tag'] = tag
-    ret['digest'] = digest
-    ret['imageId'] = imageId
+    ret['repository'] = repo
+    ret['image'] = {
+        'type':'tag',
+        'value':tag
+    }
+    ret['id'] = str(uuid.uuid4())
 
     return(ret)
 
@@ -246,6 +266,49 @@ def read_whitelist(name=None, file=None, version='v1'):
 
     return(ret)
 
+def structure_whitelist(whitelistdata):
+    ret = []
+        
+    for item in whitelistdata:
+        try:
+            (k,v) = re.match("([^\s]*)\s*([^\s]*)", item).group(1,2)
+            if not re.match("^\s*#.*", k):
+                ret.append([k, v])
+        except Exception as err:
+            pass
+
+    return(ret)
+
+def unformat_whitelist_data(wldata):
+    ret = []
+
+    whitelists = structure_whitelist(wldata)
+    for wlitem in whitelists:
+        gate, triggerId = wlitem
+        el = {
+            'gate':gate,
+            'trigger_id':triggerId,
+            'id':str(uuid.uuid4())
+        }
+        ret.append(el)
+    return(ret)
+            
+def format_whitelist_data(wldata):
+    ret = []
+    version = wldata['version']
+    if wldata['version'] == 'v1':
+        for item in wldata['items']:
+            ret.append(' '.join([item['gate'], item['trigger_id']]))
+    else:
+        raise Exception ("detected whitelist version format in bundle not supported: " + str(version))
+
+    return(ret)
+        
+
+def extract_whitelist_data(bundle, wlid):
+    for wl in bundle['whitelists']:
+        if wlid == wl['id']:
+            return(format_whitelist_data(wl))
 
 def verify_policy(policydata=[], version='v1'):
     ret = True
@@ -256,22 +319,6 @@ def verify_policy(policydata=[], version='v1'):
     if version == 'v1':
         # do v1 format/checks
         pass
-
-    return(ret)
-
-def read_policy(name=None, file=None, version='v1'):
-    if not name or not file:
-        raise Exception("input error")
-
-    if not os.path.exists(file):
-        raise Exception("input file does not exist: " + str(file))
-
-    pdata = anchore_utils.read_plainfile_tolist(file)
-    if not verify_policy(policydata=pdata, version=version):
-        raise Exception("cannot verify policy data read from file as valid")
-
-    ret = {}
-    ret[name] = pdata
 
     return(ret)
 
@@ -401,11 +448,62 @@ def get_mapping_actions(image=None, imageId=None, in_digests=[], bundle={}):
 
     return(ret)
 
+def read_policy(name=None, file=None, version='v1'):
+    if not name or not file:
+        raise Exception("input error")
+
+    if not os.path.exists(file):
+        raise Exception("input file does not exist: " + str(file))
+
+    pdata = anchore_utils.read_plainfile_tolist(file)
+    if not verify_policy(policydata=pdata, version=version):
+        raise Exception("cannot verify policy data read from file as valid")
+
+    ret = {}
+    ret[name] = pdata
+
+    return(ret)
+
+def structure_policy(policydata):
+    policies = {}
+    for l in policydata:
+        l = l.strip()
+        patt = re.compile('^\s*#')
+
+        if (l and not patt.match(l)):
+            polinput = l.split(':')
+            module = polinput[0]
+            check = polinput[1]
+            action = polinput[2]
+            modparams = ""
+            if (len(polinput) > 3):
+                modparams = ':'.join(polinput[3:])
+
+            if module not in policies:
+                policies[module] = {}
+
+            if check not in policies[module]:
+                policies[module][check] = {}
+
+            if 'aptups' not in policies[module][check]:
+                policies[module][check]['aptups'] = []
+
+            aptup = [action, modparams]
+            if aptup not in policies[module][check]['aptups']:
+                policies[module][check]['aptups'].append(aptup)
+
+            policies[module][check]['action'] = action
+            policies[module][check]['params'] = modparams
+
+    return(policies)
+
+# return a give policyId from a bundle in raw poldata format
 def extract_policy_data(bundle, polid):
     for pol in bundle['policies']:
         if polid == pol['id']:
             return(format_policy_data(pol))
 
+# convert from policy bundle policy format to raw poldata format
 def format_policy_data(poldata):
     ret = []
     version = poldata['version']
@@ -423,23 +521,34 @@ def format_policy_data(poldata):
 
     return(ret)
 
-def format_whitelist_data(wldata):
+# convert from raw poldata format to bundle format
+def unformat_policy_data(poldata):
     ret = []
-    version = wldata['version']
-    if wldata['version'] == 'v1':
-        for item in wldata['items']:
-            ret.append(' '.join([item['gate'], item['trigger_id']]))
-    else:
-        raise Exception ("detected whitelist version format in bundle not supported: " + str(version))
+    policies = structure_policy(poldata)
+
+    for gate in policies.keys():
+        try:
+            for trigger in policies[gate].keys():
+                action = policies[gate][trigger]['action']
+                params = policies[gate][trigger]['params']
+
+                el = {
+                    'gate':gate,
+                    'trigger':trigger,
+                    'action':action,
+                    'params':[]
+                }
+
+                for p in params.split():
+                    (k,v) = p.split("=")
+                    el['params'].append({'name':k, 'value':v})
+                
+                ret.append(el)
+        except Exception as err:
+            print str(err)
+            pass
 
     return(ret)
-        
-
-def extract_whitelist_data(bundle, wlid):
-    for wl in bundle['whitelists']:
-        if wlid == wl['id']:
-            return(format_whitelist_data(wl))
-            
 
 def run_bundle(anchore_config=None, bundle={}, imagelist=[], matchtag=None):
     if not anchore_config or not bundle or not imagelist:
@@ -519,23 +628,26 @@ def run_bundle(anchore_config=None, bundle={}, imagelist=[], matchtag=None):
     return(ret, retecode)
 
 if __name__ == '__main__':
+    import docker
+    contexts['docker_cli'] = docker.Client()
+    contexts['anchore_config'] = {'pkg_dir':'./'}
+
     policies = {}
     whitelists = {}
     mappings = []
 
-    pol0 = read_policy(name='default', file='/root/.anchore/conf/anchore_gate.policy')
-    pol1 = read_policy(name='default0', file='/root/.anchore/conf/anchore_gate.policy')
+    pol0 = read_policy(name=str(uuid.uuid4()), file='/root/.anchore/conf/anchore_gate.policy')
+    pol1 = read_policy(name=str(uuid.uuid4()), file='/root/.anchore/conf/anchore_gate.policy')
     policies.update(pol0)
     policies.update(pol1)
 
-    gl0 = read_whitelist(name="global")
-    wl0 = read_whitelist(name='default', file='/root/.anchore/conf/anchore_global.whitelist')
+    gl0 = read_whitelist(name=str(uuid.uuid4()))
+    wl0 = read_whitelist(name=str(uuid.uuid4()), file='/root/wl0')
     whitelists.update(gl0)
     whitelists.update(wl0)
 
-    map0 = create_mapping(map_name="default", policy_name='default', whitelists=['default'], repotagstring='centos:*')
+    map0 = create_mapping(map_name="default", policy_name=policies.keys()[0], whitelists=whitelists.keys(), repotagstring='*:*')
     mappings.append(map0)
-
 
     bundle = create_policy_bundle(name='default', policies=policies, policy_version='v1', whitelists=whitelists, whitelist_version='v1', mappings=mappings)
     print "CREATED BUNDLE: " + json.dumps(bundle, indent=4)
@@ -546,5 +658,6 @@ if __name__ == '__main__':
     if newbun != bundle:
         print "BUNDLE RESULT DIFFERENT AFTER SAVE/LOAD"
 
+    thebun = convert_to_policy_bundle(name='default', policy_file='/root/.anchore/conf/anchore_gate.policy', policy_version='v1', whitelist_files=['/root/wl0'], whitelist_version='v1')
+    rc = write_policy_bundle(bundle_file="/tmp/bun1.json", bundle=thebun)
 
-    
