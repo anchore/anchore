@@ -36,6 +36,7 @@ package_name = "anchore"
 
 package_data = {
     package_name: ['conf/*',
+                   'schemas/*',
                    'anchore-modules/analyzers/*',
                    'anchore-modules/gates/*',
                    'anchore-modules/queries/*',

@@ -4,6 +4,8 @@ import re
 import sys
 import logging
 import hashlib
+import jsonschema
+
 import controller
 import anchore_utils
 from anchore.util import contexts
@@ -52,10 +54,8 @@ def sync_policymeta(bundlefile=None):
         #    ret['text'] = "failed to download policybundle: message from server - " + record['text']
         #    return(False, ret)
 
-    #for bundlename in policymeta.keys():
-    
-    if not verify_policy_bundle(policymeta):
-        ret['text'] = "could not verify policy found in bundle input"
+    if not verify_policy_bundle(bundle=policymeta):
+        ret['text'] = "input bundle does not conform to bundle schema"
         return(False, ret)
 
     record = {'text': 'unimplemented'}
@@ -132,27 +132,37 @@ def read_policy_bundle(bundle_file=None):
         ret = json.loads(cleanstr)
 
     if not verify_policy_bundle(bundle=ret):
-        raise Exception("cannot verify loaded policy bundle: " + str(bundle_file))
+        raise Exception("input bundle does not conform to bundle schema")
 
     return(ret)
 
 # V
 def verify_policy_bundle(bundle={}):
+    bundle_schema = {}
 
-    if 'name' not in bundle:
+    bundle_schema_file = os.path.join(contexts['anchore_config']['pkg_dir'], 'schemas', 'anchore-bundle.schema')
+    try:
+        if os.path.exists(bundle_schema_file):
+            with open (bundle_schema_file, "r") as FH:
+                bundle_schema = json.loads(FH.read())
+    except Exception as err:
+        _logger.error("could not load bundle schema: " + str(bundle_schema_file))
         return(False)
-    if 'policies' not in bundle:
+
+    if not bundle_schema:
+        _logger.error("could not load bundle schema: " + str(bundle_schema_file))
         return(False)
-    if 'whitelists' not in bundle:
-        return(False)
-    if 'mappings' not in bundle:
-        return(False)
+    else:
+        try:
+            jsonschema.validate(bundle, schema=bundle_schema)
+        except Exception as err:
+            return(False)
 
     return(True)
 
 # U
 def update_policy_bundle(bundle={}, name=None, policies={}, whitelists={}, mappings={}):
-    if not verify_policy_bundle(bundle):
+    if not verify_policy_bundle(bundle=bundle):
         raise Exception("input bundle is incomplete - cannot update bad bundle: " + json.dumps(bundle, indent=4))
 
     ret = {}
@@ -266,8 +276,11 @@ def read_policy(name=None, file=None, version='v1'):
     return(ret)
 
 def get_mapping_actions(image=None, imageId=None, in_digests=[], bundle={}):
-    if not image or not bundle or not verify_policy_bundle(bundle=bundle):
+    if not image or not bundle:
         raise Exception("input error")
+
+    if not verify_policy_bundle(bundle=bundle):
+        raise Exception("input bundle does not conform to bundle schema")
 
     ret = []
     
@@ -429,10 +442,14 @@ def extract_whitelist_data(bundle, wlid):
             
 
 def run_bundle(anchore_config=None, bundle={}, imagelist=[], matchtag=None):
-    if not anchore_config or not bundle or not imagelist or not verify_policy_bundle(bundle=bundle):
+    if not anchore_config or not bundle or not imagelist:
         raise Exception("input error")
 
+    if not verify_policy_bundle(bundle=bundle):
+        raise Exception("input bundle does not conform to bundle schema")
+
     ret = {}
+    retecode = 0
     for image in imagelist:
         if image not in ret:
             ret[image] = {}
@@ -482,6 +499,11 @@ def run_bundle(anchore_config=None, bundle={}, imagelist=[], matchtag=None):
                     evalel['whitelist_data'] = wl
                     evalel['mapmatch'] = mapmatch
                     ret[image]['evaluations'].append(evalel)
+                    ecode = con.result_get_highest_action(gate_result)
+                    if ecode == 1:
+                        retecode = 1
+                    elif retecode == 0 and ecode > retecode:
+                        retecode = ecode
 
                 except Exception as err:
                     _logger.error("policy evaluation error: " + str(err))
@@ -494,7 +516,7 @@ def run_bundle(anchore_config=None, bundle={}, imagelist=[], matchtag=None):
             ret[image]['result'] = {}
             _logger.info("no match found in bundle ("+str(bundle['name'])+") policy mappings for image " + str(image) + " ("+str(imageId)+"): nothing to do.")
 
-    return(ret)
+    return(ret, retecode)
 
 if __name__ == '__main__':
     policies = {}

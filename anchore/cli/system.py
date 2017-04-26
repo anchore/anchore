@@ -78,6 +78,39 @@ def status(conf):
 
     sys.exit(ecode)
 
+@system.command(name='show-schemas', short_help="Show anchore document schemas.")
+@click.argument('schemaname', nargs=-1)
+def show_schemas(schemaname):
+    """
+    Show anchore document schemas.
+    """
+
+    ecode = 0
+    try:
+        schemas = {}
+        schema_dir = os.path.join(contexts['anchore_config']['pkg_dir'], 'schemas')
+        for f in os.listdir(schema_dir):
+            sdata = {}
+            try:
+                with open(os.path.join(schema_dir, f), 'r') as FH:
+                    sdata = json.loads(FH.read())
+            except:
+                anchore_print_err('found schema file but failed to parse: ' + os.path.join(schema_dir, f))
+
+            if sdata and (not schemaname or f in schemaname):
+                schemas[f] = sdata
+
+        if not schemas:
+            anchore_print_err("no specified schemas were found to show")
+        else:
+            anchore_print(json.dumps(schemas, indent=4))
+
+    except Exception as err:
+        anchore_print_err('operation failed')
+        ecode = 1
+
+    sys.exit(ecode)
+
 @system.command(name='backup', short_help="Backup an anchore installation to a tarfile.")
 @click.argument('outputdir', type=click.Path())
 def backup(outputdir):

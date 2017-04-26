@@ -1342,7 +1342,7 @@ def cve_load_data(imageId, cve_data_context=None):
     fulldistro = distrodict['distro']
     fullversion = distrodict['fullversion']
     
-    distrolist = [(distro,distrovers), (likedistro, likeversion), (fulldistro, fullversion)]
+    distrolist = [(distro,distrovers), (likedistro, likeversion), (fulldistro, fullversion), (likedistro, fullversion)]
     for f in distrolist:
         dstr = ':'.join([f[0], f[1]])
         if cve_data_context and dstr in cve_data_context:

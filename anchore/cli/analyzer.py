@@ -197,28 +197,18 @@ def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy
                 anchore_print_err("run-bundle specified, but it appears as though no policy bundles have been synced yet: run 'anchore policybundle sync' to get your latest bundles from anchore.io")
                 ecode = 1
             else:
-                policymeta = anchore_policy.load_policymeta(policymetafile=bundlefile)
-
-                matchpolicyid = True
-                #if policymeta['name'] == run_bundle or policymeta['id'] == run_bundle:
-                #    matchpolicyid = True
-
-                if matchpolicyid:
-                    bundle = policymeta
-                    bundleId = bundle['id']
-                    result = anchore_policy.run_bundle(anchore_config=anchore_config, imagelist=inputimagelist, matchtag=usetag, bundle=bundle)
+                bundle = anchore_policy.load_policymeta(policymetafile=bundlefile)
+                bundleId = bundle['id']
+                result, ecode = anchore_policy.run_bundle(anchore_config=anchore_config, imagelist=inputimagelist, matchtag=usetag, bundle=bundle)
+                if anchore_config.cliargs['json']:
+                    import json
+                    anchore_print(json.dumps(result))
+                else:
                     for image in result.keys():
                         for gate_result in result[image]['evaluations']:
                             _logger.info("BundleId="+bundleId+" Policy="+gate_result['policy_name']+" Whitelists="+str(gate_result['whitelist_names']))
-                            if anchore_config.cliargs['json']:
-                                import json
-                                print json.dumps(gate_result)
-                            else:
-                                anchore_utils.print_result(anchore_config, gate_result['results'])
-                            #anchore_utils.print_result(anchore_config, gate_result)
-                else:
-                    anchore_print_err("cannot locate specified bundle name ("+str(run_bundle)+") in synced policy bundles.")
-                    ecode = 1
+                            anchore_utils.print_result(anchore_config, gate_result['results'])
+
         else:
             try:
                 # run the gates
