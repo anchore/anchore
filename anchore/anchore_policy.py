@@ -19,9 +19,6 @@ def check():
     if not load_policymeta():
         return (False, "policys are not initialized: please run 'anchore policys sync' and try again")
 
-    #if not load_anchore_policys_list():
-    #    return (False, "policys list is empty: please run 'anchore policys sync' and try again")
-
     return (True, "success")
 
 def sync_policymeta(bundlefile=None):
@@ -81,7 +78,7 @@ def save_policymeta(policymeta):
 
 # bundle
 
-# convert
+# Convert
 def convert_to_policy_bundle(name="default", version='v1', policy_file=None, policy_version='v1', whitelist_files=[], whitelist_version='v1'):
     policies = {}
     p = read_policy(name=str(uuid.uuid4()), file=policy_file)
@@ -204,6 +201,7 @@ def write_policy_bundle(bundle_file=None, bundle={}):
 
     return(True)
 
+
 # mapping
 
 # C
@@ -246,7 +244,7 @@ def verify_whitelist(whitelistdata=[], version='v1'):
 
     return(ret)
 
-
+# R
 def read_whitelist(name=None, file=None, version='v1'):
     if not name:
         raise Exception("bad input: " + str(name) + " : " + str(file))
@@ -310,6 +308,110 @@ def extract_whitelist_data(bundle, wlid):
         if wlid == wl['id']:
             return(format_whitelist_data(wl))
 
+# R
+def read_policy(name=None, file=None, version='v1'):
+    if not name or not file:
+        raise Exception("input error")
+
+    if not os.path.exists(file):
+        raise Exception("input file does not exist: " + str(file))
+
+    pdata = anchore_utils.read_plainfile_tolist(file)
+    if not verify_policy(policydata=pdata, version=version):
+        raise Exception("cannot verify policy data read from file as valid")
+
+    ret = {}
+    ret[name] = pdata
+
+    return(ret)
+
+def structure_policy(policydata):
+    policies = {}
+    for l in policydata:
+        l = l.strip()
+        patt = re.compile('^\s*#')
+
+        if (l and not patt.match(l)):
+            polinput = l.split(':')
+            module = polinput[0]
+            check = polinput[1]
+            action = polinput[2]
+            modparams = ""
+            if (len(polinput) > 3):
+                modparams = ':'.join(polinput[3:])
+
+            if module not in policies:
+                policies[module] = {}
+
+            if check not in policies[module]:
+                policies[module][check] = {}
+
+            if 'aptups' not in policies[module][check]:
+                policies[module][check]['aptups'] = []
+
+            aptup = [action, modparams]
+            if aptup not in policies[module][check]['aptups']:
+                policies[module][check]['aptups'].append(aptup)
+
+            policies[module][check]['action'] = action
+            policies[module][check]['params'] = modparams
+
+    return(policies)
+
+# return a give policyId from a bundle in raw poldata format
+def extract_policy_data(bundle, polid):
+    for pol in bundle['policies']:
+        if polid == pol['id']:
+            return(format_policy_data(pol))
+
+# convert from policy bundle policy format to raw poldata format
+def format_policy_data(poldata):
+    ret = []
+    version = poldata['version']
+    if poldata['version'] == 'v1':
+        for item in poldata['rules']:
+            polline = ':'.join([item['gate'], item['trigger'], item['action'], ""])
+
+            if 'params' in item:
+                for param in item['params']:
+                    polline = polline + param['name'] + '=' + param['value'] + " "
+            ret.append(polline)
+            
+    else:
+        raise Exception ("detected policy version format in bundle not supported: " + str(version))
+
+    return(ret)
+
+# convert from raw poldata format to bundle format
+def unformat_policy_data(poldata):
+    ret = []
+    policies = structure_policy(poldata)
+
+    for gate in policies.keys():
+        try:
+            for trigger in policies[gate].keys():
+                action = policies[gate][trigger]['action']
+                params = policies[gate][trigger]['params']
+
+                el = {
+                    'gate':gate,
+                    'trigger':trigger,
+                    'action':action,
+                    'params':[]
+                }
+
+                for p in params.split():
+                    (k,v) = p.split("=")
+                    el['params'].append({'name':k, 'value':v})
+                
+                ret.append(el)
+        except Exception as err:
+            print str(err)
+            pass
+
+    return(ret)
+
+# V
 def verify_policy(policydata=[], version='v1'):
     ret = True
 
@@ -321,6 +423,84 @@ def verify_policy(policydata=[], version='v1'):
         pass
 
     return(ret)
+
+
+def run_bundle(anchore_config=None, bundle={}, imagelist=[], matchtag=None):
+    if not anchore_config or not bundle or not imagelist:
+        raise Exception("input error")
+
+    if not verify_policy_bundle(bundle=bundle):
+        raise Exception("input bundle does not conform to bundle schema")
+
+    ret = {}
+    retecode = 0
+    for image in imagelist:
+        if image not in ret:
+            ret[image] = {}
+            ret[image]['bundle_name'] = bundle['name']
+            ret[image]['evaluations'] = []
+
+        imageId = anchore_utils.discover_imageId(image)
+
+        con = controller.Controller(anchore_config=anchore_config, imagelist=[imageId], allimages=contexts['anchore_allimages'], force=True)
+        try:
+            anchore_image = contexts['anchore_allimages'][imageId]
+            digests = anchore_image.get_digests()
+        except:
+            digests = []
+
+        if matchtag:
+            matchimage = matchtag
+        else:
+            matchimage = image
+
+        result = get_mapping_actions(image=matchimage, imageId=imageId, in_digests=digests, bundle=bundle)
+        if result:
+            for pol,wl,polname,wlnames,mapmatch in result:
+                fnames = {}
+                for (fname, data) in [('tmppol', pol), ('tmpwl', wl)]:
+                    thefile = os.path.join(anchore_config['tmpdir'], fname)
+                    fnames[fname] = thefile
+                    with open(thefile, 'w') as OFH:
+                        for l in data:
+                            OFH.write(l + "\n")
+
+                try:
+                    gate_result = con.run_gates(policy=fnames['tmppol'], global_whitelist=fnames['tmpwl'], show_triggerIds=True, show_whitelisted=True)
+                    evalel = {
+                        'results': list(),
+                        'policy_name':"N/A",
+                        'whitelist_names':"N/A",
+                        'policy_data':list(),
+                        'whitelist_data':list(),
+                        'mapmatch':"N/A",
+                    }
+                    
+                    evalel['results'] = gate_result
+                    evalel['policy_name'] = polname
+                    evalel['whitelist_names'] = wlnames
+                    evalel['policy_data'] = pol
+                    evalel['whitelist_data'] = wl
+                    evalel['mapmatch'] = mapmatch
+                    ret[image]['evaluations'].append(evalel)
+                    ecode = con.result_get_highest_action(gate_result)
+                    if ecode == 1:
+                        retecode = 1
+                    elif retecode == 0 and ecode > retecode:
+                        retecode = ecode
+
+                except Exception as err:
+                    _logger.error("policy evaluation error: " + str(err))
+                finally:
+                    for f in fnames.keys():
+                        if os.path.exists(fnames[f]):
+                            os.remove(fnames[f])
+
+        else:
+            ret[image]['result'] = {}
+            _logger.info("no match found in bundle ("+str(bundle['name'])+") policy mappings for image " + str(image) + " ("+str(imageId)+"): nothing to do.")
+
+    return(ret, retecode)
 
 def get_mapping_actions(image=None, imageId=None, in_digests=[], bundle={}):
     if not image or not bundle:
@@ -448,185 +628,7 @@ def get_mapping_actions(image=None, imageId=None, in_digests=[], bundle={}):
 
     return(ret)
 
-def read_policy(name=None, file=None, version='v1'):
-    if not name or not file:
-        raise Exception("input error")
-
-    if not os.path.exists(file):
-        raise Exception("input file does not exist: " + str(file))
-
-    pdata = anchore_utils.read_plainfile_tolist(file)
-    if not verify_policy(policydata=pdata, version=version):
-        raise Exception("cannot verify policy data read from file as valid")
-
-    ret = {}
-    ret[name] = pdata
-
-    return(ret)
-
-def structure_policy(policydata):
-    policies = {}
-    for l in policydata:
-        l = l.strip()
-        patt = re.compile('^\s*#')
-
-        if (l and not patt.match(l)):
-            polinput = l.split(':')
-            module = polinput[0]
-            check = polinput[1]
-            action = polinput[2]
-            modparams = ""
-            if (len(polinput) > 3):
-                modparams = ':'.join(polinput[3:])
-
-            if module not in policies:
-                policies[module] = {}
-
-            if check not in policies[module]:
-                policies[module][check] = {}
-
-            if 'aptups' not in policies[module][check]:
-                policies[module][check]['aptups'] = []
-
-            aptup = [action, modparams]
-            if aptup not in policies[module][check]['aptups']:
-                policies[module][check]['aptups'].append(aptup)
-
-            policies[module][check]['action'] = action
-            policies[module][check]['params'] = modparams
-
-    return(policies)
-
-# return a give policyId from a bundle in raw poldata format
-def extract_policy_data(bundle, polid):
-    for pol in bundle['policies']:
-        if polid == pol['id']:
-            return(format_policy_data(pol))
-
-# convert from policy bundle policy format to raw poldata format
-def format_policy_data(poldata):
-    ret = []
-    version = poldata['version']
-    if poldata['version'] == 'v1':
-        for item in poldata['rules']:
-            polline = ':'.join([item['gate'], item['trigger'], item['action'], ""])
-
-            if 'params' in item:
-                for param in item['params']:
-                    polline = polline + param['name'] + '=' + param['value'] + " "
-            ret.append(polline)
-            
-    else:
-        raise Exception ("detected policy version format in bundle not supported: " + str(version))
-
-    return(ret)
-
-# convert from raw poldata format to bundle format
-def unformat_policy_data(poldata):
-    ret = []
-    policies = structure_policy(poldata)
-
-    for gate in policies.keys():
-        try:
-            for trigger in policies[gate].keys():
-                action = policies[gate][trigger]['action']
-                params = policies[gate][trigger]['params']
-
-                el = {
-                    'gate':gate,
-                    'trigger':trigger,
-                    'action':action,
-                    'params':[]
-                }
-
-                for p in params.split():
-                    (k,v) = p.split("=")
-                    el['params'].append({'name':k, 'value':v})
-                
-                ret.append(el)
-        except Exception as err:
-            print str(err)
-            pass
-
-    return(ret)
-
-def run_bundle(anchore_config=None, bundle={}, imagelist=[], matchtag=None):
-    if not anchore_config or not bundle or not imagelist:
-        raise Exception("input error")
-
-    if not verify_policy_bundle(bundle=bundle):
-        raise Exception("input bundle does not conform to bundle schema")
-
-    ret = {}
-    retecode = 0
-    for image in imagelist:
-        if image not in ret:
-            ret[image] = {}
-            ret[image]['bundle_name'] = bundle['name']
-            ret[image]['evaluations'] = []
-
-        imageId = anchore_utils.discover_imageId(image)
-
-        con = controller.Controller(anchore_config=anchore_config, imagelist=[imageId], allimages=contexts['anchore_allimages'], force=True)
-        try:
-            anchore_image = contexts['anchore_allimages'][imageId]
-            digests = anchore_image.get_digests()
-        except:
-            digests = []
-
-        if matchtag:
-            matchimage = matchtag
-        else:
-            matchimage = image
-
-        result = get_mapping_actions(image=matchimage, imageId=imageId, in_digests=digests, bundle=bundle)
-        if result:
-            for pol,wl,polname,wlnames,mapmatch in result:
-                fnames = {}
-                for (fname, data) in [('tmppol', pol), ('tmpwl', wl)]:
-                    thefile = os.path.join(anchore_config['tmpdir'], fname)
-                    fnames[fname] = thefile
-                    with open(thefile, 'w') as OFH:
-                        for l in data:
-                            OFH.write(l + "\n")
-
-                try:
-                    gate_result = con.run_gates(policy=fnames['tmppol'], global_whitelist=fnames['tmpwl'], show_triggerIds=True, show_whitelisted=True)
-                    evalel = {
-                        'results': list(),
-                        'policy_name':"N/A",
-                        'whitelist_names':"N/A",
-                        'policy_data':list(),
-                        'whitelist_data':list(),
-                        'mapmatch':"N/A",
-                    }
-                    
-                    evalel['results'] = gate_result
-                    evalel['policy_name'] = polname
-                    evalel['whitelist_names'] = wlnames
-                    evalel['policy_data'] = pol
-                    evalel['whitelist_data'] = wl
-                    evalel['mapmatch'] = mapmatch
-                    ret[image]['evaluations'].append(evalel)
-                    ecode = con.result_get_highest_action(gate_result)
-                    if ecode == 1:
-                        retecode = 1
-                    elif retecode == 0 and ecode > retecode:
-                        retecode = ecode
-
-                except Exception as err:
-                    _logger.error("policy evaluation error: " + str(err))
-                finally:
-                    for f in fnames.keys():
-                        if os.path.exists(fnames[f]):
-                            os.remove(fnames[f])
-
-        else:
-            ret[image]['result'] = {}
-            _logger.info("no match found in bundle ("+str(bundle['name'])+") policy mappings for image " + str(image) + " ("+str(imageId)+"): nothing to do.")
-
-    return(ret, retecode)
-
+# small test
 if __name__ == '__main__':
     import docker
     contexts['docker_cli'] = docker.Client()
