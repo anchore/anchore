@@ -321,8 +321,10 @@ class Navigator(object):
                 self._logger.error("\tException: " + str(err))
                 success = False
         finally:
-            os.remove(imgfile)
-            if outputdir:
+            if imgfile and os.path.exists(imgfile):
+                os.remove(imgfile)
+
+            if outputdir and os.path.exists(outputdir):
                 shutil.rmtree(outputdir)
 
         ret = [success, cmd, meta]

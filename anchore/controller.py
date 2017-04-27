@@ -310,48 +310,57 @@ class Controller(object):
         else:
             policies = self.get_image_policies(image)
 
-        gmanifest, failedgates = anchore_utils.generate_gates_manifest()
-        if failedgates:
-            self._logger.error("some gates failed to run - check the gate(s) modules for errors: "  + str(','.join(failedgates)))
-            success = False
-        else:
-            success = True
-            for gatecheck in policies.keys():
-                # get all commands that match the gatecheck
-                gcommands = []
-                for gkey in gmanifest.keys():
-                    if gmanifest[gkey]['gatename'] == gatecheck:
-                        gcommands.append(gkey)
+        try:
+            gmanifest, failedgates = anchore_utils.generate_gates_manifest()
+            if failedgates:
+                self._logger.error("some gates failed to run - check the gate(s) modules for errors: "  + str(','.join(failedgates)))
+                success = False
+            else:
+                success = True
+                for gatecheck in policies.keys():
+                    # get all commands that match the gatecheck
+                    gcommands = []
+                    for gkey in gmanifest.keys():
+                        if gmanifest[gkey]['gatename'] == gatecheck:
+                            gcommands.append(gkey)
 
-                # assemble the params from the input policy for this gatecheck
-                params = []
-                for trigger in policies[gatecheck].keys():
-                    if 'params' in policies[gatecheck][trigger] and policies[gatecheck][trigger]['params']:
-                        params.append(policies[gatecheck][trigger]['params'])
+                    # assemble the params from the input policy for this gatecheck
+                    params = []
+                    for trigger in policies[gatecheck].keys():
+                        if 'params' in policies[gatecheck][trigger] and policies[gatecheck][trigger]['params']:
+                            params.append(policies[gatecheck][trigger]['params'])
 
-                if not params:
-                    params = ['all']
+                    if not params:
+                        params = ['all']
 
-                if gcommands:
-                    for command in gcommands:
-                        cmd = [command] + [imgfile, self.config['image_data_store'], outputdir] + params
-                        self._logger.debug("running gate command: " + str(' '.join(cmd)))
+                    if gcommands:
+                        for command in gcommands:
+                            cmd = [command] + [imgfile, self.config['image_data_store'], outputdir] + params
+                            self._logger.debug("running gate command: " + str(' '.join(cmd)))
 
-                        (rc, sout, cmdstring) = anchore_utils.run_command(cmd)
-                        if rc:
-                            self._logger.error("FAILED")
-                            self._logger.error("\tCMD: " + str(cmdstring))
-                            self._logger.error("\tEXITCODE: " + str(rc))
-                            self._logger.error("\tOUTPUT: " + str(sout))
-                            success = False
-                        else:
-                            self._logger.debug("")
-                            self._logger.debug("\tCMD: " + str(cmdstring))
-                            self._logger.debug("\tEXITCODE: " + str(rc))
-                            self._logger.debug("\tOUTPUT: " + str(sout))
-                            self._logger.debug("")
-                else:
-                    self._logger.warn("WARNING: gatecheck ("+str(gatecheck)+") line in policy, but no gates were found that match this gatecheck")
+                            (rc, sout, cmdstring) = anchore_utils.run_command(cmd)
+                            if rc:
+                                self._logger.error("FAILED")
+                                self._logger.error("\tCMD: " + str(cmdstring))
+                                self._logger.error("\tEXITCODE: " + str(rc))
+                                self._logger.error("\tOUTPUT: " + str(sout))
+                                success = False
+                            else:
+                                self._logger.debug("")
+                                self._logger.debug("\tCMD: " + str(cmdstring))
+                                self._logger.debug("\tEXITCODE: " + str(rc))
+                                self._logger.debug("\tOUTPUT: " + str(sout))
+                                self._logger.debug("")
+                    else:
+                        self._logger.warn("WARNING: gatecheck ("+str(gatecheck)+") line in policy, but no gates were found that match this gatecheck")
+        except Exception as err:
+            self._logger.error("gate evaluation failed - exception: " + str(err))
+        finally:
+            if imgfile and os.path.exists(imgfile):
+                try:
+                    os.remove(imgfile)
+                except:
+                    self._logger.error("could not remove tempfile: " + str(imgfile))
 
         if success:
             report = self.generate_gates_report(image)

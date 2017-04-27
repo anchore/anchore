@@ -107,9 +107,10 @@ def show(details):
 
     sys.exit(ecode)
 
-@policybundle.command(name='sync', short_help="Sync (download) latest policies from the Anchore.io service.")
-@click.option('--bundlefile', help='Sync the stored policy bundle from a file, instead of download from anchore.io.', type=click.Path(exists=True), metavar='<file>')
-def sync(bundlefile):
+@policybundle.command(name='sync', short_help="Sync (download) latest policy bundle from the Anchore.io service.")
+@click.option('--infile', help='Sync the stored policy bundle from a file, instead of download from anchore.io.', type=click.Path(exists=True), metavar='<file>')
+@click.option('--outfile', help='Sync and store downloaded bundle to the specified output file, instead of storing internally', type=click.Path(), metavar='<file>')
+def sync(infile, outfile):
     """
     Sync (download) latest policies from the Anchore.io service.
 
@@ -117,10 +118,12 @@ def sync(bundlefile):
 
     ecode = 0
     try:
-        rc, ret = anchore_policy.sync_policymeta(bundlefile=bundlefile)
+        rc, ret = anchore_policy.sync_policymeta(bundlefile=infile, outfile=outfile)
         if not rc:
             anchore_print_err(ret['text'])
             ecode = 1
+        elif outfile and outfile == '-':
+            anchore_print(ret['text'])
     except Exception as err:
         anchore_print_err('operation failed')
         ecode = 1

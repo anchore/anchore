@@ -21,7 +21,7 @@ def check():
 
     return (True, "success")
 
-def sync_policymeta(bundlefile=None):
+def sync_policymeta(bundlefile=None, outfile=None):
     ret = {'success': False, 'text': "", 'status_code': 1}
 
     policyurl = contexts['anchore_config']['policy_url']
@@ -30,7 +30,6 @@ def sync_policymeta(bundlefile=None):
 
     policymeta = {}
 
-    # temporary read from FS
     if bundlefile:
         if not os.path.exists(bundlefile):
             ret['text'] = "no such file ("+str(bundlefile)+")"
@@ -56,10 +55,21 @@ def sync_policymeta(bundlefile=None):
         ret['text'] = "input bundle does not conform to bundle schema"
         return(False, ret)
 
-    record = {'text': 'unimplemented'}
-    if not contexts['anchore_db'].save_policymeta(policymeta):
-        ret['text'] = "cannot get list of policies from service\nMessage from server: " + record['text']
-        return (False, ret)
+    if outfile and outfile != '-':
+        try:
+            with open(outfile, 'w') as OFH:
+                OFH.write(json.dumps(policymeta))
+        except Exception as err:
+            ret['text'] = "could not write downloaded policy bundle to specified file ("+str(outfile)+") - exception: " + str(err)
+            return(False, ret)
+    else:
+        record = {'text': 'unimplemented'}
+        if not contexts['anchore_db'].save_policymeta(policymeta):
+            ret['text'] = "cannot get list of policies from service\nMessage from server: " + record['text']
+            return (False, ret)
+
+    if policymeta:
+        ret['text'] = json.dumps(policymeta, indent=4)
 
     return(True, ret)
 
@@ -67,8 +77,6 @@ def load_policymeta(policymetafile=None):
     if policymetafile:
         with open(policymetafile, 'r') as FH:
             ret = json.loads(FH.read())
-            cleanstr = json.dumps(ret).encode('utf8')
-            ret = json.loads(cleanstr)
     else:
         ret = contexts['anchore_db'].load_policymeta()
     return(ret)
