@@ -607,8 +607,7 @@ def get_mapping_actions(image=None, imageId=None, in_digests=[], bundle={}):
 
                     matchstring = matchstring.encode('utf8')
                     if doit:
-                        #_logger.info("match found for image ("+str(image_info['pullstring'])+") match: " + str(matchstring))
-                        _logger.info("match found for image ("+str(matchstring))#+") match: " + str(matchstring))
+                        _logger.info("match found for image ("+str(matchstring)+")")
 
                         wldata = []
                         wldataset = set()
