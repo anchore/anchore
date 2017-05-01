@@ -220,8 +220,4 @@ def generate_reports(imagelist, showall=True, showdetails=True):
 
         ret[imageId] = record
 
-        import json
-        with open("/tmp/j", 'w') as OFH:
-            OFH.write(json.dumps(ret))
-
     return ret
