@@ -9,6 +9,7 @@ import jsonschema
 
 import controller
 import anchore_utils
+import anchore_auth
 from anchore.util import contexts
 
 _logger = logging.getLogger(__name__)
@@ -41,17 +42,23 @@ def sync_policymeta(bundlefile=None, outfile=None):
             ret['text'] = "synced policy bundle cannot be read/is not valid JSON: exception - " +str(err)
             return(False, ret)
     else:
-        ret['text'] = "download sync not yet available: use anchore sync --bundlefile <bundle.json>"
-        return(False, ret)
+        #ret['text'] = "download sync not yet available: use anchore sync --bundlefile <bundle.json>"
+        #return(False, ret)
 
-        #record = anchore.anchore_auth.anchore_auth_get(contexts['anchore_auth'], policyurl, timeout=policy_timeout, retries=policy_maxretries)
-        #if record['success']:
-        #    policymeta = json.loads(record['text'])
-        #else:
-        #    ret['text'] = "failed to download policybundle: message from server - " + record['text']
-        #    return(False, ret)
+        record = anchore_auth.anchore_auth_get(contexts['anchore_auth'], policyurl, timeout=policy_timeout, retries=policy_maxretries)
+        if record['success']:
+            try:
+                bundleraw = json.loads(record['text'])
+                policymeta = bundleraw['bundle']
+            except:
+                ret['text'] = 'failed to parse bundle response from service - ' + json.dumps(record, indent=4)
+                return(False, ret)
+        else:
+            ret['text'] = "failed to download policybundle: message from server - " + record['text']
+            return(False, ret)
 
-    if not verify_policy_bundle(bundle=policymeta):
+
+     if not verify_policy_bundle(bundle=policymeta):
         ret['text'] = "input bundle does not conform to bundle schema"
         return(False, ret)
 

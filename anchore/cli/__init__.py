@@ -7,12 +7,9 @@ from anchore.configuration import AnchoreConfiguration
 from anchore.version import version as anchore_version
 
 import analyzer
-#import explorer
 import query
 import audit
-#import subscriptions
 import system
-#import synchronizer
 import logs
 import toolbox
 import login
