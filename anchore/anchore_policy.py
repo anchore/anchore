@@ -50,9 +50,6 @@ def sync_policymeta(bundlefile=None, outfile=None):
             ret['text'] = "synced policy bundle cannot be read/is not valid JSON: exception - " +str(err)
             return(False, ret)
     else:
-        #ret['text'] = "download sync not yet available: use anchore sync --bundlefile <bundle.json>"
-        #return(False, ret)
-
         record = anchore_auth.anchore_auth_get(contexts['anchore_auth'], policyurl, timeout=policy_timeout, retries=policy_maxretries)
         if record['success']:
             try:
@@ -65,8 +62,7 @@ def sync_policymeta(bundlefile=None, outfile=None):
             ret['text'] = "failed to download policybundle: message from server - " + record['text']
             return(False, ret)
 
-
-     if not verify_policy_bundle(bundle=policymeta):
+    if not verify_policy_bundle(bundle=policymeta):
         ret['text'] = "input bundle does not conform to bundle schema"
         return(False, ret)
 
