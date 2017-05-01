@@ -14,6 +14,14 @@ from anchore.util import contexts
 
 _logger = logging.getLogger(__name__)
 
+default_policy_version = '1_0'
+default_whitelist_version = '1_0'
+default_bundle_version = '1_0'
+
+supported_whitelist_versions = [default_whitelist_version]
+supported_bundle_versions = [default_bundle_version]
+supported_policy_versions = [default_bundle_version]
+
 # interface operations
 
 def check():
@@ -94,7 +102,7 @@ def save_policymeta(policymeta):
 # bundle
 
 # Convert
-def convert_to_policy_bundle(name="default", version='v1', policy_file=None, policy_version='v1', whitelist_files=[], whitelist_version='v1'):
+def convert_to_policy_bundle(name="default", version=default_bundle_version, policy_file=None, policy_version=default_policy_version, whitelist_files=[], whitelist_version=default_whitelist_version):
     policies = {}
     p = read_policy(name=str(uuid.uuid4()), file=policy_file)
     policies.update(p)
@@ -115,7 +123,7 @@ def convert_to_policy_bundle(name="default", version='v1', policy_file=None, pol
     return(bundle)
 
 # C
-def create_policy_bundle(name=None, version='v1', policies={}, policy_version='v1', whitelists={}, whitelist_version='v1', mappings=[]):
+def create_policy_bundle(name=None, version=default_bundle_version, policies={}, policy_version=default_policy_version, whitelists={}, whitelist_version=default_whitelist_version, mappings=[]):
     ret = {
         'id': str(uuid.uuid4()),
         'name':name,
@@ -247,20 +255,20 @@ def create_mapping(map_name=None, policy_name=None, whitelists=[], repotagstring
 # policy/wl
 
 # V
-def verify_whitelist(whitelistdata=[], version='v1'):
+def verify_whitelist(whitelistdata=[], version=default_whitelist_version):
     ret = True
 
     if not isinstance(whitelistdata, list):
         ret = False
 
-    if version == 'v1':
-        # do v1 format/checks
+    if version in supported_whitelist_versions:
+        # do 1_0 format/checks
         pass
 
     return(ret)
 
 # R
-def read_whitelist(name=None, file=None, version='v1'):
+def read_whitelist(name=None, file=None, version=default_whitelist_version):
     if not name:
         raise Exception("bad input: " + str(name) + " : " + str(file))
 
@@ -309,7 +317,7 @@ def unformat_whitelist_data(wldata):
 def format_whitelist_data(wldata):
     ret = []
     version = wldata['version']
-    if wldata['version'] == 'v1':
+    if wldata['version'] == default_whitelist_version:
         for item in wldata['items']:
             ret.append(' '.join([item['gate'], item['trigger_id']]))
     else:
@@ -324,7 +332,7 @@ def extract_whitelist_data(bundle, wlid):
             return(format_whitelist_data(wl))
 
 # R
-def read_policy(name=None, file=None, version='v1'):
+def read_policy(name=None, file=None, version=default_bundle_version):
     if not name or not file:
         raise Exception("input error")
 
@@ -383,7 +391,7 @@ def extract_policy_data(bundle, polid):
 def format_policy_data(poldata):
     ret = []
     version = poldata['version']
-    if poldata['version'] == 'v1':
+    if poldata['version'] == default_policy_version:
         for item in poldata['rules']:
             polline = ':'.join([item['gate'], item['trigger'], item['action'], ""])
 
@@ -427,14 +435,14 @@ def unformat_policy_data(poldata):
     return(ret)
 
 # V
-def verify_policy(policydata=[], version='v1'):
+def verify_policy(policydata=[], version=default_policy_version):
     ret = True
 
     if not isinstance(policydata, list):
         ret = False
 
-    if version == 'v1':
-        # do v1 format/checks
+    if version in supported_policy_versions:
+        # do 1_0 format/checks
         pass
 
     return(ret)
@@ -665,7 +673,7 @@ if __name__ == '__main__':
     map0 = create_mapping(map_name="default", policy_name=policies.keys()[0], whitelists=whitelists.keys(), repotagstring='*:*')
     mappings.append(map0)
 
-    bundle = create_policy_bundle(name='default', policies=policies, policy_version='v1', whitelists=whitelists, whitelist_version='v1', mappings=mappings)
+    bundle = create_policy_bundle(name='default', policies=policies, policy_version=default_policy_version, whitelists=whitelists, whitelist_version=default_whitelist_version, mappings=mappings)
     print "CREATED BUNDLE: " + json.dumps(bundle, indent=4)
 
     rc = write_policy_bundle(bundle_file="/tmp/bun.json", bundle=bundle)
@@ -674,6 +682,6 @@ if __name__ == '__main__':
     if newbun != bundle:
         print "BUNDLE RESULT DIFFERENT AFTER SAVE/LOAD"
 
-    thebun = convert_to_policy_bundle(name='default', policy_file='/root/.anchore/conf/anchore_gate.policy', policy_version='v1', whitelist_files=['/root/wl0'], whitelist_version='v1')
+    thebun = convert_to_policy_bundle(name='default', policy_file='/root/.anchore/conf/anchore_gate.policy', policy_version=default_policy_version, whitelist_files=['/root/wl0'], whitelist_version=default_whitelist_version)
     rc = write_policy_bundle(bundle_file="/tmp/bun1.json", bundle=thebun)
 
