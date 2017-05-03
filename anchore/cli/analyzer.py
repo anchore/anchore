@@ -211,9 +211,11 @@ def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy
                                 _logger.info("BundleId="+bundleId+" Policy="+gate_result['policy_name']+" Whitelists="+str(gate_result['whitelist_names']))
                                 anchore_utils.print_result(anchore_config, gate_result['results'])
                 else:
+                    final_result = {}
                     for image in result.keys():
                         for gate_result in result[image]['evaluations']:
-                            anchore_utils.print_result(anchore_config, gate_result['results'])
+                            final_result.update(gate_result['results'])
+                    anchore_utils.print_result(anchore_config, final_result)
         else:
             try:
                 # run the gates
