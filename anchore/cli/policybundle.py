@@ -21,59 +21,22 @@ def policybundle(anchore_config):
     emsg = ""
     success = True
 
-    if True:
-        # temporary
+    try:
         rc, msg = anchore_policy.check()
         if not rc:
-            anchore_print("initialization disabled until download supported, skipping.")
-    else:
-        # the real one
-        try:
-            rc, msg = anchore_policy.check()
+            anchore_print("initializing policy metadata: ...")
+            rc, ret = anchore_policy.sync_policymeta()
             if not rc:
-                anchore_print("initializing policy metadata: ...")
-                rc, ret = anchore_policy.sync_policymeta()
-                if not rc:
-                    emsg = "could not sync policy metadata from service: " + ret['text']
-                    success = False
+                emsg = "could not sync policy metadata from service: " + ret['text']
+                success = False
 
-        except Exception as err:
-            anchore_print_err('operation failed')
-            sys.exit(1)
+    except Exception as err:
+        anchore_print_err('operation failed')
+        sys.exit(1)
 
-        if not success:
-            anchore_print_err(emsg)
-            sys.exit(1)
-
-if False:
-    @policybundle.command(name='show', short_help='Show detailed info on specific policy')
-    @click.argument('policyname')
-    def show(policyname):
-        """
-        Show detailed policy information
-
-        """
-        ecode = 0
-        try:
-            policymeta = anchore_policy.load_policymeta()
-
-            matchpolicyid = None
-            for policyid in policymeta:
-                if policymeta[policyid]['name'] == policyname:
-                    matchpolicyid = policyid
-                    break
-
-            if matchpolicyid:
-                result = policymeta[matchpolicyid]
-                anchore_print({matchpolicyid+"("+policyname+")": result}, do_formatting=True)
-            else:
-                anchore_print_err('Unknown policy name. Valid policies can be seen withe the "list" command')
-                ecode = 1
-        except Exception as err:
-            anchore_print_err('operation failed')
-            ecode = 1
-
-        sys.exit(ecode)
+    if not success:
+        anchore_print_err(emsg)
+        sys.exit(1)
 
 @policybundle.command(name='show', short_help="Show bundle information.")
 @click.option('--details', help='Show all details of the bundle', is_flag=True)

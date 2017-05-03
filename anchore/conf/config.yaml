@@ -24,5 +24,5 @@
 #
 # feeds_url: 'https://ancho.re/v1/service/feeds'
 # feeds_conn_timeout: '10'
-# feeds_conn_max_retries: '3'
+# feeds_max_retries: '3'
 #

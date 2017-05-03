@@ -64,7 +64,7 @@ def login(anchore_config, user, passfile):
         rc, ret = anchore_auth.anchore_auth_refresh(new_anchore_auth)
         if not rc:
             anchore_print("Failed to log in: check your username/password and try again!")
-            anchore_print("Message from server: " + ret['text'])
+            raise Exception("Login failure - message from server: " + str(ret['text']))
         else:
             contexts['anchore_auth'].update(new_anchore_auth)
             anchore_print("Login successful.")

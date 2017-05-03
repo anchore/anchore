@@ -194,28 +194,36 @@ def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy
                     anchore_print_err("failed to list policies: " + str(err))
                     ecode = 1
         elif run_bundle:
-            if not anchore_policy.check():
-                anchore_print_err("run-bundle specified, but it appears as though no policy bundles have been synced yet: run 'anchore policybundle sync' to get your latest bundles from anchore.io")
-                ecode = 1
-            else:
-                bundle = anchore_policy.load_policymeta(policymetafile=bundlefile)
-                bundleId = bundle['id']
-                result, ecode = anchore_policy.run_bundle(anchore_config=anchore_config, imagelist=inputimagelist, matchtag=usetag, bundle=bundle)
-                if not resultsonly:
-                    if anchore_config.cliargs['json']:
-                        import json
-                        anchore_print(json.dumps(result))
+            try:
+                if not anchore_policy.check():
+                    anchore_print_err("run-bundle specified, but it appears as though no policy bundles have been synced yet: run 'anchore policybundle sync' to get your latest bundles from anchore.io")
+                    ecode = 1
+                else:
+                    bundle = anchore_policy.load_policymeta(policymetafile=bundlefile)
+                    if not bundle:
+                        raise Exception("could not load stored bundle - run 'anchore policybundle sync' and try again")
+
+                    bundleId = bundle['id']
+                    result, ecode = anchore_policy.run_bundle(anchore_config=anchore_config, imagelist=inputimagelist, matchtag=usetag, bundle=bundle)
+                    if not resultsonly:
+                        if anchore_config.cliargs['json']:
+                            import json
+                            anchore_print(json.dumps(result))
+                        else:
+                            for image in result.keys():
+                                for gate_result in result[image]['evaluations']:
+                                    _logger.info("BundleId="+bundleId+" Policy="+gate_result['policy_name']+" Whitelists="+str(gate_result['whitelist_names']))
+                                    anchore_utils.print_result(anchore_config, gate_result['results'])
                     else:
+                        final_result = {}
                         for image in result.keys():
                             for gate_result in result[image]['evaluations']:
-                                _logger.info("BundleId="+bundleId+" Policy="+gate_result['policy_name']+" Whitelists="+str(gate_result['whitelist_names']))
-                                anchore_utils.print_result(anchore_config, gate_result['results'])
-                else:
-                    final_result = {}
-                    for image in result.keys():
-                        for gate_result in result[image]['evaluations']:
-                            final_result.update(gate_result['results'])
-                    anchore_utils.print_result(anchore_config, final_result)
+                                final_result.update(gate_result['results'])
+                        anchore_utils.print_result(anchore_config, final_result)
+            except Exception as err:
+                anchore_print_err("failed to run gates")
+                ecode = 1
+
         else:
             try:
                 # run the gates
