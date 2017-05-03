@@ -68,6 +68,7 @@ Edit the gate policy for 'nginx:latest':
 @click.option('--run-bundle', help='Evaluate using an anchore policy bundle (see "anchore policybundle sync" to get your bundle from anchore.io)', is_flag=True)
 @click.option('--bundlefile', help='Use the specified bundle JSON from specified file instead of the stored bundle from "anchore policybundle sync".', type=click.Path(exists=True), metavar='<file>')
 @click.option('--usetag', help='User the specified tag to evaluate the input image when using --run-bundle', metavar='<imagetag>')
+@click.option('--resultsonly', help='With --run-bundle, show only evaluation results (same as regular gate output)', is_flag=True)
 @click.option('--show-gatehelp', help='Show all gate names, triggers, and params that can be used to build an anchore policy', is_flag=True)
 @click.option('--show-policytemplate', help='Generate policy template based on all installed gate/triggers', is_flag=True)
 @click.option('--whitelist', is_flag=True, help='Edit evaluated gate triggers and optionally whitelist them.')
@@ -76,7 +77,7 @@ Edit the gate policy for 'nginx:latest':
 @click.option('--show-whitelisted', is_flag=True, help='Show gate triggers even if whitelisted (with annotation).')
 @click.pass_obj
 @extended_help_option(extended_help=gate_extended_help)
-def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy, rmpolicy, listpolicy, updatepolicy, policy, run_bundle, bundlefile, usetag, show_gatehelp, show_policytemplate, whitelist, global_whitelist, show_triggerids, show_whitelisted):
+def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy, rmpolicy, listpolicy, updatepolicy, policy, run_bundle, bundlefile, usetag, resultsonly, show_gatehelp, show_policytemplate, whitelist, global_whitelist, show_triggerids, show_whitelisted):
     """
     Runs gate checks on the specified image(s) or edits the image's gate policy.
     The --editpolicy option is only valid for a single image.
@@ -200,15 +201,19 @@ def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy
                 bundle = anchore_policy.load_policymeta(policymetafile=bundlefile)
                 bundleId = bundle['id']
                 result, ecode = anchore_policy.run_bundle(anchore_config=anchore_config, imagelist=inputimagelist, matchtag=usetag, bundle=bundle)
-                if anchore_config.cliargs['json']:
-                    import json
-                    anchore_print(json.dumps(result))
+                if not resultsonly:
+                    if anchore_config.cliargs['json']:
+                        import json
+                        anchore_print(json.dumps(result))
+                    else:
+                        for image in result.keys():
+                            for gate_result in result[image]['evaluations']:
+                                _logger.info("BundleId="+bundleId+" Policy="+gate_result['policy_name']+" Whitelists="+str(gate_result['whitelist_names']))
+                                anchore_utils.print_result(anchore_config, gate_result['results'])
                 else:
                     for image in result.keys():
                         for gate_result in result[image]['evaluations']:
-                            _logger.info("BundleId="+bundleId+" Policy="+gate_result['policy_name']+" Whitelists="+str(gate_result['whitelist_names']))
                             anchore_utils.print_result(anchore_config, gate_result['results'])
-
         else:
             try:
                 # run the gates

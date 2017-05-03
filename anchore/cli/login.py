@@ -2,6 +2,7 @@ import sys
 import os
 import getpass
 import click
+import json
 
 from anchore.cli.common import anchore_print, anchore_print_err
 from anchore.util import contexts
@@ -20,12 +21,27 @@ def login(anchore_config, user, passfile):
     ecode = 0
 
     try:
+        anchore_creds_file = os.path.join(anchore_config.config_dir, 'anchore_creds.json')
+        anchore_stored_username = None
+        anchore_stored_password = None
+        if os.path.exists(anchore_creds_file):
+            try:
+                with open(anchore_creds_file, 'r') as FH:
+                    anchore_stored_creds = json.loads(FH.read())
+                    anchore_stored_username = anchore_stored_creds.pop('username', None)
+                    anchore_stored_password = anchore_stored_creds.pop('password', None)
+            except Exception as err:
+                raise err
+
         if user:
             anchore_print("Using user from cmdline option: " + str(user))
             username = user
         elif os.getenv('ANCHOREUSER'):
             anchore_print("Using user from environment (ANCHOREUSER)")
             username = os.getenv('ANCHOREUSER')
+        elif anchore_stored_username:
+            anchore_print("Using stored username from anchore_creds.json")
+            username = anchore_stored_username
         else:
             username = raw_input("Username: ")
 
@@ -36,6 +52,9 @@ def login(anchore_config, user, passfile):
         elif os.getenv('ANCHOREPASS'):
             anchore_print("Using password from environment (ANCHOREPASS)")
             password = os.getenv('ANCHOREPASS')
+        elif anchore_stored_password:
+            anchore_print("Using stored password from anchore_creds.json")
+            password = anchore_stored_password
         else:
             password = getpass.getpass("Password: ")
             
