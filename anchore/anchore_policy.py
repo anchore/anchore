@@ -66,15 +66,15 @@ def sync_policymeta(bundlefile=None, outfile=None):
         ret['text'] = "input bundle does not conform to bundle schema"
         return(False, ret)
 
-    if outfile and outfile != '-':
-        try:
-            with open(outfile, 'w') as OFH:
-                OFH.write(json.dumps(policymeta))
-        except Exception as err:
-            ret['text'] = "could not write downloaded policy bundle to specified file ("+str(outfile)+") - exception: " + str(err)
-            return(False, ret)
+    if outfile:
+        if outfile != '-':
+            try:
+                with open(outfile, 'w') as OFH:
+                    OFH.write(json.dumps(policymeta))
+            except Exception as err:
+                ret['text'] = "could not write downloaded policy bundle to specified file ("+str(outfile)+") - exception: " + str(err)
+                return(False, ret)
     else:
-        record = {'text': 'unimplemented'}
         if not contexts['anchore_db'].save_policymeta(policymeta):
             ret['text'] = "cannot get list of policies from service\nMessage from server: " + record['text']
             return (False, ret)

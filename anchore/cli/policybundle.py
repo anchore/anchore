@@ -21,19 +21,6 @@ def policybundle(anchore_config):
     emsg = ""
     success = True
 
-    try:
-        rc, msg = anchore_policy.check()
-        if not rc:
-            anchore_print("initializing policy metadata: ...")
-            rc, ret = anchore_policy.sync_policymeta()
-            if not rc:
-                emsg = "could not sync policy metadata from service: " + ret['text']
-                success = False
-
-    except Exception as err:
-        anchore_print_err('operation failed')
-        sys.exit(1)
-
     if not success:
         anchore_print_err(emsg)
         sys.exit(1)

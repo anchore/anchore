@@ -243,13 +243,17 @@ def anchore_auth_get(anchore_auth, url, timeout=None, retries=None):
                 if r.status_code == 401:
                     _logger.debug("\tresponse body: " + str(r.text))
                     resp = json.loads(r.text)
-                    if resp['name'] == 'invalid_token':
+                    if 'name' in resp and resp['name'] == 'invalid_token':
                         # print "bad tok - attempting to refresh"
                         rc, record = anchore_auth_refresh(anchore_auth, forcerefresh=True)
                         if not rc:
                             # start over and retry
                             # print "refresh token failed, invalidating tok and starting over"
                             anchore_auth_invalidate(anchore_auth)
+                    else:
+                        success = True
+                        ret['success'] = False
+                        ret['err_msg'] = 'not authorized'
 
                 elif r.status_code == 200:
                     success = True
@@ -273,6 +277,6 @@ def anchore_auth_get(anchore_auth, url, timeout=None, retries=None):
         except Exception as err:
             _logger.debug("attempt failed: " + str(err))
             ret['text'] = "server error: " + str(err)
-            # return(ret)
+
 
     return (ret)
