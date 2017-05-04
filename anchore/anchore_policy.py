@@ -85,11 +85,25 @@ def sync_policymeta(bundlefile=None, outfile=None):
     return(True, ret)
 
 def load_policymeta(policymetafile=None):
+    ret = {}
     if policymetafile:
         with open(policymetafile, 'r') as FH:
             ret = json.loads(FH.read())
     else:
         ret = contexts['anchore_db'].load_policymeta()
+        if not ret:
+            # use the system default
+            default_policy_bundle_file = os.path.join(contexts['anchore_config'].config_dir, 'anchore_default_bundle.json')
+            try:
+                if os.path.exists(default_policy_bundle_file):
+                    with open(default_policy_bundle_file, 'r') as FH:
+                        ret = json.loads(FH.read())
+                else:
+                    raise Exception("no such file: " + str(default_policy_bundle_file))
+            except Exception as err:
+                _logger.warn("could not load default bundle (" + str(default_policy_bundle_file) + ") - exception: " + str(err))
+                raise err
+
     return(ret)
 
 def save_policymeta(policymeta):

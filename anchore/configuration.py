@@ -173,10 +173,16 @@ class AnchoreConfiguration (object):
             for d in os.listdir(self.EXAMPLE_CONFIG_DIR):
                 if not os.path.exists('/'.join([self.DEFAULT_CONFIG_DIR, d])):
                     shutil.copy('/'.join([self.EXAMPLE_CONFIG_DIR, d]), '/'.join([self.DEFAULT_CONFIG_DIR, d]))
-
             thefile = self.DEFAULT_CONFIG_FILE
             thedir = self.DEFAULT_CONFIG_DIR
 
+        # refresh if there are new config files in the installation that are not present in existing install
+        if thedir and thefile:
+            if not os.path.exists(thedir):
+                os.makedirs(thedir)
+            for d in os.listdir(self.EXAMPLE_CONFIG_DIR):
+                if not os.path.exists(os.path.join(thedir, d)):
+                    shutil.copy(os.path.join(self.EXAMPLE_CONFIG_DIR, d), os.path.join(thedir, d))
         return thedir, thefile
 
     def backup(self, destdir='/tmp'):
