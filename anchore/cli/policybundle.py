@@ -11,7 +11,7 @@ from anchore.anchore_utils import contexts
 
 config = {}
 
-@click.group(name='policybundle', short_help='Manage syncing and application of your anchore.io policy bundles.')
+@click.group(name='policybundle', short_help='Manage syncing your stored policy bundles.')
 @click.pass_obj
 def policybundle(anchore_config):
     global config

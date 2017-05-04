@@ -17,10 +17,11 @@ config = {}
 imagelist = []
 
 @click.group(short_help='Useful tools and operations on images and containers')
-@click.option('--image', help='Process specified image ID', metavar='<imageid>')
+@click.option('--imageid', help='Process specified image ID', metavar='<imageid>')
+@click.option('--image', help='Process specified image tag/ID/digest', metavar='<tag|imageid|digest>')
 @click.pass_context
 @click.pass_obj
-def toolbox(anchore_config, ctx, image):
+def toolbox(anchore_config, ctx, image, imageid):
     """
     A collection of tools for operating on images and containers and building anchore modules.
 
@@ -28,39 +29,46 @@ def toolbox(anchore_config, ctx, image):
 
     """
 
-    global config, imagelist, nav, inputimagelist
+    global config, imagelist, nav
 
     config = anchore_config
     ecode = 0
 
-    inputimagelist = [image]
-    imagelist = [image]
+    try:
 
-    if ctx.invoked_subcommand not in ['import', 'delete', 'kubesync', 'images']:
-        if not image:
-            anchore_print_err("for this operation, you must specify an image with '--image'")
-            ecode = 1
+        # set up imagelist of imageIds
+        if image:
+            imagelist = [image]
+            try:
+                result = anchore_utils.discover_imageIds(imagelist)
+            except ValueError as err:
+                raise err
+            else:
+                imagelist = result
+        elif imageid:
+            if len(imageid) != 64 or re.findall("[^0-9a-fA-F]+",imageid):
+                raise Exception("input is not a valid imageId (64 characters, a-f, A-F, 0-9)")
+
+            imagelist = [imageid]
         else:
-            try:
+            imagelist = []
+
+        if ctx.invoked_subcommand not in ['import', 'delete', 'kubesync', 'images', 'show']:
+            if not imagelist:
+                raise Exception("for this operation, you must specify an image with '--image' or '--imageid'")
+            else:
                 try:
-                    ret = anchore_utils.discover_imageIds(imagelist)
-                except ValueError as err:
+                    nav = navigator.Navigator(anchore_config=config, imagelist=imagelist, allimages=contexts['anchore_allimages'])
+                except Exception as err:
+                    nav = None
                     raise err
-                else:
-                    imagelist = ret
-            except Exception as err:
-                anchore_print_err("could not load any images")
-                sys.exit(1)
 
-            try:
-                nav = navigator.Navigator(anchore_config=config, imagelist=imagelist, allimages=contexts['anchore_allimages'])
-            except Exception as err:
-                anchore_print_err('operation failed')
-                nav = None
-                ecode = 1
-
-        if ecode:
-            sys.exit(ecode)
+    except Exception as err:
+        anchore_print_err('operation failed')
+        ecode = 1
+        
+    if ecode:
+        sys.exit(ecode)
 
 @toolbox.command(name='delete', short_help="Delete input image(s) from the Anchore DB")
 @click.option('--dontask', help='Will delete the image from Anchore DB without asking for coinfirmation', is_flag=True)
@@ -103,86 +111,6 @@ def delete(dontask):
         anchore_print_err('operation failed')
         ecode = 1
     sys.exit(ecode)
-
-@toolbox.command(name='savebundle', short_help="Create a tarball of a local docker image in a way that can be loaded into anchore elsewhere for analysis")
-@click.option('--destdir', help='Destination directory for bundled container images', metavar='<path>')
-def savebundle(destdir):
-
-    if not nav:
-        sys.exit(1)
-
-    if not destdir:
-        destdir = "/tmp/"
-
-    imagedir = anchore_utils.make_anchoretmpdir(destdir)
-
-    ecode = 0
-    try:
-        anchore_print("Bundling images: " + ' '.join(nav.get_images()) + " to " + imagedir)
-
-        anchoreDB = contexts['anchore_db']
-        docker_cli = contexts['docker_cli']
-        
-        for imageId in nav.get_images():
-            try:
-                container = docker_cli.create_container(imageId, 'true')
-            except Exception as err:
-                _logger.error("unable to run create container for exporting: " + str(self.meta['imageId']) + ": error: " + str(err))
-                return(False)
-            else:
-                bundle_rootfs = os.path.join(imagedir, imageId + "_dockerexport.tar")
-                with open(bundle_rootfs, 'w') as FH:
-                    tar = docker_cli.export(container.get('Id'))
-                    while not tar.closed:
-                        FH.write(tar.read(4096*16))
-            try:
-                docker_cli.remove_container(container=container.get('Id'), force=True)
-            except:
-                _logger.error("unable to delete (cleanup) temporary container - proceeding but zombie container may be left in docker: " + str(err))
-
-            image_report_final = os.path.join(imagedir, 'image_report.json')
-            rdata = contexts['anchore_allimages'][imageId].generate_image_report()
-            with open(image_report_final, 'w') as FH:
-                FH.write(json.dumps(rdata))
-
-            rootfsdir = anchore_utils.make_anchoretmpdir(imagedir)
-
-            bundle_rootfs_final = os.path.join(imagedir, 'squashed.tar')
-            bundle_final = os.path.join(imagedir, imageId + "_anchore.tar")
-
-            tarcmd = ["tar", "-C", rootfsdir, "-x", "-f", bundle_rootfs]
-            try:
-                import subprocess
-                subprocess.check_output(tarcmd)
-            except Exception as err:
-                print str(err)
-
-            tarcmd = ["tar", "-C", rootfsdir, "-c", "-f", bundle_rootfs_final, '.']
-            try:
-                import subprocess
-                subprocess.check_output(tarcmd)
-            except Exception as err:
-                print str(err)
-
-            os.remove(bundle_rootfs)
-            shutil.rmtree(rootfsdir)
-
-            tarcmd = ["tar", "-C", imagedir, "-c", "-f", bundle_final, 'squashed.tar', 'image_report.json']
-            try:
-                import subprocess
-                subprocess.check_output(tarcmd)
-            except Exception as err:
-                print str(err)
-
-            os.remove(bundle_rootfs_final)
-            os.remove(image_report_final)
-
-    except:
-        anchore_print_err("operation failed")
-        ecode = 1
-        
-    sys.exit(ecode)
-    
 
 @toolbox.command(name='unpack', short_help="Unpack the specified image into a temp location")
 @click.option('--destdir', help='Destination directory for unpacked container image', metavar='<path>')
@@ -599,6 +527,49 @@ def images(no_trunc):
 
 @toolbox.command(name='show')
 def show():
+    """Show image summary information"""
+
+    ecode = 0
+    try:
+        o = collections.OrderedDict()
+        inimage = imagelist[0]
+        anchoreDB = contexts['anchore_db']
+        image = anchoreDB.load_image(inimage)
+        if image:
+            mymeta = image['meta']
+            alltags_current = image['anchore_current_tags']
+            distrodict = anchore_utils.get_distro_from_imageId(inimage)
+            distro = distrodict['DISTRO']
+            distrovers = distrodict['DISTROVERS']
+            base = image['familytree'][0]
+
+            o['IMAGEID'] = mymeta.pop('imageId', "N/A")
+            o['REPOTAGS'] = alltags_current
+            o['DISTRO'] = distro
+            o['DISTROVERS'] = distrovers
+            o['HUMANNAME'] = mymeta.pop('humanname', "N/A")
+            o['SHORTID'] = mymeta.pop('shortId', "N/A")
+            o['PARENTID'] = mymeta.pop('parentId', "N/A")
+            o['BASEID'] = base
+            o['IMAGETYPE'] = mymeta.pop('usertype', "N/A")
+
+            for k in o.keys():
+                if type(o[k]) is list:
+                    s = ' '.join(o[k])
+                else:
+                    s = str(o[k])
+                print k+"='"+s+"'"
+        else:
+            raise Exception("cannot locate input image in anchore DB")
+
+    except Exception as err:
+        anchore_print_err("operation failed")
+        ecode = 1
+
+    contexts['anchore_allimages'].clear()
+
+    sys.exit(ecode)
+def show_orig():
     """Show image summary information"""
 
     if not nav:
