@@ -489,7 +489,7 @@ def run_bundle(anchore_config=None, bundle={}, imagelist=[], matchtag=None):
 
         result = get_mapping_actions(image=matchimage, imageId=imageId, in_digests=digests, bundle=bundle)
         if result:
-            for pol,wl,polname,wlnames,mapmatch in result:
+            for pol,wl,polname,wlnames,mapmatch, match_json in result:
                 fnames = {}
                 for (fname, data) in [('tmppol', pol), ('tmpwl', wl)]:
                     thefile = os.path.join(anchore_config['tmpdir'], fname)
@@ -507,6 +507,7 @@ def run_bundle(anchore_config=None, bundle={}, imagelist=[], matchtag=None):
                         'policy_data':list(),
                         'whitelist_data':list(),
                         'mapmatch':"N/A",
+                        'matched_mapping_rule': {}
                     }
                     
                     evalel['results'] = gate_result
@@ -515,6 +516,7 @@ def run_bundle(anchore_config=None, bundle={}, imagelist=[], matchtag=None):
                     evalel['policy_data'] = pol
                     evalel['whitelist_data'] = wl
                     evalel['mapmatch'] = mapmatch
+                    evalel['matched_mapping_rule'] = match_json
                     ret[image]['evaluations'].append(evalel)
                     ecode = con.result_get_highest_action(gate_result)
                     if ecode == 1:
@@ -536,6 +538,16 @@ def run_bundle(anchore_config=None, bundle={}, imagelist=[], matchtag=None):
     return(ret, retecode)
 
 def get_mapping_actions(image=None, imageId=None, in_digests=[], bundle={}):
+    """
+    Given an image, image_id, digests, and a bundle, determine which policies and whitelists to evaluate.
+    
+    :param image: Image obj 
+    :param imageId: image id string
+    :param in_digests: candidate digests
+    :param bundle: bundle dict to evaluate
+    :return: tuple of (policy_data, whitelist_data, policy_name, whitelist_names, matchstring, mapping_rule_json obj)
+    """
+
     if not image or not bundle:
         raise Exception("input error")
 
@@ -651,7 +663,7 @@ def get_mapping_actions(image=None, imageId=None, in_digests=[], bundle={}):
 
                         poldata = extract_policy_data(bundle, polname)
 
-                        ret.append( ( poldata, wldata, polname,wlnames, matchstring) )
+                        ret.append( ( poldata, wldata, polname,wlnames, matchstring, m) )
                         return(ret)
                     else:
                         _logger.debug("no match found for image ("+str(image_info)+") match.")
