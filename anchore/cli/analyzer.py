@@ -67,7 +67,7 @@ Edit the gate policy for 'nginx:latest':
 @click.option('--policy', help='Use the specified policy file instead of the default.', type=click.Path(exists=True), metavar='<file>')
 @click.option('--run-bundle', help='Evaluate using an anchore policy bundle (see "anchore policybundle sync" to get your bundle from anchore.io)', is_flag=True)
 @click.option('--bundlefile', help='Use the specified bundle JSON from specified file instead of the stored bundle from "anchore policybundle sync".', type=click.Path(exists=True), metavar='<file>')
-@click.option('--usetag', help='User the specified tag to evaluate the input image when using --run-bundle', metavar='<imagetag>')
+@click.option('--usetag', help='User the specified tag to evaluate the input image when using --run-bundle', metavar='<imagetag>', multiple=True)
 @click.option('--resultsonly', help='With --run-bundle, show only evaluation results (same as regular gate output)', is_flag=True)
 @click.option('--show-gatehelp', help='Show all gate names, triggers, and params that can be used to build an anchore policy', is_flag=True)
 @click.option('--show-policytemplate', help='Generate policy template based on all installed gate/triggers', is_flag=True)
@@ -204,10 +204,9 @@ def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy
                         raise Exception("could not load stored bundle - run 'anchore policybundle sync' and try again")
 
                     bundleId = bundle['id']
-                    result, ecode = anchore_policy.run_bundle(anchore_config=anchore_config, imagelist=inputimagelist, matchtag=usetag, bundle=bundle)
+                    result, ecode = anchore_policy.run_bundle(anchore_config=anchore_config, image=inputimagelist[0], matchtags=usetag, bundle=bundle)
                     if not resultsonly:
                         if anchore_config.cliargs['json']:
-                            import json
                             anchore_print(json.dumps(result))
                         else:
                             for image in result.keys():

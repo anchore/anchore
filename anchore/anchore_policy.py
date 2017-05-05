@@ -458,38 +458,39 @@ def verify_policy(policydata=[], version=default_policy_version):
     return(ret)
 
 
-def run_bundle(anchore_config=None, bundle={}, imagelist=[], matchtag=None):
-    if not anchore_config or not bundle or not imagelist:
+def run_bundle(anchore_config=None, bundle={}, image=None, matchtags=[]):
+    retecode = 0
+
+    if not anchore_config or not bundle or not image:
         raise Exception("input error")
 
     if not verify_policy_bundle(bundle=bundle):
         raise Exception("input bundle does not conform to bundle schema")
 
-    ret = {}
-    retecode = 0
-    for image in imagelist:
-        if image not in ret:
-            ret[image] = {}
-            ret[image]['bundle_name'] = bundle['name']
-            ret[image]['evaluations'] = []
+    imageId = anchore_utils.discover_imageId(image)
+    digests = []
 
-        imageId = anchore_utils.discover_imageId(image)
+    if not matchtags:
+        matchtags = [image]
 
-        con = controller.Controller(anchore_config=anchore_config, imagelist=[imageId], allimages=contexts['anchore_allimages'], force=True)
-        try:
-            anchore_image = contexts['anchore_allimages'][imageId]
-            digests = anchore_image.get_digests()
-        except:
-            digests = []
+    evalmap = {}
+#    for matchtag in matchtags:
+#        result = get_mapping_actions(image=matchtag, imageId=imageId, in_digests=digests, bundle=bundle)
+#        #print json.dumps(result, indent=4)
+#        for pol,wl,polname,wlnames,mapmatch,match_json,evalhash in result:
+#            evalmap[matchtag] = evalhash
 
-        if matchtag:
-            matchimage = matchtag
-        else:
-            matchimage = image
+    evalresults = {}
+    for matchtag in matchtags:
+        _logger.info("evaluating tag: " + str(matchtag))
 
-        result = get_mapping_actions(image=matchimage, imageId=imageId, in_digests=digests, bundle=bundle)
-        if result:
-            for pol,wl,polname,wlnames,mapmatch, match_json in result:
+        mapping_results = get_mapping_actions(image=matchtag, imageId=imageId, in_digests=digests, bundle=bundle)
+        for pol,wl,polname,wlnames,mapmatch,match_json,evalhash in mapping_results:
+            evalmap[matchtag] = evalhash
+            #print "TRYING: " + evalhash + " : " + matchtag
+            if evalhash not in evalresults:
+                con = controller.Controller(anchore_config=anchore_config, imagelist=[imageId], allimages=contexts['anchore_allimages'], force=True)
+
                 fnames = {}
                 for (fname, data) in [('tmppol', pol), ('tmpwl', wl)]:
                     thefile = os.path.join(anchore_config['tmpdir'], fname)
@@ -509,7 +510,7 @@ def run_bundle(anchore_config=None, bundle={}, imagelist=[], matchtag=None):
                         'mapmatch':"N/A",
                         'matched_mapping_rule': {}
                     }
-                    
+
                     evalel['results'] = gate_result
                     evalel['policy_name'] = polname
                     evalel['whitelist_names'] = wlnames
@@ -517,7 +518,10 @@ def run_bundle(anchore_config=None, bundle={}, imagelist=[], matchtag=None):
                     evalel['whitelist_data'] = wl
                     evalel['mapmatch'] = mapmatch
                     evalel['matched_mapping_rule'] = match_json
-                    ret[image]['evaluations'].append(evalel)
+
+                    #print "CACHING: " + evalhash + " : " + matchtag
+                    evalresults[evalhash] = evalel
+                    #ret[matchtag]['evaluations'].append(evalel)
                     ecode = con.result_get_highest_action(gate_result)
                     if ecode == 1:
                         retecode = 1
@@ -531,9 +535,20 @@ def run_bundle(anchore_config=None, bundle={}, imagelist=[], matchtag=None):
                         if os.path.exists(fnames[f]):
                             os.remove(fnames[f])
 
-        else:
-            ret[image]['result'] = {}
-            _logger.info("no match found in bundle ("+str(bundle['name'])+") policy mappings for image " + str(image) + " ("+str(imageId)+"): nothing to do.")
+            else:
+                #print "SKIPPING: " + evalhash + " : " + matchtag
+                pass
+
+    ret = {}
+    for matchtag in matchtags:
+        ret[matchtag] = {}
+        ret[matchtag]['bundle_name'] = bundle['name']
+
+        try:
+            evalresult = evalresults[evalmap[matchtag]]
+            ret[matchtag]['evaluations'] = [evalresult]        
+        except Exception as err:
+            raise err
 
     return(ret, retecode)
 
@@ -545,7 +560,7 @@ def get_mapping_actions(image=None, imageId=None, in_digests=[], bundle={}):
     :param imageId: image id string
     :param in_digests: candidate digests
     :param bundle: bundle dict to evaluate
-    :return: tuple of (policy_data, whitelist_data, policy_name, whitelist_names, matchstring, mapping_rule_json obj)
+    :return: tuple of (policy_data, whitelist_data, policy_name, whitelist_names, matchstring, mapping_rule_json obj, evalhash)
     """
 
     if not image or not bundle:
@@ -652,7 +667,7 @@ def get_mapping_actions(image=None, imageId=None, in_digests=[], bundle={}):
 
                     matchstring = matchstring.encode('utf8')
                     if doit:
-                        _logger.info("match found for image ("+str(matchstring)+")")
+                        _logger.debug("match found for image ("+str(matchstring)+")")
 
                         wldata = []
                         wldataset = set()
@@ -662,8 +677,11 @@ def get_mapping_actions(image=None, imageId=None, in_digests=[], bundle={}):
                         wldata = list(wldataset)
 
                         poldata = extract_policy_data(bundle, polname)
-
-                        ret.append( ( poldata, wldata, polname,wlnames, matchstring, m) )
+                        
+                        wlnames.sort()
+                        evalstr = polname + '-'.join(wlnames)
+                        evalhash = hashlib.md5(evalstr).hexdigest()
+                        ret.append( ( poldata, wldata, polname,wlnames, matchstring, m, evalhash) )
                         return(ret)
                     else:
                         _logger.debug("no match found for image ("+str(image_info)+") match.")

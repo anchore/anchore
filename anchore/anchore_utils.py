@@ -2311,8 +2311,9 @@ def parse_dockerimage_string(instr):
     digest = None
     imageId = None
 
-    patt = re.match(".*[^0-9A-Fa-f].*", instr)
-    if not patt:
+    if len(instr) == 64 and not re.findall("[^0-9a-fA-F]+",instr):
+    #patt = re.match(".*[^0-9A-Fa-f].*", instr)
+    #if not patt:
         imageId = instr
         #registry = "localdocker"
     else:
