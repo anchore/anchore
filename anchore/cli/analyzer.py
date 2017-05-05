@@ -132,6 +132,12 @@ def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy
     if (run_bundle and (editpolicy or whitelist or listpolicy or updatepolicy or rmpolicy)):
         raise click.BadOptionUsage('Cannot use other policy options when --run_bundle is specified.')
 
+    if (run_bundle and (usetag and resultsonly)):
+        raise click.BadOptionUsage('Cannot use --resultsonly if --usetag is specified.')
+
+    if (run_bundle and not image):
+        raise click.BadOptionUsage('Must specify --image with --run-bundle (cannot specifiy multiple images with --run-bundle).')
+
     try:
         imagedict = build_image_list(anchore_config, image, imagefile, not (image or imagefile), include_allanchore)
         imagelist = imagedict.keys()
@@ -142,7 +148,6 @@ def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy
         except ValueError as err:
             raise err
         else:
-            #imagelist = ret.keys()
             imagelist = ret
 
     except Exception as err:
@@ -194,6 +199,7 @@ def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy
                     anchore_print_err("failed to list policies: " + str(err))
                     ecode = 1
         elif run_bundle:
+            inputimage = inputimagelist[0]
             try:
                 if not anchore_policy.check():
                     anchore_print_err("run-bundle specified, but it appears as though no policy bundles have been synced yet: run 'anchore policybundle sync' to get your latest bundles from anchore.io")
@@ -204,14 +210,14 @@ def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy
                         raise Exception("could not load stored bundle - run 'anchore policybundle sync' and try again")
 
                     bundleId = bundle['id']
-                    result, ecode = anchore_policy.run_bundle(anchore_config=anchore_config, image=inputimagelist[0], matchtags=usetag, bundle=bundle)
+                    result, ecode = anchore_policy.run_bundle(anchore_config=anchore_config, image=inputimage, matchtags=usetag, bundle=bundle)
                     if not resultsonly:
                         if anchore_config.cliargs['json']:
                             anchore_print(json.dumps(result))
                         else:
                             for image in result.keys():
                                 for gate_result in result[image]['evaluations']:
-                                    _logger.info("BundleId="+bundleId+" Policy="+gate_result['policy_name']+" Whitelists="+str(gate_result['whitelist_names']))
+                                    _logger.info("Image="+inputimage + " Usetag="+image + " BundleId="+bundleId+" Policy="+gate_result['policy_name']+" Whitelists="+str(gate_result['whitelist_names']))
                                     anchore_utils.print_result(anchore_config, gate_result['results'])
                     else:
                         final_result = {}
@@ -338,8 +344,6 @@ def analyze(anchore_config, force, image, imagefile, include_allanchore, dockerf
                 pass
             else:
                 raise click.BadOptionUsage("Invalid imagetype specified: valid types are 'none' or 'base'")
-        #elif not dockerfile:
-        #    raise click.BadOptionUsage('Must specify either --dockerfile or --imagetype <type>')
 
     try:
         imagedict = build_image_list(anchore_config, image, imagefile, not (image or imagefile), include_allanchore, exclude_file=excludefile, dockerfile=dockerfile)

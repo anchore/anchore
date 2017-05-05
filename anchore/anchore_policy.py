@@ -474,12 +474,6 @@ def run_bundle(anchore_config=None, bundle={}, image=None, matchtags=[]):
         matchtags = [image]
 
     evalmap = {}
-#    for matchtag in matchtags:
-#        result = get_mapping_actions(image=matchtag, imageId=imageId, in_digests=digests, bundle=bundle)
-#        #print json.dumps(result, indent=4)
-#        for pol,wl,polname,wlnames,mapmatch,match_json,evalhash in result:
-#            evalmap[matchtag] = evalhash
-
     evalresults = {}
     for matchtag in matchtags:
         _logger.info("evaluating tag: " + str(matchtag))
@@ -487,7 +481,7 @@ def run_bundle(anchore_config=None, bundle={}, image=None, matchtags=[]):
         mapping_results = get_mapping_actions(image=matchtag, imageId=imageId, in_digests=digests, bundle=bundle)
         for pol,wl,polname,wlnames,mapmatch,match_json,evalhash in mapping_results:
             evalmap[matchtag] = evalhash
-            #print "TRYING: " + evalhash + " : " + matchtag
+            _logger.debug("attempting eval: " + evalhash + " : " + matchtag)
             if evalhash not in evalresults:
                 con = controller.Controller(anchore_config=anchore_config, imagelist=[imageId], allimages=contexts['anchore_allimages'], force=True)
 
@@ -519,9 +513,8 @@ def run_bundle(anchore_config=None, bundle={}, image=None, matchtags=[]):
                     evalel['mapmatch'] = mapmatch
                     evalel['matched_mapping_rule'] = match_json
 
-                    #print "CACHING: " + evalhash + " : " + matchtag
+                    _logger.debug("caching eval result: " + evalhash + " : " + matchtag)
                     evalresults[evalhash] = evalel
-                    #ret[matchtag]['evaluations'].append(evalel)
                     ecode = con.result_get_highest_action(gate_result)
                     if ecode == 1:
                         retecode = 1
@@ -534,16 +527,13 @@ def run_bundle(anchore_config=None, bundle={}, image=None, matchtags=[]):
                     for f in fnames.keys():
                         if os.path.exists(fnames[f]):
                             os.remove(fnames[f])
-
             else:
-                #print "SKIPPING: " + evalhash + " : " + matchtag
-                pass
+                _logger.debug("skipping eval, result already cached: " + evalhash + " : " + matchtag)
 
     ret = {}
     for matchtag in matchtags:
         ret[matchtag] = {}
         ret[matchtag]['bundle_name'] = bundle['name']
-
         try:
             evalresult = evalresults[evalmap[matchtag]]
             ret[matchtag]['evaluations'] = [evalresult]        
@@ -672,14 +662,13 @@ def get_mapping_actions(image=None, imageId=None, in_digests=[], bundle={}):
                         wldata = []
                         wldataset = set()
                         for wlname in wlnames:
-                            #wldataset = set(list(wldataset) + bundle['whitelists'][wlname]['data'])
                             wldataset = set(list(wldataset) + extract_whitelist_data(bundle, wlname))
                         wldata = list(wldataset)
 
                         poldata = extract_policy_data(bundle, polname)
                         
                         wlnames.sort()
-                        evalstr = polname + '-'.join(wlnames)
+                        evalstr = ','.join([polname] + wlnames)
                         evalhash = hashlib.md5(evalstr).hexdigest()
                         ret.append( ( poldata, wldata, polname,wlnames, matchstring, m, evalhash) )
                         return(ret)
