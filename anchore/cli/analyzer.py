@@ -214,14 +214,13 @@ def gate(anchore_config, force, image, imagefile, include_allanchore, editpolicy
 
                     allresults = {}
                     for inputimage in inputimagelist:
-                        result, image_ecode = anchore_policy.run_bundle(anchore_config=anchore_config, image=inputimage, matchtags=usetag, bundle=bundle)
+                        result, image_ecode = anchore_policy.run_bundle(anchore_config=anchore_config, image=inputimage, matchtags=usetag, bundle=bundle, show_whitelisted=show_whitelisted, show_triggerIds=show_triggerids)
                         allresults.update(result)
 
                         if image_ecode == 1:
                             ecode = 1
                         elif ecode == 0 and image_ecode > ecode:
                             ecode = image_ecode
-
 
                     if not resultsonly:
                         if anchore_config.cliargs['json']:

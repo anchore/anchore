@@ -6,6 +6,7 @@ import logging
 import hashlib
 import uuid
 import jsonschema
+import tempfile
 
 import controller
 import anchore_utils
@@ -122,7 +123,7 @@ def convert_to_policy_bundle(name="default", version=default_bundle_version, pol
         w = read_whitelist(name=str(uuid.uuid4()), file=wf)
         whitelists.update(w)
 
-    m = create_mapping(map_name="default", policy_name=policies.keys()[0], whitelists=whitelists.keys(), repotagstring='*:*')
+    m = create_mapping(map_name="default", policy_name=policies.keys()[0], whitelists=whitelists.keys(), repotagstring='*/*:*')
     mappings.append(m)
 
     bundle = create_policy_bundle(name='default', policies=policies, policy_version=policy_version, whitelists=whitelists, whitelist_version=whitelist_version, mappings=mappings)
@@ -458,7 +459,7 @@ def verify_policy(policydata=[], version=default_policy_version):
     return(ret)
 
 
-def run_bundle(anchore_config=None, bundle={}, image=None, matchtags=[]):
+def run_bundle(anchore_config=None, bundle={}, image=None, matchtags=[], stateless=False, show_whitelisted=True, show_triggerIds=True):
     retecode = 0
 
     if not anchore_config or not bundle or not image:
@@ -483,18 +484,30 @@ def run_bundle(anchore_config=None, bundle={}, image=None, matchtags=[]):
             evalmap[matchtag] = evalhash
             _logger.debug("attempting eval: " + evalhash + " : " + matchtag)
             if evalhash not in evalresults:
-                con = controller.Controller(anchore_config=anchore_config, imagelist=[imageId], allimages=contexts['anchore_allimages'], force=True)
-
                 fnames = {}
-                for (fname, data) in [('tmppol', pol), ('tmpwl', wl)]:
-                    thefile = os.path.join(anchore_config['tmpdir'], fname)
-                    fnames[fname] = thefile
-                    with open(thefile, 'w') as OFH:
-                        for l in data:
-                            OFH.write(l + "\n")
-
                 try:
-                    gate_result = con.run_gates(policy=fnames['tmppol'], global_whitelist=fnames['tmpwl'], show_triggerIds=True, show_whitelisted=True)
+                    if stateless:
+
+                        policies = structure_policy(pol)
+                        whitelists = structure_whitelist(wl)
+                        rc = execute_gates(imageId, policies)
+                        result, fullresult = evaluate_gates_results(imageId, policies, {}, whitelists)
+                        eval_result = structure_eval_results(imageId, fullresult, show_whitelisted=show_whitelisted, show_triggerIds=show_triggerIds, imageName=matchtag)
+                        gate_result = {}
+                        gate_result[imageId] = eval_result
+
+                    else:
+                        con = controller.Controller(anchore_config=anchore_config, imagelist=[imageId], allimages=contexts['anchore_allimages'], force=True)
+                        for (fname, data) in [('tmppol', pol), ('tmpwl', wl)]:
+                            #thefile = os.path.join(anchore_config['tmpdir'], fname)
+                            fh, thefile = tempfile.mkstemp(dir=anchore_config['tmpdir'])
+                            fnames[fname] = thefile
+                            with open(thefile, 'w') as OFH:
+                                for l in data:
+                                    OFH.write(l + "\n")
+
+                        gate_result = con.run_gates(policy=fnames['tmppol'], global_whitelist=fnames['tmpwl'], show_triggerIds=show_triggerIds, show_whitelisted=show_whitelisted)
+
                     evalel = {
                         'results': list(),
                         'policy_name':"N/A",
@@ -515,7 +528,7 @@ def run_bundle(anchore_config=None, bundle={}, image=None, matchtags=[]):
 
                     _logger.debug("caching eval result: " + evalhash + " : " + matchtag)
                     evalresults[evalhash] = evalel
-                    ecode = con.result_get_highest_action(gate_result)
+                    ecode = result_get_highest_action(gate_result)
                     if ecode == 1:
                         retecode = 1
                     elif retecode == 0 and ecode > retecode:
@@ -541,6 +554,17 @@ def run_bundle(anchore_config=None, bundle={}, image=None, matchtags=[]):
             raise err
 
     return(ret, retecode)
+
+def result_get_highest_action(results):
+    highest_action = 0
+    for k in results.keys():
+        action = results[k]['result']['final_action']
+        if action == 'STOP':
+            highest_action = 1
+        elif highest_action == 0 and action == 'WARN':
+            highest_action = 2
+
+    return(highest_action)
 
 def get_mapping_actions(image=None, imageId=None, in_digests=[], bundle={}):
     """
@@ -679,11 +703,229 @@ def get_mapping_actions(image=None, imageId=None, in_digests=[], bundle={}):
 
     return(ret)
 
+def execute_gates(imageId, policies, refresh=True):
+    import random
+
+    success = True
+    anchore_config = contexts['anchore_config']
+
+    imagename = imageId
+    gatesdir = '/'.join([anchore_config["scripts_dir"], "gates"])
+    workingdir = '/'.join([anchore_config['anchore_data_dir'], 'querytmp'])
+    outputdir = workingdir
+
+    _logger.info(imageId + ": evaluating policies...")
+    
+    for d in [outputdir, workingdir]:
+        if not os.path.exists(d):
+            os.makedirs(d)
+
+    imgfile = '/'.join([workingdir, "queryimages." + str(random.randint(0, 99999999))])
+    anchore_utils.write_plainfile_fromstr(imgfile, imageId)
+    
+    try:
+        gmanifest, failedgates = anchore_utils.generate_gates_manifest()
+        if failedgates:
+            _logger.error("some gates failed to run - check the gate(s) modules for errors: "  + str(','.join(failedgates)))
+            success = False
+        else:
+            success = True
+            for gatecheck in policies.keys():
+                # get all commands that match the gatecheck
+                gcommands = []
+                for gkey in gmanifest.keys():
+                    if gmanifest[gkey]['gatename'] == gatecheck:
+                        gcommands.append(gkey)
+
+                # assemble the params from the input policy for this gatecheck
+                params = []
+                for trigger in policies[gatecheck].keys():
+                    if 'params' in policies[gatecheck][trigger] and policies[gatecheck][trigger]['params']:
+                        params.append(policies[gatecheck][trigger]['params'])
+
+                if not params:
+                    params = ['all']
+
+                if gcommands:
+                    for command in gcommands:
+                        cmd = [command] + [imgfile, anchore_config['image_data_store'], outputdir] + params
+                        _logger.debug("running gate command: " + str(' '.join(cmd)))
+
+                        (rc, sout, cmdstring) = anchore_utils.run_command(cmd)
+                        if rc:
+                            _logger.error("FAILED")
+                            _logger.error("\tCMD: " + str(cmdstring))
+                            _logger.error("\tEXITCODE: " + str(rc))
+                            _logger.error("\tOUTPUT: " + str(sout))
+                            success = False
+                        else:
+                            _logger.debug("")
+                            _logger.debug("\tCMD: " + str(cmdstring))
+                            _logger.debug("\tEXITCODE: " + str(rc))
+                            _logger.debug("\tOUTPUT: " + str(sout))
+                            _logger.debug("")
+                else:
+                    _logger.warn("WARNING: gatecheck ("+str(gatecheck)+") line in policy, but no gates were found that match this gatecheck")
+    except Exception as err:
+        _logger.error("gate evaluation failed - exception: " + str(err))
+    finally:
+        if imgfile and os.path.exists(imgfile):
+            try:
+                os.remove(imgfile)
+            except:
+                _logger.error("could not remove tempfile: " + str(imgfile))
+
+    if success:
+        report = generate_gates_report(imageId)
+        contexts['anchore_db'].save_gates_report(imageId, report)
+        _logger.info(imageId + ": evaluated.")
+
+    return(success)
+
+def generate_gates_report(imageId):
+    # this routine reads the results of image gates and generates a formatted report
+    report = {}
+
+    outputs = contexts['anchore_db'].list_gate_outputs(imageId)
+    for d in outputs:
+        report[d] = contexts['anchore_db'].load_gate_output(imageId, d)
+
+    return(report)
+
+def evaluate_gates_results(imageId, policies, image_whitelist, global_whitelist):
+    ret = list()
+    fullret = list()
+    final_gate_action = 'GO'
+
+    for m in policies.keys():
+        gdata = contexts['anchore_db'].load_gate_output(imageId, m)
+        for l in gdata:
+            (k, v) = re.match('(\S*)\s*(.*)', l).group(1, 2)
+            imageId = imageId
+            check = m
+            trigger = k
+            output = v
+            triggerId = hashlib.md5(''.join([check,trigger,output])).hexdigest()                
+
+            # if the output is structured (i.e. decoded as an
+            # anchore compatible json string) then extract the
+            # elements for display
+            try:
+                json_output = json.loads(output)
+                if 'id' in json_output:
+                    triggerId = str(json_output['id'])
+                if 'desc' in json_output:
+                    output = str(json_output['desc'])
+            except:
+                pass
+
+            if k in policies[m]:
+                trigger = k
+                action = policies[check][trigger]['action']
+
+                r = {'imageId':imageId, 'check':check, 'triggerId':triggerId, 'trigger':trigger, 'output':output, 'action':action}
+                # this is where whitelist check should go
+                whitelisted = False
+                whitelist_type = "none"
+
+                if global_whitelist and ([m, triggerId] in global_whitelist):
+                    whitelisted = True
+                    whitelist_type = "global"
+                elif image_whitelist and 'ignore' in image_whitelist and (r in image_whitelist['ignore']):
+                    whitelisted = True
+                    whitelist_type = "image"
+                else:
+                    # look for prefix wildcards
+                    try:
+                        for [gmod, gtriggerId] in global_whitelist:
+                            if gmod == m:                                    
+                                # special case for backward compat
+                                try:
+                                    if gmod == 'ANCHORESEC' and not re.match(".*\*.*", gtriggerId) and re.match("^CVE.*|^RHSA.*", gtriggerId):
+                                        gtriggerId = gtriggerId + "*"
+                                except Exception as err:
+                                    _logger.warn("problem with backward compat modification of whitelist trigger - exception: " + str(err))
+
+                                matchtoks = []
+                                for tok in gtriggerId.split("*"):
+                                    matchtoks.append(re.escape(tok))
+                                rematch = "^" + '(.*)'.join(matchtoks) + "$"
+                                _logger.debug("checking regexp wl<->triggerId for match: " + str(rematch) + " : " + str(triggerId))
+                                if re.match(rematch, triggerId):
+                                    _logger.debug("found wildcard whitelist match")
+                                    whitelisted = True
+                                    whitelist_type = "global"
+                                    break
+
+                    except Exception as err:
+                        _logger.warn("problem with prefix wildcard match routine - exception: " + str(err))
+
+                fullr = {}
+                fullr.update(r)
+                fullr['whitelisted'] = whitelisted
+                fullr['whitelist_type'] = whitelist_type
+                fullret.append(fullr)
+
+                if not whitelisted:
+                    if policies[m][k]['action'] == 'STOP':
+                        final_gate_action = 'STOP'
+                    elif final_gate_action != 'STOP' and policies[m][k]['action'] == 'WARN':
+                        final_gate_action = 'WARN'
+                    ret.append(r)
+                else:
+                    # whitelisted, skip evaluation
+                    pass
+
+    ret.append({'imageId':imageId, 'check':'FINAL', 'trigger':'FINAL', 'output':"", 'action':final_gate_action})
+    fullret.append({'imageId':imageId, 'check':'FINAL', 'trigger':'FINAL', 'output':"", 'action':final_gate_action, 'whitelisted':False, 'whitelist_type':"none", 'triggerId':"N/A"})
+
+    return(ret, fullret)
+
+def structure_eval_results(imageId, evalresults, show_triggerIds=False, show_whitelisted=False, imageName=None):
+    if not imageName:
+        imageName = imageId
+
+    record = {}
+    record['result'] = {}
+
+    record['result']['header'] = ['Image_Id', 'Repo_Tag']
+    if show_triggerIds:
+        record['result']['header'].append('Trigger_Id')
+    record['result']['header'] += ['Gate', 'Trigger', 'Check_Output', 'Gate_Action']
+    if show_whitelisted:
+        record['result']['header'].append('Whitelisted')
+
+    record['result']['rows'] = list()
+
+    for m in evalresults:
+        id = imageId
+        name = imageName
+        gate = m['check']
+        trigger = m['trigger']
+        output = m['output']
+        triggerId = m['triggerId']
+        action = m['action']
+
+        row = [id[0:12], name]
+        if show_triggerIds:
+            row.append(triggerId)
+        row += [gate, trigger, output, action]
+        if show_whitelisted:
+            row.append(m['whitelist_type'])
+
+        if not m['whitelisted'] or show_whitelisted:
+            record['result']['rows'].append(row)
+
+        if gate == 'FINAL':
+            record['result']['final_action'] = action
+
+    return(record)
+
 # small test
 if __name__ == '__main__':
-    import docker
-    contexts['docker_cli'] = docker.Client()
-    contexts['anchore_config'] = {'pkg_dir':'./'}
+    from anchore.configuration import AnchoreConfiguration
+    config = AnchoreConfiguration(cliargs={})
+    anchore_utils.anchore_common_context_setup(config)
 
     policies = {}
     whitelists = {}
@@ -699,7 +941,7 @@ if __name__ == '__main__':
     whitelists.update(gl0)
     whitelists.update(wl0)
 
-    map0 = create_mapping(map_name="default", policy_name=policies.keys()[0], whitelists=whitelists.keys(), repotagstring='*:*')
+    map0 = create_mapping(map_name="default", policy_name=policies.keys()[0], whitelists=whitelists.keys(), repotagstring='*/*:*')
     mappings.append(map0)
 
     bundle = create_policy_bundle(name='default', policies=policies, policy_version=default_policy_version, whitelists=whitelists, whitelist_version=default_whitelist_version, mappings=mappings)
@@ -714,3 +956,21 @@ if __name__ == '__main__':
     thebun = convert_to_policy_bundle(name='default', policy_file='/root/.anchore/conf/anchore_gate.policy', policy_version=default_policy_version, whitelist_files=['/root/wl0'], whitelist_version=default_whitelist_version)
     rc = write_policy_bundle(bundle_file="/tmp/bun1.json", bundle=thebun)
 
+    pol0 = read_policy(name="meh", file='/root/.anchore/conf/anchore_gate.policy')
+    policies = structure_policy(pol0['meh'])
+
+    #rc = execute_gates("4a415e3663882fbc554ee830889c68a33b3585503892cc718a4698e91ef2a526", policies)
+
+    result, image_ecode = run_bundle(anchore_config=config, image='alpine', matchtags=[], bundle=thebun)
+    with open("/tmp/a", 'w') as OFH:
+        OFH.write(json.dumps(result, indent=4))
+
+    try:
+        result, image_ecode = run_bundle_stateless(anchore_config=config, image='alpine', matchtags=[], bundle=thebun)
+        with open("/tmp/b", 'w') as OFH:
+            OFH.write(json.dumps(result, indent=4))
+
+    except Exception as err:
+        import traceback
+        traceback.print_exc()
+        print str(err)

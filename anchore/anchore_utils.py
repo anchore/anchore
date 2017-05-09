@@ -2312,10 +2312,7 @@ def parse_dockerimage_string(instr):
     imageId = None
 
     if len(instr) == 64 and not re.findall("[^0-9a-fA-F]+",instr):
-    #patt = re.match(".*[^0-9A-Fa-f].*", instr)
-    #if not patt:
         imageId = instr
-        #registry = "localdocker"
     else:
 
         # get the host/port
@@ -2329,6 +2326,9 @@ def parse_dockerimage_string(instr):
                 port = patt.group(2)
             elif a == 'docker.io':
                 host = 'docker.io'
+                port = None
+            elif a == '*':
+                host = '*'
                 port = None
             elif a == 'localhost' or a == 'localhost.localdomain':
                 host = a

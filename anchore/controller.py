@@ -143,11 +143,15 @@ class Controller(object):
         if not whitelist:
             outlist = list()
             for i in latest:
+                if 'check' in i and i['check'] == 'FINAL':
+                    continue
                 outlist.append(json.dumps(i))
             self.anchoreDB.save_gate_whitelist(image.meta['imageId'], outlist)
         else:
             newpol = False
             for i in latest:
+                if 'check' in i and i['check'] == 'FINAL':
+                    continue
                 # add evaled policy if not in the loaded whitelist
                 if i not in new['ignore'] and i not in new['enforce']:
                     new['enforce'].append(i)
@@ -163,19 +167,13 @@ class Controller(object):
                 self.anchoreDB.save_gate_whitelist(image.meta['imageId'], outlist)
         return(True)
 
-    def evaluate_gates_results(self, image):
-        ret = list()
-        fullret = list()
-        final_gate_action = 'GO'
-
-        policies_whitelist = self.load_whitelist(image)
-        global_whitelist = self.load_global_whitelist()
-
+    def load_policies(self, image):
+        policies = {}
         if self.policy_override:
-            #policy_data = anchore_utils.read_plainfile_tolist(self.policy_override)
             try:
                 policy = anchore_policy.read_policy(name='default', file=self.policy_override)
                 policy_data = policy['default']
+                
             except Exception as err:
                 policy_data = []
 
@@ -183,89 +181,23 @@ class Controller(object):
         else:
             policies = self.get_image_policies(image)
 
-        for m in policies.keys():
-            gdata = self.anchoreDB.load_gate_output(image.meta['imageId'], m)
-            for l in gdata:
-                (k, v) = re.match('(\S*)\s*(.*)', l).group(1, 2)
-                imageId = image.meta['imageId']
-                check = m
-                trigger = k
-                output = v
-                triggerId = hashlib.md5(''.join([check,trigger,output])).hexdigest()                
+        return(policies)
 
-                # if the output is structured (i.e. decoded as an
-                # anchore compatible json string) then extract the
-                # elements for display
-                try:
-                    json_output = json.loads(output)
-                    if 'id' in json_output:
-                        triggerId = str(json_output['id'])
-                    if 'desc' in json_output:
-                        output = str(json_output['desc'])
-                except:
-                    pass
-                
-                if k in policies[m]:
-                    trigger = k
-                    action = policies[check][trigger]['action']
+    def evaluate_gates_results(self, image):
+        ret = list()
+        fullret = list()
+        final_gate_action = 'GO'
 
-                    r = {'imageId':imageId, 'check':check, 'triggerId':triggerId, 'trigger':trigger, 'output':output, 'action':action}
-                    # this is where whitelist check should go
-                    whitelisted = False
-                    whitelist_type = "none"
+        # prep the input
+        policies = self.load_policies(image)
+        policies_whitelist = self.load_whitelist(image)
+        global_whitelist = self.load_global_whitelist()
 
-                    if [m, triggerId] in global_whitelist:
-                        whitelisted = True
-                        whitelist_type = "global"
-                    elif r in policies_whitelist['ignore']:
-                        whitelisted = True
-                        whitelist_type = "image"
-                    else:
-                        # look for prefix wildcards
-                        try:
-                            for [gmod, gtriggerId] in global_whitelist:
-                                if gmod == m:                                    
-                                    # special case for backward compat
-                                    try:
-                                        if gmod == 'ANCHORESEC' and not re.match(".*\*.*", gtriggerId) and re.match("^CVE.*|^RHSA.*", gtriggerId):
-                                            gtriggerId = gtriggerId + "*"
-                                    except Exception as err:
-                                        self._logger.warn("problem with backward compat modification of whitelist trigger - exception: " + str(err))
+        # perform the evaluation
+        ret, fullret = anchore_policy.evaluate_gates_results(image.meta['imageId'], policies, policies_whitelist, global_whitelist)
 
-                                    matchtoks = []
-                                    for tok in gtriggerId.split("*"):
-                                        matchtoks.append(re.escape(tok))
-                                    rematch = "^" + '(.*)'.join(matchtoks) + "$"
-                                    self._logger.debug("checking regexp wl<->triggerId for match: " + str(rematch) + " : " + str(triggerId))
-                                    if re.match(rematch, triggerId):
-                                        self._logger.debug("found wildcard whitelist match")
-                                        whitelisted = True
-                                        whitelist_type = "global"
-                                        break
-
-                        except Exception as err:
-                            self._logger.warn("problem with prefix wildcard match routine - exception: " + str(err))
-                    
-                    fullr = {}
-                    fullr.update(r)
-                    fullr['whitelisted'] = whitelisted
-                    fullr['whitelist_type'] = whitelist_type
-                    fullret.append(fullr)
-
-                    if not whitelisted:
-                        if policies[m][k]['action'] == 'STOP':
-                            final_gate_action = 'STOP'
-                        elif final_gate_action != 'STOP' and policies[m][k]['action'] == 'WARN':
-                            final_gate_action = 'WARN'
-                        ret.append(r)
-                    else:
-                        # whitelisted, skip evaluation
-                        pass
-        
+        # save the results
         self.save_whitelist(image, policies_whitelist, ret)
-
-        ret.append({'imageId':image.meta['imageId'], 'check':'FINAL', 'trigger':'FINAL', 'output':"", 'action':final_gate_action})
-        fullret.append({'imageId':image.meta['imageId'], 'check':'FINAL', 'trigger':'FINAL', 'output':"", 'action':final_gate_action, 'whitelisted':False, 'whitelist_type':"none", 'triggerId':"N/A"})
         for i in ret:
             self.anchoreDB.del_gate_eval_output(image.meta['imageId'], i['check'])
 
@@ -283,85 +215,12 @@ class Controller(object):
 
     def execute_gates(self, image, refresh=True):
         self._logger.debug("gate policy evaluation for image "+str(image.meta['imagename'])+": begin")
+
+        imageId = image.meta['imageId']
+        policies = self.load_policies(image)
         success = True
-
-        imagename = image.meta['imageId']
-        gatesdir = '/'.join([self.config["scripts_dir"], "gates"])
-        workingdir = '/'.join([self.config['anchore_data_dir'], 'querytmp'])
-        outputdir = workingdir
         
-        self._logger.info(image.meta['shortId'] + ": evaluating policies ...")
-        
-        for d in [outputdir, workingdir]:
-            if not os.path.exists(d):
-                os.makedirs(d)
-
-        imgfile = '/'.join([workingdir, "queryimages." + str(random.randint(0, 99999999))])
-        anchore_utils.write_plainfile_fromstr(imgfile, image.meta['imageId'])
-
-        if self.policy_override:
-            #policy_data = anchore_utils.read_plainfile_tolist(self.policy_override)
-            try:
-                policy = anchore_policy.read_policy(name='default', file=self.policy_override)
-                policy_data = policy['default']
-            except Exception as err:
-                policy_data = []
-            policies = anchore_policy.structure_policy(policy_data)
-        else:
-            policies = self.get_image_policies(image)
-
-        try:
-            gmanifest, failedgates = anchore_utils.generate_gates_manifest()
-            if failedgates:
-                self._logger.error("some gates failed to run - check the gate(s) modules for errors: "  + str(','.join(failedgates)))
-                success = False
-            else:
-                success = True
-                for gatecheck in policies.keys():
-                    # get all commands that match the gatecheck
-                    gcommands = []
-                    for gkey in gmanifest.keys():
-                        if gmanifest[gkey]['gatename'] == gatecheck:
-                            gcommands.append(gkey)
-
-                    # assemble the params from the input policy for this gatecheck
-                    params = []
-                    for trigger in policies[gatecheck].keys():
-                        if 'params' in policies[gatecheck][trigger] and policies[gatecheck][trigger]['params']:
-                            params.append(policies[gatecheck][trigger]['params'])
-
-                    if not params:
-                        params = ['all']
-
-                    if gcommands:
-                        for command in gcommands:
-                            cmd = [command] + [imgfile, self.config['image_data_store'], outputdir] + params
-                            self._logger.debug("running gate command: " + str(' '.join(cmd)))
-
-                            (rc, sout, cmdstring) = anchore_utils.run_command(cmd)
-                            if rc:
-                                self._logger.error("FAILED")
-                                self._logger.error("\tCMD: " + str(cmdstring))
-                                self._logger.error("\tEXITCODE: " + str(rc))
-                                self._logger.error("\tOUTPUT: " + str(sout))
-                                success = False
-                            else:
-                                self._logger.debug("")
-                                self._logger.debug("\tCMD: " + str(cmdstring))
-                                self._logger.debug("\tEXITCODE: " + str(rc))
-                                self._logger.debug("\tOUTPUT: " + str(sout))
-                                self._logger.debug("")
-                    else:
-                        self._logger.warn("WARNING: gatecheck ("+str(gatecheck)+") line in policy, but no gates were found that match this gatecheck")
-        except Exception as err:
-            self._logger.error("gate evaluation failed - exception: " + str(err))
-        finally:
-            if imgfile and os.path.exists(imgfile):
-                try:
-                    os.remove(imgfile)
-                except:
-                    self._logger.error("could not remove tempfile: " + str(imgfile))
-
+        success = anchore_policy.execute_gates(imageId, policies)
         if success:
             report = self.generate_gates_report(image)
             self.anchoreDB.save_gates_report(image.meta['imageId'], report)
@@ -381,15 +240,7 @@ class Controller(object):
         return(report)
 
     def result_get_highest_action(self, results):
-        highest_action = 0
-        for k in results.keys():
-            action = results[k]['result']['final_action']
-            if action == 'STOP':
-                highest_action = 1
-            elif highest_action == 0 and action == 'WARN':
-                highest_action = 2
-            
-        return(highest_action)
+        return(anchore_policy.result_get_highest_action(results))
 
     def run_gates(self, policy=None, refresh=True, global_whitelist=None, show_triggerIds=False, show_whitelisted=False):
         # actually run the gates
@@ -406,45 +257,14 @@ class Controller(object):
 
         for imageId in self.images:
             image = self.allimages[imageId]
-
-            if not self.execute_gates(image, refresh=refresh):
+            
+            rc = self.execute_gates(image, refresh=refresh)
+            if not rc:
                 raise Exception("one or more gates failed to execute")
 
             results, fullresults = self.evaluate_gates_results(image)
-
-            record = {}
-            record['result'] = {}
-
-            record['result']['header'] = ['Image_Id', 'Repo_Tag']
-            if self.show_triggerIds:
-                record['result']['header'].append('Trigger_Id')
-            record['result']['header'] += ['Gate', 'Trigger', 'Check_Output', 'Gate_Action']
-            if self.show_whitelisted:
-                record['result']['header'].append('Whitelisted')
-
-            record['result']['rows'] = list()
-
-            for m in fullresults:
-                id = image.meta['imageId']
-                name = image.get_human_name()
-                gate = m['check']
-                trigger = m['trigger']
-                output = m['output']
-                triggerId = m['triggerId']
-                action = m['action']
-
-                row = [id[0:12], name]
-                if self.show_triggerIds:
-                    row.append(triggerId)
-                row += [gate, trigger, output, action]
-                if self.show_whitelisted:
-                    row.append(m['whitelist_type'])
-
-                if not m['whitelisted'] or show_whitelisted:
-                    record['result']['rows'].append(row)
-
-                if gate == 'FINAL':
-                    record['result']['final_action'] = action
+                
+            record = anchore_policy.structure_eval_results(imageId, fullresults, show_triggerIds=self.show_triggerIds, show_whitelisted=self.show_whitelisted, imageName=image.get_human_name())
 
             ret[imageId] = record
         return(ret)
