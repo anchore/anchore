@@ -499,12 +499,16 @@ def run_bundle(anchore_config=None, bundle={}, image=None, matchtags=[], statele
                     else:
                         con = controller.Controller(anchore_config=anchore_config, imagelist=[imageId], allimages=contexts['anchore_allimages'], force=True)
                         for (fname, data) in [('tmppol', pol), ('tmpwl', wl)]:
-                            #thefile = os.path.join(anchore_config['tmpdir'], fname)
                             fh, thefile = tempfile.mkstemp(dir=anchore_config['tmpdir'])
                             fnames[fname] = thefile
-                            with open(thefile, 'w') as OFH:
-                                for l in data:
-                                    OFH.write(l + "\n")
+                            try:
+                                with open(thefile, 'w') as OFH:
+                                    for l in data:
+                                        OFH.write(l + "\n")
+                            except Exception as err:
+                                raise err
+                            finally:
+                                os.close(fh)
 
                         gate_result = con.run_gates(policy=fnames['tmppol'], global_whitelist=fnames['tmpwl'], show_triggerIds=show_triggerIds, show_whitelisted=show_whitelisted)
 
