@@ -564,7 +564,6 @@ class AnchoreImage(object):
     """ Utilities and report generators """
 
     def squash(self, imagedir=None):
-
         driver = "docker_export"
         try:
             if self.anchore_config:
@@ -857,6 +856,7 @@ class AnchoreImage(object):
             imagedir = self.tmpdir
 
         imageId = self.meta['imageId']
+
         imagetar = imagedir + "/image.tar"
 
         self.docleanup = docleanup
@@ -866,7 +866,6 @@ class AnchoreImage(object):
 
         # pull the image from docker and store/untar the tar
         if not os.path.exists(imagetar):
-            import time
             try:
                 r = self.docker_cli.get_image(imageId)
             except:
@@ -895,13 +894,17 @@ class AnchoreImage(object):
             anchore_utils.update_file_str(json.dumps(self.docker_history), os.path.join(imagedir, "docker_history.json"), backup=False)
 
         # cleanup
-        os.remove(imagetar)
+        if os.path.exists(imagetar):
+            os.remove(imagetar)
 
         # squash the image layers into unpacked rootfs
         rc = self.squash(imagedir)
         if not rc:
             self._logger.error("image squash operation failed")
             return(False)
+
+        #if self.squashtar and os.path.exists(self.squashtar):
+        #    self.meta['sizebytes'] = str(os.path.getsize(self.squashtar))
 
         return (imagedir)
 
