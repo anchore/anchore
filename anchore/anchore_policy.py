@@ -189,7 +189,12 @@ def read_policy_bundle(bundle_file=None):
 def verify_policy_bundle(bundle={}):
     bundle_schema = {}
 
-    bundle_schema_file = os.path.join(contexts['anchore_config']['pkg_dir'], 'schemas', 'anchore-bundle.schema')
+    try:
+        bundle_schema_file = os.path.join(contexts['anchore_config']['pkg_dir'], 'schemas', 'anchore-bundle.schema')
+    except:
+        from pkg_resources import Requirement, resource_filename
+        bundle_schema_file = os.path.join(resource_filename("anchore", ""), 'schemas', 'anchore-bundle.schema')
+
     try:
         if os.path.exists(bundle_schema_file):
             with open (bundle_schema_file, "r") as FH:
@@ -205,6 +210,7 @@ def verify_policy_bundle(bundle={}):
         try:
             jsonschema.validate(bundle, schema=bundle_schema)
         except Exception as err:
+            _logger.error("could not validate bundle against schema: " + str(err))
             return(False)
 
     return(True)
