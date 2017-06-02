@@ -2330,7 +2330,7 @@ def parse_dockerimage_string(instr):
             elif a == '*':
                 host = '*'
                 port = None
-            elif a == 'localhost' or a == 'localhost.localdomain':
+            elif a in ['localhost', 'localhost.localdomain', 'localbuild']:
                 host = a
                 port = None
             else:
