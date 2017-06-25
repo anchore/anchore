@@ -75,6 +75,7 @@ Vagrant
 * Install Vagrant and Virtualbox
 * Download the Vagrantfile
 * ``vagrant up``
+* ``vagrant ssh``
 * ``sudo -i``
 * Continue with step 4)
 
