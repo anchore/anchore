@@ -70,6 +70,15 @@ For more information, to learn about how to analyze your own
 application containers, and how to customize/extend Anchore, please
 visit our github page wiki at https://github.com/anchore
 
+Vagrant
+============
+* Install Vagrant and Virtualbox
+* Download the Vagrantfile
+* ``vagrant up``
+* ``vagrant ssh``
+* ``sudo -i``
+* Continue with step 4)
+
 Manual Pages
 ============
 Man pages for most of the anchore commands are available in: $anchore/doc/man, where $anchore is the install
