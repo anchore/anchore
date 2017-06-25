@@ -673,25 +673,56 @@ def get_mapping_actions(image=None, imageId=None, in_digests=[], bundle={}):
             else:
                 mtag = mdigest = mimageId = None
 
-            if registry == mregistry or mregistry == '*':
+            mregistry_rematch = mregistry
+            mrepo_rematch = mrepo
+            mtag_rematch = mtag
+            try:
+                matchtoks = []
+                for tok in mregistry.split("*"):
+                    matchtoks.append(re.escape(tok))
+                mregistry_rematch = "^" + '(.*)'.join(matchtoks) + "$"
+
+                matchtoks = []
+                for tok in mrepo.split("*"):
+                    matchtoks.append(re.escape(tok))
+                mrepo_rematch = "^" + '(.*)'.join(matchtoks) + "$"
+
+                matchtoks = []
+                for tok in mtag.split("*"):
+                    matchtoks.append(re.escape(tok))
+                mtag_rematch = "^" + '(.*)'.join(matchtoks) + "$"
+            except Exception as err:
+                _logger.error("could not set up regular expression matches for mapping check - exception: " + str(err))
+
+            _logger.debug("matchset: " + str([mregistry_rematch, mrepo_rematch, mtag_rematch]) + " : " + str([mregistry, mrepo, mtag]) + " : " + str([registry, repo, tag, tags]))
+
+            if registry == mregistry or mregistry == '*' or re.match(mregistry_rematch, registry):
                 _logger.debug("checking mapping for image ("+str(image_info)+") match.")
 
-                if repo == mrepo or mrepo == '*':
+                if repo == mrepo or mrepo == '*' or re.match(mrepo_rematch, repo):
                     doit = False
                     matchstring = mname + ": N/A"
-                    if tag and (mtag == '*' or mtag == tag or mtag in tags):
-                        matchstring = mname + ":" + ','.join([mregistry, mrepo, mtag])
-                        doit = True
-                    elif digest and (mdigest == digest or mdigest in in_digests or mdigest in digests):
+                    if tag:
+                        if False and (mtag == tag or mtag == '*' or mtag in tags or re.match(mtag_rematch, tag)):
+                            matchstring = mname + ":" + ','.join([mregistry, mrepo, mtag])
+                            doit = True
+                        else:
+                            for t in tags:
+                                if re.match(mtag_rematch, t):
+                                    matchstring = mname + ":" + ','.join([mregistry, mrepo, mtag])
+                                    doit = True
+                                    break
+                    if not doit and (digest and (mdigest == digest or mdigest in in_digests or mdigest in digests)):
                         matchstring = mname + ":" + ','.join([mregistry, mrepo, mdigest])
                         doit = True
-                    elif imageId and (mimageId == imageId):
+                    
+                    if not doit and (imageId and (mimageId == imageId)):
                         matchstring = mname + ":" + ','.join([mregistry, mrepo, mimageId])
                         doit = True
 
                     matchstring = matchstring.encode('utf8')
                     if doit:
-                        _logger.debug("match found for image ("+str(matchstring)+")")
+                        _logger.debug("match found for image ("+str(image_info)+") matchstring ("+str(matchstring)+")")
 
                         wldata = []
                         wldataset = set()
