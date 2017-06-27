@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.4 (2017-XX-YY)
+
++ New feature 'policy bundles' which is a compact JSON document that contains policies, whitelists, and mapping rules (which match image registry/repository/tag names with specified policy/whitelists)
++ New Dockerfiles
++ Added Vagrantfile for setting up a vagrant environment with anchore installed (contributed by wurstbrot <github@timo-pagel.de>)
++ Added option --imageid to anchore toolbox for faster image lookup
++ Added ability to specify environment variables for username/password (ANCHOREUSER, ANCHOREPASS) for better scriptability of 'anchore login'
++ Added better wildcard matcher for whitelisted items (now supports triggerId strings of the form (for example) *-busybox, CVE-*, *2016*busybox*)
++ Minor bug fixes and code cleaup
+
 ## 1.1.3 (2017-03-29)
 
 + New option to analyze (--layerstrategy) which allows the user to select which intermediate images are analyzed between the specified image and the earliest image in the familytree.  The default behavior now is to analyze only images marked as 'base' in the familytree, as well as the specified image and the earliest image in the tree.

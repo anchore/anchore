@@ -417,7 +417,8 @@ def kubesync():
 
 @toolbox.command(name='import')
 @click.option('--infile', help='input file that contains anchore image data from a previous export', type=click.Path(exists=True), metavar='<file.json>', required=True)
-def image_import(infile):
+@click.option('--force', help='force import even if an image record is already in place', is_flag=True)
+def image_import(infile, force):
     """Import image anchore data from a JSON file."""
     ecode = 0
     
@@ -432,7 +433,7 @@ def image_import(infile):
         for record in savelist:
             try:
                 imageId = record['image']['imageId']
-                if contexts['anchore_db'].is_image_present(imageId):
+                if contexts['anchore_db'].is_image_present(imageId) and not force:
                     anchore_print("image ("+str(imageId)+") already exists in DB, skipping import.")
                 else:
                     imagedata = record['image']['imagedata']
