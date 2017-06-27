@@ -6,11 +6,25 @@
 Anchore
 =======
 
-
 Anchore is a container inspection and analytics platform to enable
 operators to deploy containers with confidence. The Anchore toolset in
 this repository provides the ability to inspect, reason about, and
 evaluate policy against containers present on the local Docker host.
+
+Using Anchore via Docker
+========================
+Anchore is available as a `Docker image <https://hub.docker.com/r/anchore/cli/>`_. 
+
+1. ``docker pull anchore/cli``
+2. ``docker run -d -v /var/run/docker.sock:/var/run/docker.sock --name anchore anchore/cli:latest``
+3. ``docker exec anchore anchore feeds sync``
+3. Use docker exec to run anchore commands in the container, such as: ``docker exec anchore anchore analyze --image <myimage> --dockerfile </path/to/Dockerfile>``
+
+The general model is to run the container in detached mode to provide the environment and use 'docker exec' to execute anchore commands within the container. See the above link on how to use the container specifically and options that are container specific. 
+
+
+Using Anchore Installed Directly on Host
+====================================
 
 To get started on CentOS 7 as root:
 
