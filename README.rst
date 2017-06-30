@@ -24,7 +24,7 @@ The general model is to run the container in detached mode to provide the enviro
 
 
 Using Anchore Installed Directly on Host
-====================================
+========================================
 
 To get started on CentOS 7 as root:
 
@@ -84,8 +84,18 @@ For more information, to learn about how to analyze your own
 application containers, and how to customize/extend Anchore, please
 visit our github page wiki at https://github.com/anchore
 
+Jenkins
+=======
+
+If you are a Jenkins user, please visit our github wiki installation
+documentation at
+https://github.com/anchore/anchore/wiki/Installing-Anchore to learn
+more about using the Jenkins Anchore build-step plugin.
+
+
 Vagrant
-============
+=======
+
 * Install Vagrant and Virtualbox
 * Download the Vagrantfile
 * ``vagrant up``
