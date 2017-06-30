@@ -27,7 +27,7 @@ class AnchoreConfiguration (object):
     DEFAULT_ANCHORE_CLIENT_URL = 'https://ancho.re/v1/account/users'
     DEFAULT_ANCHORE_TOKEN_URL = 'https://ancho.re/oauth/token'
     DEFAULT_ANCHORE_FEEDS_URL = 'https://ancho.re/v1/service/feeds'
-    DEFAULT_ANCHORE_POLICY_URL = 'https://ancho.re/v1/service/policy'
+    DEFAULT_ANCHORE_POLICY_URL = 'https://ancho.re/v1/service/policies/policy'
     DEFAULT_ANCHORE_AUTH_CONN_TIMEOUT = 5
     DEFAULT_ANCHORE_AUTH_MAX_RETRIES = 3
     DEFAULT_ANCHORE_FEEDS_CONN_TIMEOUT = 10
