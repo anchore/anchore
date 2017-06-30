@@ -1332,8 +1332,9 @@ def cve_load_data(imageId, cve_data_context=None):
 
     idistro = distrometa['DISTRO']
     idistrovers = distrometa['DISTROVERS']
+    ilikedistro = distrometa['LIKEDISTRO']
 
-    distrodict = get_distro_flavor(idistro, idistrovers)
+    distrodict = get_distro_flavor(idistro, idistrovers, likedistro=ilikedistro)
 
     distro = distrodict['distro']
     distrovers = distrodict['version']
@@ -1434,7 +1435,8 @@ def normalize_packages(imageId):
     distrometa = get_distro_from_imageId(imageId)
     idistro = distrometa['DISTRO']
     idistrovers = distrometa['DISTROVERS']
-    distrodict = get_distro_flavor(idistro, idistrovers)
+    ilikedistro = distrometa['LIKEDISTRO']
+    distrodict = get_distro_flavor(idistro, idistrovers, likedistro=ilikedistro)
     flavor = distrodict['flavor']
 
     ret = {
@@ -1641,7 +1643,8 @@ def cve_scanimage(cve_data, imageId):
         distrometa = get_distro_from_imageId(imageId)
         idistro = distrometa['DISTRO']
         idistrovers = distrometa['DISTROVERS']
-        distrodict = get_distro_flavor(idistro, idistrovers)
+        ilikedistro = distrometa['LIKEDISTRO']
+        distrodict = get_distro_flavor(idistro, idistrovers, likedistro=ilikedistro)
         flavor = distrodict['flavor']
     except Exception as err:
         print "cve-scan: could not determine image distro: returning empty value"
@@ -1713,7 +1716,8 @@ def compare_package_versions(imageId, pkga, vera, pkgb, verb):
     distrometa = get_distro_from_imageId(imageId)
     idistro = distrometa['DISTRO']
     idistrovers = distrometa['DISTROVERS']
-    distrodict = get_distro_flavor(idistro, idistrovers)
+    ilikedistro = distrometa['LIKEDISTRO']
+    distrodict = get_distro_flavor(idistro, idistrovers, likedistro=ilikedistro)
     flavor = distrodict['flavor']
 
     if flavor == "RHEL":

@@ -128,7 +128,7 @@ outputdir = config['dirs']['outputdir']
 unpackdir = config['dirs']['unpackdir']
 
 meta = anchore.anchore_utils.get_distro_from_path('/'.join([unpackdir, "rootfs"]))
-distrodict = anchore.anchore_utils.get_distro_flavor(meta['DISTRO'], meta['DISTROVERS'], meta['LIKEDISTRO'])
+distrodict = anchore.anchore_utils.get_distro_flavor(meta['DISTRO'], meta['DISTROVERS'], likedistro=meta['LIKEDISTRO'])
 
 simplefiles = {}
 outfiles = {}
