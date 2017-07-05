@@ -386,12 +386,13 @@ def load_anchore_feed(feed, group, ensure_unique=False):
         if datameta and 'datafiles' in datameta:
             unique_hash = {}
             revfiles = sorted(datameta['datafiles'])
+            # list should be latest first
             revfiles.reverse()
-            #for datafile in sorted(datameta['datafiles']):
             for datafile in revfiles:
                 thelist = load_anchore_feed_group_data(feed, group, datafile)
+                # data should be latest first
+                thelist.reverse()
                 if ensure_unique:
-                    thelist.reverse()
                     for el in thelist:
                         if isinstance(el, dict) and len(el.keys()) == 1:
                             if feed == 'vulnerabilities':
