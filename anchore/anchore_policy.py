@@ -56,15 +56,26 @@ def sync_policymeta(bundlefile=None, outfile=None):
             try:
                 bundleraw = json.loads(record['text'])
                 policymeta = bundleraw['bundle']
-            except:
-                ret['text'] = 'failed to parse bundle response from service - ' + json.dumps(record, indent=4)
+            except Exception as err:
+                ret['text'] = 'failed to parse bundle response from service - exception: ' + str(err)
                 return(False, ret)
         else:
-            ret['text'] = "failed to download policybundle: message from server - " + record['text']
+            _logger.debug("failed to download policybundle: message from server - " + str(record))
+            themsg = "unspecificied failure while attempting to download bundle from anchore.io"
+            try:
+                if record['status_code'] == 404:
+                    themsg = "no policy bundle found on anchore.io - please create and save a policy using the policy editor in anchore.io and try again"
+                elif record['status_code'] == 401:
+                    themsg = "cannot download a policy bundle from anchore.io - current user does not have access rights to download custom policies"
+            except Exception as err:
+                themsg = "exception while inspecting response from server - exception: " +  str(err)
+
+            ret['text'] = "failed to download policybundle: " + str(themsg)
             return(False, ret)
 
     if not verify_policy_bundle(bundle=policymeta):
-        ret['text'] = "input bundle does not conform to bundle schema"
+        _logger.debug("downloaded policy bundle failed to verify: " +str(policymeta))
+        ret['text'] = "input policy bundle does not conform to policy bundle schema"
         return(False, ret)
 
     if outfile:
