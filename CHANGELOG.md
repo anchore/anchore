@@ -8,6 +8,7 @@
 + Added option --imageid to anchore toolbox for faster image lookup
 + Added ability to specify environment variables for username/password (ANCHOREUSER, ANCHOREPASS) for better scriptability of 'anchore login'
 + Added better wildcard matcher for whitelisted items (now supports triggerId strings of the form (for example) *-busybox, CVE-*, *2016*busybox*)
++ Fixed issue in --do-compact logic where older vulnerability records were sometimes being evaluated before newer records, if rapid vulnerability updates were made within a short amount of time (multiple updates in under a day)
 + Minor bug fixes and code cleaup
 
 ## 1.1.3 (2017-03-29)
