@@ -33,6 +33,7 @@ if not config:
 
 imageId = config['imgid']
 
+params = []
 try:
     params = config['params']
 except:

@@ -137,7 +137,8 @@ def init_query_cmdline(argv, paramhelp):
     ret['dirs']['outputdir'] = argv[3]
 
     try:
-        ret['params'] = argv[4:]
+        #ret['params'] = argv[4:]
+        ret['params'] = ' '.join(argv[4:]).split()
     except:
         ret['params'] = list()
 

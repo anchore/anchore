@@ -29,9 +29,7 @@ imgid = config['imgid']
 
 params = []
 try:
-    for p in config['params']:
-        toks = re.split(" +", p)
-        params = toks
+    params = config['params']
 except:
     params = None
 
@@ -43,7 +41,6 @@ namematch = {}
 vermatch = {}
 
 for param in params:
-
     try:
         (p,v) = param.split("=")
         for pkgstring in v.split(","):
