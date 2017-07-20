@@ -1343,7 +1343,7 @@ def cve_load_data(imageId, cve_data_context=None):
     likeversion = distrodict['likeversion']
     fulldistro = distrodict['distro']
     fullversion = distrodict['fullversion']
-    
+
     distrolist = [(distro,distrovers), (likedistro, likeversion), (fulldistro, fullversion), (likedistro, fullversion)]
     for f in distrolist:
         dstr = ':'.join([f[0], f[1]])
@@ -1627,7 +1627,11 @@ def cve_scan_packages(cve_data, norm_packages, flavor):
                             if 'Description' in vuln:
                                 description = vuln['Description']
 
-                            outel = {'pkgName': vpkg, 'imageVers': ivers, 'fixVers': fixVers, 'severity': severity, 'url': url, 'description': description}
+                            try:
+                                imagevers = norm_packages['bin_packages'][vpkg]['fullvers']
+                            except:
+                                imagevers = ivers
+                            outel = {'pkgName': vpkg, 'imageVers': imagevers, 'fixVers': fixVers, 'severity': severity, 'url': url, 'description': description}
 
                             if vuln['Name'] not in results:
                                 results[vuln['Name']] = []

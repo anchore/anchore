@@ -100,6 +100,7 @@ try:
                                 if re.match(".*"+re.escape(pval)+".*", lic):
                                     submatch = True
                                     submatchpkgs.append(pkg+"("+pval+")")
+                                    #submatchpkgs.append(pkg+"("+lic+")")
                         except Exception as err:
                             print "ERR pval check: ("+ pkg + "): " + str(err)
                             pass
