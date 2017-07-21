@@ -1595,22 +1595,25 @@ def cve_scan_packages(cve_data, norm_packages, flavor):
                     #print "cve-scan: Vulnerable Package: " + vpkgname
 
                     if vpkgname in norm_packages['bin_packages']:
-                        ivers = norm_packages['bin_packages'][vpkgname]['fullvers']
-                        iversonly = norm_packages['bin_packages'][vpkgname]['version']
-                        irelonly = norm_packages['bin_packages'][vpkgname]['release']
+                        #ivers = norm_packages['bin_packages'][vpkgname]['fullvers']
+                        #iversonly = norm_packages['bin_packages'][vpkgname]['version']
+                        #irelonly = norm_packages['bin_packages'][vpkgname]['release']
                         vpkgs = [vpkgname]
                     
                     if vpkgname in norm_packages['src_to_bin']:
-                        bpkg = norm_packages['src_to_bin'][vpkgname][0]
-                        ivers = norm_packages['bin_packages'][bpkg]['fullvers']
-                        iversonly = norm_packages['bin_packages'][bpkg]['version']
-                        irelonly = norm_packages['bin_packages'][bpkg]['release']
+                        #bpkg = norm_packages['src_to_bin'][vpkgname][0]
+                        #ivers = norm_packages['bin_packages'][bpkg]['fullvers']
+                        #iversonly = norm_packages['bin_packages'][bpkg]['version']
+                        #irelonly = norm_packages['bin_packages'][bpkg]['release']
                         vpkgs = vpkgs + norm_packages['src_to_bin'][vpkgname]
 
 
                     # go through all found packages that mapped to the CVE vul package to check versions for vulnerability
                     for vpkg in vpkgs:
                         isvuln = False
+
+                        ivers = norm_packages['bin_packages'][vpkg]['fullvers']
+                        iversonly = norm_packages['bin_packages'][vpkg]['version']
 
                         isvuln = is_pkg_vuln(vtag, vpkg, flavor, ivers, iversonly, vvers)
 
