@@ -1,7 +1,7 @@
 docker-py
 prettytable
 click
-requests < 2.11
+requests
 pyyaml
 clint
 jsonschema
