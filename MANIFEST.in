@@ -4,5 +4,6 @@ include README.rst
 include CONTRIBUTING.rst
 include anchore/conf/*
 include anchore/doc/man/*
+include anchore/schemas/*
 recursive-include anchore/anchore-modules *
 
