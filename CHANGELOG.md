@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.1.4 (2017-XX-YY)
+## 1.1.4 (2017-08-07)
 
 + New feature 'policy bundles' which is a compact JSON document that contains policies, whitelists, and mapping rules (which match image registry/repository/tag names with specified policy/whitelists)
 + New Dockerfiles
