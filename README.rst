@@ -38,9 +38,9 @@ To get started on CentOS 7 as root:
 
 ``yum install python-pip rpm-python dpkg``
 
-To get started on Ubuntu 15.10/16.04 as root:
+To get started on Ubuntu >= 15.10  as root:
 
-1) install docker engine >= 1.10 (see docker documentation for Ubuntu 15.10/16.04 install instructions)
+1) install docker engine >= 1.10 (see docker documentation for Ubuntu >= 15.10 install instructions)
 
 ``https://docs.docker.com/engine/installation/linux/ubuntulinux/``
 
