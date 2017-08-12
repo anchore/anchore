@@ -41,8 +41,6 @@ package_data = {
                    'anchore-modules/gates/*',
                    'anchore-modules/queries/*',
                    'anchore-modules/multi-queries/*',
-                   'anchore-modules/inputs/*',
-                   'anchore-modules/outputs/*',
                    'anchore-modules/shell-utils/*',
                    'anchore-modules/examples/queries/*',
                    'anchore-modules/examples/multi-queries/*',
