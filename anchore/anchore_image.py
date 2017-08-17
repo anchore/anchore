@@ -348,10 +348,16 @@ class AnchoreImage(object):
         layers = []
 
         try:
-            for i in self.docker_history:
-                patt = re.match("sha256:(.*)", i['Id'])
+            #for i in self.docker_history:
+            #    patt = re.match("sha256:(.*)", i['Id'])
+            #    if patt:
+            #        layers.append(patt.group(1))
+            layers = [imagename]
+            for i in self.docker_data['RootFS']['Layers']:
+                patt = re.match("sha256:(.*)", i)
                 if patt:
                     layers.append(patt.group(1))
+                
         except:
             pass
 
