@@ -33,7 +33,7 @@ try:
     layers = idata['layers']
     for layer in layers:
         outlist.append([config['meta']['shortId'], config['meta']['humanname'], str(layer)])
-    outlist.append([config['meta']['shortId'], config['meta']['humanname'], str(config['imgid'])])
+    #outlist.append([config['meta']['shortId'], config['meta']['humanname'], str(config['imgid'])])
 except Exception as err:
     # handle the case where something wrong happened
     import traceback

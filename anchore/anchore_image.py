@@ -345,7 +345,23 @@ class AnchoreImage(object):
     def discover_layers(self):
         imagename = self.meta['imageId']
         imagedir = self.tmpdir
-        layers = list()
+        layers = []
+
+        try:
+            for i in self.docker_history:
+                patt = re.match("sha256:(.*)", i['Id'])
+                if patt:
+                    layers.append(patt.group(1))
+        except:
+            pass
+
+        self.anchore_layers = layers
+        return(True)
+
+    def discover_layers_orig(self):
+        imagename = self.meta['imageId']
+        imagedir = self.tmpdir
+        layers = []
 
         if self.anchore_layers and len(self.anchore_layers) > 0:
             return (True)
@@ -864,26 +880,28 @@ class AnchoreImage(object):
         if not os.path.exists(imagedir):
             os.makedirs(imagedir)
 
-        # pull the image from docker and store/untar the tar
-        if not os.path.exists(imagetar):
-            try:
-                r = self.docker_cli.get_image(imageId)
-            except:
+        if False:
+            # pull the image from docker and store/untar the tar
+            if not os.path.exists(imagetar):
                 try:
-                    r = self.docker_cli.get_image("sha256:"+imageId)
+                    r = self.docker_cli.get_image(imageId)
                 except:
-                    raise
-            chunk_size = 1024 * 100000
-            with open(imagetar, 'w') as OFH:
-                chunk = r.read(chunk_size)
-                while chunk:
-                    OFH.write(chunk)
+                    try:
+                        r = self.docker_cli.get_image("sha256:"+imageId)
+                    except:
+                        raise
+                chunk_size = 1024 * 100000
+                with open(imagetar, 'w') as OFH:
                     chunk = r.read(chunk_size)
-        
-            sout = subprocess.check_output(["tar", "-C", imagedir, "-x", "-f", imagetar], stderr=DEVNULL)
+                    while chunk:
+                        OFH.write(chunk)
+                        chunk = r.read(chunk_size)
 
-        # store some metadata and dockerfile if present
-        self.meta['sizebytes'] = str(os.path.getsize(imagetar))
+                sout = subprocess.check_output(["tar", "-C", imagedir, "-x", "-f", imagetar], stderr=DEVNULL)
+
+            # store some metadata and dockerfile if present
+            self.meta['sizebytes'] = str(os.path.getsize(imagetar))
+
         if self.dockerfile_contents:
             anchore_utils.update_file_str(self.dockerfile_contents, os.path.join(imagedir, "Dockerfile"), backup=False)
 
@@ -899,6 +917,7 @@ class AnchoreImage(object):
 
         # squash the image layers into unpacked rootfs
         rc = self.squash(imagedir)
+
         if not rc:
             self._logger.error("image squash operation failed")
             return(False)
