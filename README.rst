@@ -1,5 +1,5 @@
 .. image:: https://anchore.io/service/badges/image/f017354b717234ebfe1cf1c5d538ddc8618f3ab0d8c67e290cf37f578093d121
-    :target: https://anchore.io/image/dockerhub/f017354b717234ebfe1cf1c5d538ddc8618f3ab0d8c67e290cf37f578093d121?repo=anchore%2Fcli&tag=latest#overview
+    :target: https://anchore.io/image/dockerhub/anchore%2Fcli%3Alatest
 
 
 
