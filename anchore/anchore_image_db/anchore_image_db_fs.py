@@ -297,6 +297,11 @@ class AnchoreImageDB_FS(anchore_image_db_base.AnchoreImageDB):
 
         # store the reports
         self.save_image_report(imageId, report['image_report'])
+
+        # Strip back out the file content if it was added by the load_image_new call. Just to be safe for now.
+        if report['analysis_report'].get('retrieve_files',{}).get('file_content.all'):
+            report['analysis_report']['retrieve_files'].pop('file_content.all')
+
         self.save_analysis_report(imageId, report['analysis_report'])
         self.save_analyzer_manifest(imageId, report['analyzer_manifest'])
         self.save_gates_report(imageId, report['gates_report'])
