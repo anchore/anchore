@@ -236,12 +236,40 @@ class AnchoreImageDB_FS(anchore_image_db_base.AnchoreImageDB):
 
     def load_image_new(self, imageId):
         ret = {}
+        specific_files_to_load = [
+            '/etc/passwd'
+        ]
 
         ret['image_report'] = self.load_image_report(imageId)
         ret['analysis_report'] = self.load_analysis_report(imageId)
         ret['analyzer_manifest'] = self.load_analyzer_manifest(imageId)
         ret['gates_report'] = self.load_gates_report(imageId)
         ret['gates_eval_report'] = self.load_gates_eval_report(imageId)
+
+        # This is a bit of a hack to pass the /etc/passwd file into the analysis output if it was configured to be fetched.
+        # Specific files needed for various policy gate evaluations are handled here by inclusion directly in the export json
+
+        try:
+            saved_files_tarball = self.load_files_tarfile(imageId=imageId, namespace='retrieve_files')
+        except:
+            saved_files_tarball = None
+
+        if saved_files_tarball:
+            file_report = {}
+
+            with tarfile.open(saved_files_tarball) as f:
+                for fname in specific_files_to_load:
+                    try:
+                        member = f.getmember('imageroot{}'.format(fname))
+                        member_file = f.extractfile(member)
+                        try:
+                            file_report[fname] = member_file.read().encode('base64')
+                        finally:
+                            member_file.close()
+                    except KeyError:
+                        file_report = {}
+
+            ret['analysis_report']['retrieve_files']['file_content.all'] = { 'base': file_report }
 
         return(ret)
 
@@ -269,6 +297,11 @@ class AnchoreImageDB_FS(anchore_image_db_base.AnchoreImageDB):
 
         # store the reports
         self.save_image_report(imageId, report['image_report'])
+
+        # Strip back out the file content if it was added by the load_image_new call. Just to be safe for now.
+        if report['analysis_report'].get('retrieve_files',{}).get('file_content.all'):
+            report['analysis_report']['retrieve_files'].pop('file_content.all')
+
         self.save_analysis_report(imageId, report['analysis_report'])
         self.save_analyzer_manifest(imageId, report['analyzer_manifest'])
         self.save_gates_report(imageId, report['gates_report'])
