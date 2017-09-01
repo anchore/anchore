@@ -6,6 +6,7 @@ import re
 import json
 import time
 import logging
+import uuid
 
 import anchore.anchore_auth
 from anchore.util import contexts
@@ -77,7 +78,7 @@ def get_group_list(feed):
     return (retlist, record)
 
 
-def get_group_data(feed, group, since="1970-01-01"):
+def get_group_data(feed, group, since="1970-01-01", uniq_key=None):
     feedurl = contexts['anchore_config']['feeds_url']
     feed_timeout = contexts['anchore_config']['feeds_conn_timeout']
     feed_maxretries = contexts['anchore_config']['feeds_max_retries']
@@ -91,14 +92,27 @@ def get_group_data(feed, group, since="1970-01-01"):
     last_token = ""
     success = True
     done = False
+
+    hashret = {}
+
     while not done:
         _logger.debug("data group url: " + str(url))
+
         record = anchore.anchore_auth.anchore_auth_get(contexts['anchore_auth'], url, timeout=feed_timeout,
                                                        retries=feed_maxretries)
         if record['success']:
             data = json.loads(record['text'])
             if 'data' in data:
-                ret = ret + data['data']
+                if not uniq_key:
+                    ret.extend(data['data'])
+                else:
+                    for el in data['data']:
+                        for subkey in el.keys():
+                            try:
+                                thekey = el[subkey][uniq_key]
+                            except:
+                                thekey = str(uuid.uuid4())
+                        hashret[thekey] = el                        
                 if 'next_token' in data and data['next_token']:
                     url = baseurl + "&next_token=" + data['next_token']
                     if last_token == data['next_token']:
@@ -109,11 +123,16 @@ def get_group_data(feed, group, since="1970-01-01"):
             else:
                 success = False
                 done = True
+            
         else:
             success = False
             if record and 'err_msg' in record:
                 ret = record.get('err_msg')
             done = True
+
+    if success and uniq_key and hashret:
+        ret = hashret.values()
+
     return (success, ret)
 
 
@@ -232,7 +251,14 @@ def sync_feeds(force_since=None, do_combine=False):
                             _logger.info("\tskipping group data: " + str(group) + ": already synced")
                         else:
                             _logger.info("\tsyncing group data: " + str(group) + ": ...")
-                            success, data = get_group_data(feed, group, since=since)
+
+                            uniq_key = None
+                            if feed == 'packages' and group in ['npm', 'gem']:
+                                uniq_key = "name"
+                            elif feed == 'vulnerabilities':
+                                uniq_key = "Name"
+                            
+                            success, data = get_group_data(feed, group, since=since, uniq_key=uniq_key)
                             if success:
                                 rc = save_anchore_feed_group_data(feed, group, datafilename, data)
 
