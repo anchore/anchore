@@ -1,11 +1,11 @@
 # Changelog
 
-## 1.1.5 (2017-09-XX)
+## 1.1.5 (2017-09-08)
 
 + Added detected OS string 'redhat' to map to RHEL flavor for package/vuln mapping (for example, now support Scientific Linux)
 + Improved feed sync memory efficiency and reduced need for frequency --do-compact sync runs
 + Improved analysis time by removing extra image copy for layer/familytree discovery
-+ Cleaned up some dead code and fixed outdated in-code documentation likes (contrubuted by Matt Jaynes <matt@nanobeep.com>)
++ Cleaned up some dead code and fixed outdated in-code documentation links (contrubuted by Matt Jaynes <matt@nanobeep.com>)
 
 ## 1.1.4 (2017-08-07)
 
