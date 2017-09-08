@@ -33,7 +33,8 @@ try:
     mode = idata['dockerfile_mode']
     for line in idata['dockerfile_contents'].splitlines():
         line = line.strip()
-        outlist.append([config['meta']['shortId'], config['meta']['humanname'], str(mode), str(line)])
+        if line:
+            outlist.append([config['meta']['shortId'], config['meta']['humanname'], str(mode), str(line)])
     #outlist.append([config['meta']['shortId'], config['meta']['humanname'], record['layer'], record['layer_sizebytes'], dfileline])
 except Exception as err:
     # handle the case where something wrong happened
