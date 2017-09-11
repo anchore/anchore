@@ -36,8 +36,8 @@ ready to try the anchore-engine yet, or you are interested in the core
 anchore container analysis scanner open source software itself, this
 is the code you're looking for.
 
-Using Anchore via Docker
-========================
+Using Anchore Scanner via Docker
+================================
 Anchore is available as a `Docker image <https://hub.docker.com/r/anchore/cli/>`_. 
 
 1. ``docker pull anchore/cli``
@@ -45,10 +45,13 @@ Anchore is available as a `Docker image <https://hub.docker.com/r/anchore/cli/>`
 3. ``docker exec anchore anchore feeds sync``
 4. Use docker exec to run anchore commands in the container, such as: ``docker exec anchore anchore analyze --image <myimage> --dockerfile </path/to/Dockerfile>``
 
-The general model is to run the container in detached mode to provide the environment and use 'docker exec' to execute anchore commands within the container. See the above link on how to use the container specifically and options that are container specific. 
+The general model is to run the container in detached mode to provide
+the environment and use 'docker exec' to execute anchore commands
+within the container. See the above link on how to use the container
+specifically and options that are container specific.
 
 
-Using Anchore Installed Directly on Host
+Using Anchore Scanner Installed Directly on Host
 ========================================
 
 To get started on CentOS 7 as root:
@@ -114,8 +117,8 @@ Jenkins
 
 If you are a Jenkins user, please visit our github wiki installation
 documentation at
-https://github.com/anchore/anchore/wiki/Installing-Anchore to learn
-more about using the Jenkins Anchore build-step plugin.
+https://github.com/anchore/anchore/wiki/Anchore-and-Jenkins-Integration
+to learn more about using the Jenkins Anchore build-step plugin.
 
 
 Vagrant
@@ -130,8 +133,13 @@ Vagrant
 
 Manual Pages
 ============
-Man pages for most of the anchore commands are available in: $anchore/doc/man, where $anchore is the install
-location of the python code for your distro (e.g. /usr/local/lib/python2.7/dist-packages/anchore for ubuntu).
-To install them, copy them to the appropriate location for your distro. The man pages are generated from --help
-and --extended-help options to anchore commands, so similar content is available direclty from the CLI as well.
+
+Man pages for most of the anchore commands are available in:
+$anchore/doc/man, where $anchore is the install location of the python
+code for your distro
+(e.g. /usr/local/lib/python2.7/dist-packages/anchore for ubuntu).  To
+install them, copy them to the appropriate location for your
+distro. The man pages are generated from --help and --extended-help
+options to anchore commands, so similar content is available direclty
+from the CLI as well.
 
