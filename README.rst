@@ -2,14 +2,39 @@
     :target: https://anchore.io/image/dockerhub/anchore%2Fcli%3Alatest
 
 
-
 Anchore
 =======
 
-Anchore is a container inspection and analytics platform to enable
-operators to deploy containers with confidence. The Anchore toolset in
-this repository provides the ability to inspect, reason about, and
-evaluate policy against containers present on the local Docker host.
+Anchore is a set of tools that provides visibility, transparency, and
+control of your container environment.  With anchore, users can
+analyze, inspect, perform security scans, and apply custom policies to
+container images within a CI/CD build system, or used/integrated
+directly into your container environment.
+
+This repository contains the anchore analysis scanner tool (with a
+basic CLI interface), which can be appropriate for lower-level
+integrations - for new users and current users who have been looking
+to deploy Anchore as a centralized service with an API, an open source
+project called the Anchore Engine has been released (with its own
+light-weight client CLI) which extends the capabilities of anchore
+beyond what usage of this scanner tool alone can provide.  The project
+page links are below, which include installation/quickstart
+instructions, API documents and usage guides.
+
+`Anchore Engine <https://github.com/anchore/anchore-engine>`_
+
+`Anchore Engine CLI <https://github.com/anchore/anchore-cli>`_
+
+If you would like to deploy Anchore as an API accessible service
+within your environment, you should visit the `Anchore Engine
+<https://github.com/anchore/anchore-engine>`_ project page to get
+started - note that the anchore-engine uses the anchore analysis
+scanner code from this repository as a dependency - if you're using
+the anchore engine you will not need to install the software from this
+repository manually.  If you are a current user of anchore and are not
+ready to try the anchore-engine yet, or you are interested in the core
+anchore container analysis scanner open source software itself, this
+is the code you're looking for.
 
 Using Anchore via Docker
 ========================
