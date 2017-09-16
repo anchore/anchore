@@ -905,6 +905,38 @@ def dpkg_get_all_pkgfiles(unpackdir):
 
     return(allfiles)
 
+def verify_file_packages(unpackdir, flavor):
+    if flavor == 'RHEL':
+        return(rpm_verify_file_packages(unpackdir))
+    else:
+        return(generic_verify_file_packages(unpackdir))
+            
+def generic_verify_file_packages(unpackdir):
+    return({}, "", "", 255)
+
+def rpm_verify_file_packages(unpackdir):
+    rootfs = os.path.join(unpackdir, 'rootfs')
+    verify_output = verify_error = ""
+    exitcode = 255
+
+    try:
+        pipes = subprocess.Popen(['rpm', '--root='+rootfs, '--verify', '-a'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        o, e = pipes.communicate()
+        verify_exitcode = pipes.returncode
+        verify_output = o
+        verify_error = e
+    except Exception as err:
+        raise ValueError("could not perform verify against RPM database: " + str(err))
+
+    verify_hash = {}
+    for line in verify_output.splitlines():
+        el = line.split()
+        file = el[-1]
+        vresult = el[0]
+        verify_hash[file] = vresult
+
+    return(verify_hash, verify_output, verify_error, exitcode)
+
 def rpm_prepdb(unpackdir):
     origrpmdir = os.path.join(unpackdir, 'rootfs', 'var', 'lib', 'rpm')
     ret = origrpmdir
