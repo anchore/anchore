@@ -19,9 +19,33 @@ import anchore.anchore_utils
 def deb_get_file_package_metadata(unpackdir, record_template):
 
     result = {}
-    metafiles = {}
-    metapath = os.path.join(unpackdir, "rootfs", "var", "lib", "dpkg", "info")
+    conffile_csums = {}
+    statuspath = os.path.join(unpackdir, "rootfs", "var", "lib", "dpkg", "status")
+    try:
+        if os.path.exists(statuspath):
+            with open(statuspath, 'r') as FH:
+                buf = FH.read()
 
+            for line in buf.splitlines():
+                line.strip()
+                if re.match("^Conffiles:.*", line):
+                    fmode = True
+                elif re.match("^.*:.*", line):
+                    fmode = False
+                else:
+                    if fmode:
+                        try:
+                            (fname, csum) = line.split()
+                            conffile_csums[fname] = csum
+                        except Exception as err:
+                            print "WARN: bad line in status for conffile line - exception: " + str(err)
+
+    except Exception as err:
+        print "WARN: could not parse dpkg status file, looking for conffiles checksums - exception: " + str(err)
+
+    metafiles = {}
+    conffiles = {}
+    metapath = os.path.join(unpackdir, "rootfs", "var", "lib", "dpkg", "info")
     try:
         if os.path.exists(metapath):
             for f in os.listdir(metapath):
@@ -35,24 +59,67 @@ def deb_get_file_package_metadata(unpackdir, record_template):
                         pkg = pkgraw
 
                     metafiles[pkg] = os.path.join(metapath, f)
+
+                patt = re.match("(.*)\.conffiles", f)
+                if patt:
+                    pkgraw = patt.group(1)
+                    patt = re.match("(.*):.*", pkgraw)
+                    if patt:
+                        pkg = patt.group(1)
+                    else:
+                        pkg = pkgraw
+                        
+                    conffiles[pkg] = os.path.join(metapath, f)
         else:
             raise Exception("no dpkg info path found in image: " + str(metapath))
 
         for pkg in metafiles.keys():
             dinfo = None
-            with open(metafiles[pkg], 'r') as FH:
-                dinfo = FH.read()
+            try:
+                with open(metafiles[pkg], 'r') as FH:
+                    dinfo = FH.read()
+            except:
+                pass
 
             if dinfo:
                 for line in dinfo.splitlines():
                     line.strip()
-                    (csum, fname) = line.split()
-                    fname = '/' + fname
-                    fname = re.sub("\/\/", "\/", fname)
-                    if fname in result:
-                        print "WARNING: meta file name collision: " + str(fname)
-                    result[fname] = copy.deepcopy(record_template)
-                    result[fname].update({"package": pkg or None, "md5": csum or None, "digest": csum or None, "digestalgo": "md5"})
+                    try:
+                        (csum, fname) = line.split()
+                        fname = '/' + fname
+                        fname = re.sub("\/\/", "\/", fname)
+
+                        if fname not in result:
+                            result[fname] = []
+
+                        el = copy.deepcopy(record_template)
+                        el.update({"package": pkg or None, "md5": csum or None, "digest": csum or None, "digestalgo": "md5", "conffile": False})
+                        result[fname].append(el)
+                    except Exception as err:
+                        print "WARN: problem parsing line from dpkg info file - exception: " + str(err)
+
+        for pkg in conffiles.keys():
+            cinfo = None
+            try:
+                with open(conffiles[pkg], 'r') as FH:
+                    cinfo = FH.read()
+            except:
+                pass
+
+            if cinfo:
+                for line in cinfo.splitlines():
+                    line.strip()
+                    try:
+                        fname = line
+                        if fname in conffile_csums:
+                            csum = conffile_csums[fname]
+                            if fname not in result:
+                                result[fname] = []
+                            el = copy.deepcopy(record_template)
+                            el.update({"package": pkg or None, "md5": csum or None, "digest": csum or None, "digestalgo": "md5", "conffile": True})
+                            result[fname].append(el)
+                    except Exception as err:
+                        print "WARN: problem parsing line from dpkg conffile file - exception: " + str(err)
 
     except Exception as err:
         raise Exception("WARN: could not find/parse dpkg info metadata files - exception: " + str(err))
@@ -76,21 +143,26 @@ def rpm_get_file_package_metadata(unpackdir, record_template):
         exitcode = pipes.returncode
         soutput = o
         serror = e
-        
+
         if exitcode == 0:
             for l in soutput.splitlines():
                 l = l.strip()
-                try:
-                    (fname, fdigest, fmd5, fmode, fgroup, fuser, fsize, fpackage, fflags)= l.split("|ANCHORETOK|")
+                if l:
+                    try:
+                        (fname, fdigest, fmd5, fmode, fgroup, fuser, fsize, fpackage, fflags)= l.split("|ANCHORETOK|")
+                        fname = re.sub('""', '', fname)
+                        cfile = False
+                        if 'c' in str(fflags):
+                            cfile = True
 
-                    cfile = False
-                    if 'c' in str(fflags):
-                        cfile = True
-
-                    result[fname] = copy.deepcopy(record_template)
-                    result[fname].update({'digest': fdigest or None, 'digestalgo': 'sha256', 'md5': fmd5 or None, 'mode': fmode or None, 'group': fgroup or None, 'user': fuser or None, 'size': fsize or None, 'package': fpackage or None, 'conffile': cfile})
-                except Exception as err:
-                    print "WARN: unparsable output line - exception: " + str(err)
+                        if fname not in result:
+                            result[fname] = []
+                            
+                        el = copy.deepcopy(record_template)
+                        el.update({'digest': fdigest or None, 'digestalgo': 'sha256', 'md5': fmd5 or None, 'mode': fmode or None, 'group': fgroup or None, 'user': fuser or None, 'size': fsize or None, 'package': fpackage or None, 'conffile': cfile})
+                        result[fname].append(el)
+                    except Exception as err:
+                        print "WARN: unparsable output line - exception: " + str(err)
         else:
             raise Exception("rpm file metadata command failed with exitcode ("+str(exitcode)+") - stdoutput: " + str(soutput) + " : stderr: " + str(serror))
 
