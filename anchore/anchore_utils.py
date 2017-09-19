@@ -912,21 +912,43 @@ def verify_file_packages(unpackdir, flavor):
         return(generic_verify_file_packages(unpackdir))
             
 def generic_verify_file_packages(unpackdir):
-    return({}, "", "", 255)
+    return({}, None, "", "", 255)
 
 def rpm_verify_file_packages(unpackdir):
+
     rootfs = os.path.join(unpackdir, 'rootfs')
     verify_output = verify_error = ""
-    exitcode = 255
+    verify_exitcode = 255
+
+    tmpdbpath = prepdbpath = None
+    try:
+
+        prepdbpath = rpm_prepdb(unpackdir)
+        if not os.path.exists(prepdbpath):
+            raise Exception("no prepdbpath created ("+str(prepdbpath)+")")
+
+        tmpdbpath = os.path.join(rootfs, 'tmprpmdb')
+        shutil.copytree(prepdbpath, tmpdbpath)
+        if not os.path.exists(tmpdbpath):
+            raise Exception("no tmpdbpath created ("+str(tmpdbpath)+")")
+
+    except:
+        if tmpdbpath and os.path.exists(tmpdbpath):
+            shutil.rmtree(tmpdbpath)
+        raise Exception("failed to prep environment for rpm verify - exception: " + str(err))
 
     try:
-        pipes = subprocess.Popen(['rpm', '--root='+rootfs, '--verify', '-a'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        verify_cmd = 'rpm --root=' + rootfs + ' --dbpath=/tmprpmdb/' + ' --verify -a'
+        pipes = subprocess.Popen(verify_cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         o, e = pipes.communicate()
         verify_exitcode = pipes.returncode
         verify_output = o
         verify_error = e
     except Exception as err:
         raise ValueError("could not perform verify against RPM database: " + str(err))
+    finally:
+        if os.path.exists(tmpdbpath):
+            shutil.rmtree(tmpdbpath)
 
     verify_hash = {}
     for line in verify_output.splitlines():
@@ -935,7 +957,7 @@ def rpm_verify_file_packages(unpackdir):
         vresult = el[0]
         verify_hash[file] = vresult
 
-    return(verify_hash, verify_output, verify_error, exitcode)
+    return(verify_hash, verify_cmd, verify_output, verify_error, verify_exitcode)
 
 def rpm_prepdb(unpackdir):
     origrpmdir = os.path.join(unpackdir, 'rootfs', 'var', 'lib', 'rpm')

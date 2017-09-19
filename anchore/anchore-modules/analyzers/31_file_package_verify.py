@@ -23,22 +23,27 @@ def deb_get_file_package_metadata(unpackdir, record_template):
     statuspath = os.path.join(unpackdir, "rootfs", "var", "lib", "dpkg", "status")
     try:
         if os.path.exists(statuspath):
-            with open(statuspath, 'r') as FH:
-                buf = FH.read()
+            buf = None
+            try:
+                with open(statuspath, 'r') as FH:
+                    buf = FH.read()
+            except Exception as err:
+                print "WARN: cannot read status file - exception: " + str(err)
 
-            for line in buf.splitlines():
-                line.strip()
-                if re.match("^Conffiles:.*", line):
-                    fmode = True
-                elif re.match("^.*:.*", line):
-                    fmode = False
-                else:
-                    if fmode:
-                        try:
-                            (fname, csum) = line.split()
-                            conffile_csums[fname] = csum
-                        except Exception as err:
-                            print "WARN: bad line in status for conffile line - exception: " + str(err)
+            if buf:
+                for line in buf.splitlines():
+                    line = line.strip().decode('utf8')
+                    if re.match("^Conffiles:.*", line):
+                        fmode = True
+                    elif re.match("^.*:.*", line):
+                        fmode = False
+                    else:
+                        if fmode:
+                            try:
+                                (fname, csum) = line.split()
+                                conffile_csums[fname] = csum
+                            except Exception as err:
+                                print "WARN: bad line in status for conffile line - exception: " + str(err)
 
     except Exception as err:
         print "WARN: could not parse dpkg status file, looking for conffiles checksums - exception: " + str(err)
@@ -78,12 +83,12 @@ def deb_get_file_package_metadata(unpackdir, record_template):
             try:
                 with open(metafiles[pkg], 'r') as FH:
                     dinfo = FH.read()
-            except:
-                pass
+            except Exception as err:
+                print "WARN: could not open/read metafile - exception: " + str(err)
 
             if dinfo:
                 for line in dinfo.splitlines():
-                    line.strip()
+                    line = line.strip().decode('utf8')
                     try:
                         (csum, fname) = line.split()
                         fname = '/' + fname
@@ -103,12 +108,12 @@ def deb_get_file_package_metadata(unpackdir, record_template):
             try:
                 with open(conffiles[pkg], 'r') as FH:
                     cinfo = FH.read()
-            except:
-                pass
+            except Exception as err:
+                print "WARN: could not open/read conffile - exception: " + str(err)
 
             if cinfo:
                 for line in cinfo.splitlines():
-                    line.strip()
+                    line = line.strip().decode('utf8')
                     try:
                         fname = line
                         if fname in conffile_csums:
@@ -160,7 +165,7 @@ def rpm_get_file_package_metadata(unpackdir, record_template):
 
         if exitcode == 0:
             for l in soutput.splitlines():
-                l = l.strip()
+                l = l.strip().decode('utf8')
                 if l:
                     try:
                         (fname, fdigest, fmode, fgroup, fuser, fsize, fpackage, fflags, fdigestalgonum)= l.split("|ANCHORETOK|")
@@ -243,21 +248,22 @@ if resultlist:
 # now run the distro package verifier, if present
 
 verify_result = {}
-verifylist = {}
 try:
-    verify_result, voutput, verror, vexitcode = anchore.anchore_utils.verify_file_packages(unpackdir, flavor)
+    vhash, vcmd, voutput, verror, vexitcode = anchore.anchore_utils.verify_file_packages(unpackdir, flavor)
+    if vcmd:
+        verify_result = {
+            'cmd': vcmd,
+            'exitcode': vexitcode,
+            'cmd_output': voutput,
+            'cmd_error': verror
+        }
+    
 except Exception as err:
     print "WARN: could not run distro package verifier - exception: " + str(err)
 
 if verify_result:
-    for f in verify_result.keys():
-        try:
-            verifylist[f] = json.dumps(verify_result[f])
-        except:
-            verifylist[f] = ""
-
-if verifylist:
+    verify_output = {'distroverify': json.dumps(verify_result)}
     ofile = os.path.join(outputdir, 'distro.verifyresult')
-    anchore.anchore_utils.write_kvfile_fromdict(ofile, verifylist)
+    anchore.anchore_utils.write_kvfile_fromdict(ofile, verify_output)
     
 sys.exit(0)
