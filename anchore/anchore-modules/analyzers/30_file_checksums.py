@@ -32,6 +32,9 @@ unpackdir = config['dirs']['unpackdir']
 #    os.makedirs(outputdir)
 
 domd5 = True
+dosha1 = False
+
+outfiles_sha1 = {}
 outfiles_md5 = {}
 outfiles_sha256 = {}
 
@@ -45,24 +48,34 @@ try:
         csum = "DIRECTORY_OR_OTHER"
         if os.path.isfile(thefile) and not os.path.islink(thefile):
             if domd5:
-                csum = "DIRECTORY_OR_OTHER"
                 try:
                     with open(thefile, 'r') as FH:
                         csum = hashlib.md5(FH.read()).hexdigest()
                 except:
-                    pass
+                    csum = "DIRECTORY_OR_OTHER"
                 outfiles_md5[name] = csum
+
+            if dosha1:
+                try:
+                    with open(thefile, 'r') as FH:
+                        csum = hashlib.sha1(FH.read()).hexdigest()
+                except:
+                    csum = "DIRECTORY_OR_OTHER"
+                outfiles_sha1[name] = csum
 
             try:
                 with open(thefile, 'r') as FH:
                     csum = hashlib.sha256(FH.read()).hexdigest()
             except:
-                pass
-
+                csum = "DIRECTORY_OR_OTHER"
             outfiles_sha256[name] = csum
 
         else:
-            outfiles_md5[name] = "DIRECTORY_OR_OTHER"
+            if domd5:
+                outfiles_md5[name] = "DIRECTORY_OR_OTHER"
+            if dosha1:
+                outfiles_sha1[name] = "DIRECTORY_OR_OTHER"
+
             outfiles_sha256[name] = "DIRECTORY_OR_OTHER"
 
 except Exception as err:
@@ -70,6 +83,10 @@ except Exception as err:
     traceback.print_exc()
     print "ERROR: " + str(err)
     raise err
+
+if outfiles_sha1:
+    ofile = os.path.join(outputdir, 'files.sha1sums')
+    anchore.anchore_utils.write_kvfile_fromdict(ofile, outfiles_sha1)
 
 if outfiles_md5:
     ofile = os.path.join(outputdir, 'files.md5sums')
