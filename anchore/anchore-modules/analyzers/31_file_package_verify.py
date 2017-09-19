@@ -16,11 +16,79 @@ import copy
 
 import anchore.anchore_utils
 
+def apk_get_file_package_metadata(unpackdir, record_template):
+    # derived from alpine apk checksum logic
+    # 
+    # a = "Q1XxRCAhhQ6eotekmwp6K9/4+DLwM="
+    # sha1sum = a[2:].decode('base64').encode('hex')
+    # 
+
+    result = {}
+    
+    apkdbpath = os.path.join(unpackdir, 'rootfs', 'lib', 'apk', 'db', 'installed')
+    try:
+        if os.path.exists(apkdbpath):
+            buf = None
+            try:
+                with open(apkdbpath, 'r') as FH:
+                    buf = FH.read()
+
+            except Exception as err:
+                buf = None
+                print "WARN: cannot read apk DB file - exception: " + str(err)
+
+            if buf:
+                for line in buf.splitlines():
+                    line = line.strip().decode('utf8')
+
+                    patt = re.match("(.):(.*)", line)
+                    if patt:
+                        atype = patt.group(1)
+                        aval = patt.group(2)
+
+                        if atype == 'P':
+                            pkg = aval
+                        elif atype == 'F':
+                            fpath = aval
+                        elif atype == 'R':
+                            fname = aval
+                        elif atype == 'a':
+                            uid,gid,fmode = aval.split(":")
+                        elif atype == 'Z':
+                            raw_csum = aval
+                            fname = '/'.join(['/'+fpath, fname])
+                            therealfile_apk = re.sub("\/+", "/", '/'.join([unpackdir, 'rootfs', fname]))
+                            therealfile_fs = os.path.realpath(therealfile_apk)
+                            if therealfile_apk == therealfile_fs:
+                                try:
+                                    sha1sum = raw_csum[2:].decode('base64').encode('hex')
+                                except:
+                                    sha1sum = None
+                            else:
+                                sha1sum = None
+
+                            if fmode:
+                                fmode = fmode.zfill(4)
+
+                            if fname not in result:
+                                result[fname] = []
+
+                            el = copy.deepcopy(record_template)
+                            el.update({"package": pkg or None, "digest": sha1sum or None, "digestalgo": "sha1", "mode": fmode or None, "group": gid or None, "user": uid or None})
+                            result[fname].append(el)                                
+                            fmode = raw_csum = uid = gid = sha1sum = fname = therealfile_apk = therealfile_fs = None
+
+    except Exception as err:
+        raise Exception("WARN: could not parse apk DB file, looking for file checksums - exception: " + str(err))
+
+    return(result)
+
 def deb_get_file_package_metadata(unpackdir, record_template):
 
     result = {}
     conffile_csums = {}
     statuspath = os.path.join(unpackdir, "rootfs", "var", "lib", "dpkg", "status")
+
     try:
         if os.path.exists(statuspath):
             buf = None
@@ -28,6 +96,7 @@ def deb_get_file_package_metadata(unpackdir, record_template):
                 with open(statuspath, 'r') as FH:
                     buf = FH.read()
             except Exception as err:
+                buf = None
                 print "WARN: cannot read status file - exception: " + str(err)
 
             if buf:
@@ -46,7 +115,7 @@ def deb_get_file_package_metadata(unpackdir, record_template):
                                 print "WARN: bad line in status for conffile line - exception: " + str(err)
 
     except Exception as err:
-        print "WARN: could not parse dpkg status file, looking for conffiles checksums - exception: " + str(err)
+        raise Exception("WARN: could not parse dpkg status file, looking for conffiles checksums - exception: " + str(err))
 
     metafiles = {}
     conffiles = {}
@@ -109,6 +178,7 @@ def deb_get_file_package_metadata(unpackdir, record_template):
                 with open(conffiles[pkg], 'r') as FH:
                     cinfo = FH.read()
             except Exception as err:
+                cinfo = None
                 print "WARN: could not open/read conffile - exception: " + str(err)
 
             if cinfo:
@@ -153,7 +223,7 @@ def rpm_get_file_package_metadata(unpackdir, record_template):
     except:
         rpmdbdir = os.path.join(unpackdir, 'rootfs', 'var', 'lib', 'rpm')
 
-    cmdstr = 'rpm --dbpath='+rpmdbdir+' -qa --queryformat "[%{FILENAMES}|ANCHORETOK|%{FILEDIGESTS}|ANCHORETOK|%{FILEMODES}|ANCHORETOK|%{FILEGROUPNAME}|ANCHORETOK|%{FILEUSERNAME}|ANCHORETOK|%{FILESIZES}|ANCHORETOK|%{=NAME}|ANCHORETOK|%{FILEFLAGS:fflags}|ANCHORETOK|%{=FILEDIGESTALGO}\\n]"'
+    cmdstr = 'rpm --dbpath='+rpmdbdir+' -qa --queryformat "[%{FILENAMES}|ANCHORETOK|%{FILEDIGESTS}|ANCHORETOK|%{FILEMODES:octal}|ANCHORETOK|%{FILEGROUPNAME}|ANCHORETOK|%{FILEUSERNAME}|ANCHORETOK|%{FILESIZES}|ANCHORETOK|%{=NAME}|ANCHORETOK|%{FILEFLAGS:fflags}|ANCHORETOK|%{=FILEDIGESTALGO}\\n]"'
     cmd = cmdstr.split()
     print cmdstr
     try:
@@ -222,13 +292,20 @@ if flavor == "RHEL":
     try:
         result = rpm_get_file_package_metadata(unpackdir, record)
     except Exception as err:
-        print "WARN: " + str(err)
+        raise Exception("ERROR: " + str(err))
 
 elif flavor == 'DEB':
     try:
         result = deb_get_file_package_metadata(unpackdir, record)
     except Exception as err:
-        print "WARN: " + str(err)        
+        raise Exception("ERROR: " + str(err))
+
+elif flavor == 'ALPINE':
+    try:
+        result = apk_get_file_package_metadata(unpackdir, record)
+    except Exception as err:
+        raise Exception("ERROR: " + str(err))
+
 else:
     # do nothing, flavor not supported for getting metadata about files from pkg manager
     pass
