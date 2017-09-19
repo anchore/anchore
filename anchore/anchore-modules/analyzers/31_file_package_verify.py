@@ -93,7 +93,7 @@ def deb_get_file_package_metadata(unpackdir, record_template):
                             result[fname] = []
 
                         el = copy.deepcopy(record_template)
-                        el.update({"package": pkg or None, "md5": csum or None, "digest": csum or None, "digestalgo": "md5", "conffile": False})
+                        el.update({"package": pkg or None, "digest": csum or None, "digestalgo": "md5", "conffile": False})
                         result[fname].append(el)
                     except Exception as err:
                         print "WARN: problem parsing line from dpkg info file - exception: " + str(err)
@@ -116,7 +116,7 @@ def deb_get_file_package_metadata(unpackdir, record_template):
                             if fname not in result:
                                 result[fname] = []
                             el = copy.deepcopy(record_template)
-                            el.update({"package": pkg or None, "md5": csum or None, "digest": csum or None, "digestalgo": "md5", "conffile": True})
+                            el.update({"package": pkg or None, "digest": csum or None, "digestalgo": "md5", "conffile": True})
                             result[fname].append(el)
                     except Exception as err:
                         print "WARN: problem parsing line from dpkg conffile file - exception: " + str(err)
@@ -127,6 +127,20 @@ def deb_get_file_package_metadata(unpackdir, record_template):
     return(result)
 
 def rpm_get_file_package_metadata(unpackdir, record_template):
+    # derived from rpm source code rpmpgp.h
+    rpm_digest_algo_map = {
+        1: 'md5',
+        2: 'sha1',
+        3: 'ripemd160',
+        5: 'md2',
+        6: 'tiger192',
+        7: 'haval5160',
+        8: 'sha256',
+        9: 'sha384',
+        10: 'sha512',
+        11: 'sha224'
+    }
+
     result = {}
 
     try:
@@ -134,7 +148,7 @@ def rpm_get_file_package_metadata(unpackdir, record_template):
     except:
         rpmdbdir = os.path.join(unpackdir, 'rootfs', 'var', 'lib', 'rpm')
 
-    cmdstr = 'rpm --dbpath='+rpmdbdir+' -qa --queryformat "[%{FILENAMES}|ANCHORETOK|%{FILEDIGESTS}|ANCHORETOK|%{FILEMD5S}|ANCHORETOK|%{FILEMODES}|ANCHORETOK|%{FILEGROUPNAME}|ANCHORETOK|%{FILEUSERNAME}|ANCHORETOK|%{FILESIZES}|ANCHORETOK|%{=NAME}|ANCHORETOK|%{FILEFLAGS:fflags}\\n]"'
+    cmdstr = 'rpm --dbpath='+rpmdbdir+' -qa --queryformat "[%{FILENAMES}|ANCHORETOK|%{FILEDIGESTS}|ANCHORETOK|%{FILEMODES}|ANCHORETOK|%{FILEGROUPNAME}|ANCHORETOK|%{FILEUSERNAME}|ANCHORETOK|%{FILESIZES}|ANCHORETOK|%{=NAME}|ANCHORETOK|%{FILEFLAGS:fflags}|ANCHORETOK|%{=FILEDIGESTALGO}\\n]"'
     cmd = cmdstr.split()
     print cmdstr
     try:
@@ -149,17 +163,22 @@ def rpm_get_file_package_metadata(unpackdir, record_template):
                 l = l.strip()
                 if l:
                     try:
-                        (fname, fdigest, fmd5, fmode, fgroup, fuser, fsize, fpackage, fflags)= l.split("|ANCHORETOK|")
+                        (fname, fdigest, fmode, fgroup, fuser, fsize, fpackage, fflags, fdigestalgonum)= l.split("|ANCHORETOK|")
                         fname = re.sub('""', '', fname)
                         cfile = False
                         if 'c' in str(fflags):
                             cfile = True
 
+                        try:
+                            fdigestalgo = rpm_digest_algo_map[int(fdigestalgonum)]
+                        except:
+                            fdigestalgo = 'unknown'
+
                         if fname not in result:
                             result[fname] = []
                             
                         el = copy.deepcopy(record_template)
-                        el.update({'digest': fdigest or None, 'digestalgo': 'sha256', 'md5': fmd5 or None, 'mode': fmode or None, 'group': fgroup or None, 'user': fuser or None, 'size': fsize or None, 'package': fpackage or None, 'conffile': cfile})
+                        el.update({'digest': fdigest or None, 'digestalgo': fdigestalgo or None, 'mode': fmode or None, 'group': fgroup or None, 'user': fuser or None, 'size': fsize or None, 'package': fpackage or None, 'conffile': cfile})
                         result[fname].append(el)
                     except Exception as err:
                         print "WARN: unparsable output line - exception: " + str(err)
@@ -190,7 +209,7 @@ flavor = distrodict['flavor']
 
 # gather file metadata from installed packages
 
-record = {'digest': None, 'digestalgo': None, 'md5': None, 'mode': None, 'group': None, 'user': None, 'size': None, 'package': None, 'conffile': False}
+record = {'digest': None, 'digestalgo': None, 'mode': None, 'group': None, 'user': None, 'size': None, 'package': None, 'conffile': False}
 result = {}
 resultlist = {}
 
