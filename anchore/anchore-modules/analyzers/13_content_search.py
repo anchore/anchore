@@ -9,7 +9,6 @@ import time
 import rpm
 import subprocess
 import tarfile
-import magic 
 
 import anchore.anchore_utils
 
@@ -82,9 +81,6 @@ for name in allfiles.keys():
             dochecks = False
         else:
             try:
-                #disable mimetype detection
-                #fmagic = magic.detect_from_filename(str(thefile))
-                #fmimetype = fmagic.mime_type
                 fmimetype = "unknown"
             except Exception as err:
                 fmimetype = "unknown"
