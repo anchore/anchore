@@ -127,7 +127,6 @@ for name in results.keys():
     buf = json.dumps(results[name])
     outputdata[name] = buf
     if params['storeonmatch']:
-        print "APPENDING: " + str(pathmap[name])
         storefiles.append(pathmap[name])
 
 if outputdata:

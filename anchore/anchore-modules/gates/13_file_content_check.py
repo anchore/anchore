@@ -76,10 +76,6 @@ try:
                     regexp_name = None
                     theregexp = regexp
 
-                print "B64: " + str(b64regexp)
-                print "THE: " + str(theregexp)
-                print "NAME: " + str(regexp_name)
-                print "CRS: " +str(content_regexps)
                 if b64regexp in content_regexps:
                     outlist.append("CONTENTMATCH file content analyzer found regexp match in container: file="+str(thefile) + " regexp="+str(regexp))
                 elif theregexp in content_regexps_decoded:
