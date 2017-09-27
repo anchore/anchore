@@ -80,7 +80,7 @@ try:
                     outlist.append("CONTENTMATCH file content analyzer found regexp match in container: file="+str(thefile) + " regexp="+str(regexp))
                 elif theregexp in content_regexps_decoded:
                     outlist.append("CONTENTMATCH file content analyzer found regexp match in container: file="+str(thefile) + " thereg="+str(regexp))
-                elif regexp_name in content_regexps_decoded:
+                elif regexp_name and regexp_name in content_regexps_decoded:
                     outlist.append("CONTENTMATCH file content analyzer found regexp match in container: file="+str(thefile) + " regexp="+str(regexp))
                     
                 
