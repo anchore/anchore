@@ -9,6 +9,7 @@ import time
 import rpm
 import subprocess
 import tarfile
+import magic 
 
 import anchore.anchore_utils
 
@@ -26,9 +27,6 @@ outputdir = config['dirs']['outputdir']
 unpackdir = config['dirs']['unpackdir']
 rootfsdir = '/'.join([unpackdir, 'rootfs'])
 
-#if not os.path.exists(outputdir):
-#    os.makedirs(outputdir)
-
 matchparams = list()
 regexps = list()
 if 'analyzer_config' in config and config['analyzer_config']:
@@ -41,7 +39,7 @@ if len(regexps) <= 0:
     print "No regexp configuration found in analyzer_config.yaml for analyzer '"+analyzer_name+", skipping"
     sys.exit(0)
 
-params = {'maxfilesize':False, 'storeonmatch':False}
+params = {'maxfilesize':False, 'storeonmatch':False, 'mimetypefilter': None}
 if matchparams:
     for param in matchparams:
         try:
@@ -51,6 +49,14 @@ if matchparams:
             elif key == 'STOREONMATCH':
                 if str(value).lower() == 'y':
                     params['storeonmatch'] = True
+            elif key == 'MIMETYPEFILTER':
+                try:
+                    mtypes = re.split(", *", str(value))
+                except:
+                    mtypes = None
+                if mtypes:
+                    params['mimetypefilter'] = mtypes
+
         except:
             print "WARN: could not parse parameter (should be 'key=value'), ignoring: " + str(param)
 
@@ -70,13 +76,34 @@ pathmap = {}
 for name in allfiles.keys():
     thefile = '/'.join([rootfsdir, name])
     if os.path.isfile(thefile):
-        if params['maxfilesize'] and os.path.getsize(thefile) <= params['maxfilesize']:
+
+        dochecks = True
+        if params['maxfilesize'] and os.path.getsize(thefile) > params['maxfilesize']:
+            dochecks = False
+        else:
+            try:
+                #disable mimetype detection
+                #fmagic = magic.detect_from_filename(str(thefile))
+                #fmimetype = fmagic.mime_type
+                fmimetype = "unknown"
+            except Exception as err:
+                fmimetype = "unknown"
+
+            if fmimetype != 'unknown' and (params['mimetypefilter'] and fmimetype not in params['mimetypefilter']):
+                dochecks = False
+
+        if dochecks:
             with open(thefile, 'r') as FH:
                 lineno = 0
                 for line in FH.readlines():
                     for regexp in regexps:
                         try:
-                            patt = re.match(regexp, line)
+                            regexpname, theregexp = regexp.split("=", 1)
+                        except:
+                            theregexp = regexp
+
+                        try:
+                            patt = re.match(theregexp, line)
                             if patt:
                                 b64regexp = regexp.encode('base64')
                                 if name not in results:

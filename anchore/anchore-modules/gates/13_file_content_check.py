@@ -40,6 +40,7 @@ except:
     params = None
 
 content_regexps = list()
+content_regexps_decoded = list()
 fname_regexps = list()
 if params:
     for param in params:
@@ -49,6 +50,7 @@ if params:
                 value = patt.group(1)
                 for regexp in value.split("|"):
                     content_regexps.append(regexp.encode('base64'))
+                    content_regexps_decoded.append(regexp)
 
             patt = re.match("FILECHECK_NAMEREGEXP=(.*)", param)
             if patt:
@@ -68,8 +70,24 @@ try:
             data = json.loads(results[thefile])
             for b64regexp in data.keys():
                 regexp = b64regexp.decode('base64')
+                try:
+                    regexp_name, theregexp = regexp.split("=", 1)
+                except:
+                    regexp_name = None
+                    theregexp = regexp
+
+                print "B64: " + str(b64regexp)
+                print "THE: " + str(theregexp)
+                print "NAME: " + str(regexp_name)
+                print "CRS: " +str(content_regexps)
                 if b64regexp in content_regexps:
                     outlist.append("CONTENTMATCH file content analyzer found regexp match in container: file="+str(thefile) + " regexp="+str(regexp))
+                elif theregexp in content_regexps_decoded:
+                    outlist.append("CONTENTMATCH file content analyzer found regexp match in container: file="+str(thefile) + " thereg="+str(regexp))
+                elif regexp_name in content_regexps_decoded:
+                    outlist.append("CONTENTMATCH file content analyzer found regexp match in container: file="+str(thefile) + " regexp="+str(regexp))
+                    
+                
 except Exception as err:
     print "ERROR: failure checking file contents - exception: " + str(err)
     sys.exit(1)
