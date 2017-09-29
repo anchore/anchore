@@ -38,6 +38,11 @@ outfiles_sha1 = {}
 outfiles_md5 = {}
 outfiles_sha256 = {}
 
+meta = anchore.anchore_utils.get_distro_from_path('/'.join([unpackdir, "rootfs"]))
+distrodict = anchore.anchore_utils.get_distro_flavor(meta['DISTRO'], meta['DISTROVERS'], likedistro=meta['LIKEDISTRO'])
+if distrodict['flavor'] == "ALPINE":
+    dosha1 = True
+
 try:
     timer = time.time()
     (tmp, allfiles) = anchore.anchore_utils.get_files_from_path(unpackdir + "/rootfs")
