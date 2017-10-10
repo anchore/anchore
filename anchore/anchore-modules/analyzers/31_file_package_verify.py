@@ -53,7 +53,19 @@ def apk_get_file_package_metadata(unpackdir, record_template):
                         elif atype == 'R':
                             fname = aval
                         elif atype == 'a':
-                            uid,gid,fmode = aval.split(":")
+                            vvals = aval.split(":")
+                            try:
+                                uid = vvals[0]
+                            except:
+                                uid = None
+                            try:
+                                gid = vvals[1]
+                            except:
+                                gid = None
+                            try:
+                                fmode = vvals[2]
+                            except:
+                                fmode = None
                         elif atype == 'Z':
                             raw_csum = aval
                             fname = '/'.join(['/'+fpath, fname])
@@ -79,6 +91,8 @@ def apk_get_file_package_metadata(unpackdir, record_template):
                             fmode = raw_csum = uid = gid = sha1sum = fname = therealfile_apk = therealfile_fs = None
 
     except Exception as err:
+        import traceback
+        traceback.print_exc()
         raise Exception("WARN: could not parse apk DB file, looking for file checksums - exception: " + str(err))
 
     return(result)
