@@ -38,9 +38,9 @@ def apk_get_file_package_metadata(unpackdir, record_template):
                 print "WARN: cannot read apk DB file - exception: " + str(err)
 
             if buf:
+                fmode = raw_csum = uid = gid = sha1sum = fname = therealfile_apk = therealfile_fs = None
                 for line in buf.splitlines():
                     line = line.strip().decode('utf8')
-
                     patt = re.match("(.):(.*)", line)
                     if patt:
                         atype = patt.group(1)
@@ -342,6 +342,7 @@ try:
     
 except Exception as err:
     print "WARN: could not run distro package verifier - exception: " + str(err)
+    verify_result = {}
 
 if verify_result:
     verify_output = {'distroverify': json.dumps(verify_result)}
