@@ -269,7 +269,8 @@ class AnchoreImageDB_FS(anchore_image_db_base.AnchoreImageDB):
                     except KeyError:
                         file_report = {}
 
-            ret['analysis_report']['retrieve_files']['file_content.all'] = { 'base': file_report }
+            if 'retrieve_files' in ret['analysis_report']:
+                ret['analysis_report']['retrieve_files']['file_content.all'] = { 'base': file_report }
 
         return(ret)
 
