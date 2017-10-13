@@ -2149,6 +2149,8 @@ def get_files_from_path(inpath):
                 finfo['fullpath'] = os.path.normpath(osfilename)
                 finfo['size'] = fstat.st_size
                 finfo['mode'] = fstat.st_mode
+                finfo['uid'] = fstat.st_uid
+                finfo['gid'] = fstat.st_gid
                 
                 mode = finfo['mode']
                 finfo['linkdst'] = None
