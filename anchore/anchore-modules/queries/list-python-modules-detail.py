@@ -61,7 +61,6 @@ try:
 
 except Exception as err:
     # handle the case where something wrong happened
-    import traceback
     traceback.print_exc()
     warns.append("Query failed for image ("+str(config['imgid'])+") with exception: " + str(err))
 

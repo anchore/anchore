@@ -13,6 +13,7 @@ import tarfile
 import time
 import hashlib
 import copy
+import traceback
 import pkg_resources
 
 import anchore.anchore_utils
@@ -92,7 +93,6 @@ try:
                         pass
 
                 except Exception as err:
-                    import traceback
                     traceback.print_exc()
                     print "WARN: could not extract information about python module from distribution - exception: " + str(err)
                     el = {}
