@@ -98,7 +98,7 @@ try:
                     el = {}
 
                 if el:
-                    resultlist[el['name']] = json.dumps(el)
+                    resultlist[el['location'] + "/" + el['name']] = json.dumps(el)
 
 except Exception as err:
     print "WARN: analyzer unable to complete - exception: " + str(err)
