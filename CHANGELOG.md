@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.6 (2017-10-24)
+
++ Added new analyzer for storing metadata from installed package manager about files owned by packages
++ Break out a new analyzer that searches container contents for secrets (separate from existing content_search) with ability for user to use named tags for secret searches that can then be used in policy evaluations
++ Minor bug fixes and improvements
+	
 ## 1.1.5 (2017-09-08)
 
 + Added detected OS string 'redhat' to map to RHEL flavor for package/vuln mapping (for example, now support Scientific Linux)
