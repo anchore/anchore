@@ -54,17 +54,24 @@ try:
 
                 if jtype in ['jar', 'war', 'ear']:
                     try:
-                        name = re.sub("\."+jtype+"$", "", candidate.split("/")[-1])
+                        el = {
+                            'metadata':{},
+                            'specification-version': "N/A",
+                            'implementation-version': "N/A",
+                            'origin': "N/A",
+                            'location': "N/A",
+                            'type': "N/A"
+                        }
+                        el['location'] = re.sub("^/*"+prefix+"/*", "/", candidate.decode('utf8'))
+                        el['type'] = "java-"+str(jtype)
+                        el['name'] = re.sub("\."+jtype+"$", "", candidate.split("/")[-1])
 
-                        location = f
-                        version = "N/A"
+                        sname = sversion = svendor = iname = iversion = ivendor = mname = None
+
                         with zipfile.ZipFile(candidate, 'r') as ZFH:
                             with ZFH.open("META-INF/MANIFEST.MF", 'r') as MFH:
-                                el = {'metadata':{}}
-                                el['location'] = re.sub("^/*"+prefix+"/*", "/", candidate.decode('utf8'))
                                 el['metadata']['MANIFEST.MF'] = MFH.read()
-                                
-                                sname = sversion = svendor = iname = iversion = ivendor = mname = None
+
                                 for line in el['metadata']['MANIFEST.MF'].splitlines():
                                     try:
                                         (k,v) = line.split(": ", 1)
@@ -83,45 +90,42 @@ try:
                                     except:
                                         pass
 
-                                el['name'] = name
+                                #if iversion:
+                                #    if sversion:
+                                #        el['version'] += re.sub("^"+sversion, "", iversion)
+                                #    else:
+                                #        el['version'] += iversion
+                                #el['origin'] = "N/A"
+                                #if ivendor:
+                                #    el['origin'] = ivendor
+                                #elif svendor:
+                                #    el['origin'] = svendor
 
-                                #if False and mname:
-                                #    el['name'] = mname
-                                #elif iname:
-                                #    el['name'] = iname
-                                #elif sname:
-                                #    el['name'] = sname
-
-                                el['version'] = ""
-                                if sversion:
-                                    el['version'] += sversion
-
-                                if iversion:
-                                    if sversion:
-                                        el['version'] += re.sub("^"+sversion, "", iversion)
-                                    else:
-                                        el['version'] += iversion
-
-                                el['origin'] = "N/A"
-                                if ivendor:
-                                    el['origin'] = ivendor
-                                elif svendor:
-                                    el['origin'] = svendor
-
-                                for k in ['version', 'origin', 'location']:
-                                    if not el[k]:
-                                        el[k] = "N/A"
+                                #for k in ['version', 'origin', 'location']:
+                                #    if not el[k]:
+                                #        el[k] = "N/A"
                                     
-                                el['type'] = "java-"+str(jtype)
-                                if not el['version'] or el['version'] == "N/A":
-                                    try:
-                                        patt = re.match(".*-([0-9].*)$", el['name'])
-                                        if patt:
-                                            el['version'] = patt.group(1)
-                                    except:
-                                        pass
+                                #if not el['version'] or el['version'] == "N/A":
+                                #    try:
+                                #        patt = re.match(".*-([0-9].*)$", el['name'])
+                                #        if patt:
+                                #            el['version'] = patt.group(1)
+                        
+                                #        pass
                                 #el.pop('metadata', None)
                                 #print "EL: " + str(el)
+
+                        if sversion:
+                            el['specification-version'] = sversion
+
+                        if iversion:
+                            el['implementation-version'] = iversion
+
+                        if svendor:
+                            el['origin'] = svendor
+                        elif ivendor:
+                            el['origin'] = ivendor
+                        
 
                     except Exception as err:
                         print "WARN: cannot extract information about discovered jar (" + str(f) + ") - exception: " + str(err)

@@ -26,7 +26,7 @@ if len(config['params']) <= 0:
 outlist = list()
 warns = list()
 
-outlist.append(["Image_Id", "Repo_Tags", "*Package_Name", "Version", "Location"])
+outlist.append(["Image_Id", "Repo_Tags", "*Package_Name", "Specification_Version", "Implementation_Version", "Location"])
 
 try:
     # handle the good case, something is found resulting in data matching the required columns
@@ -52,18 +52,20 @@ try:
         if not match:
             continue
 
-        version = pkgdata.pop('version', 'Unknown')
+        sversion = pkgdata.pop('specification-version', 'Unknown')
+        iversion = pkgdata.pop('implementation-version', 'Unknown')
         origin = pkgdata.pop('origin', 'N/A')
         lic = pkgdata.pop('license', 'Unknown')
         location = pkgdata.pop('location', 'Unknown')
 
-        outlist.append([config['meta']['shortId'], config['meta']['humanname'], name, version, location])
+        outlist.append([config['meta']['shortId'], config['meta']['humanname'], name, sversion, iversion, location])
 
 except Exception as err:
     # handle the case where something wrong happened
     traceback.print_exc()
     warns.append("Query failed for image ("+str(config['imgid'])+") with exception: " + str(err))
 
+print outlist
 anchore.anchore_utils.write_kvfile_fromlist(config['output'], outlist)
 if len(warns) > 0:
     anchore.anchore_utils.write_plainfile_fromlist(config['output_warns'], warns)
