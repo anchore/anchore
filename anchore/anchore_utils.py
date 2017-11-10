@@ -1301,7 +1301,8 @@ def get_distro_from_path(inpath):
     #
     #debmap = {
     #    'sid':'unstable',
-    #    'stretch':'testing',
+    #    'buster':'10',
+    #    'stretch':'9',
     #    'jessie':'8',
     #    'wheezy':'7',
     #    'squeeze':'6',
