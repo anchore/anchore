@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.7 (2017-11-10)
+
++ Added new analyzers and queries for gathering and querying python packages and java packages
++ Added a new secret check analyzer (similiar to existing content check analyzer but specifically for naming secret/key regexps by name)
++ Minor bug fixes and improvements
+	
 ## 1.1.6 (2017-10-24)
 
 + Added new analyzer for storing metadata from installed package manager about files owned by packages
