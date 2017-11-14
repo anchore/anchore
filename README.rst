@@ -11,6 +11,9 @@ analyze, inspect, perform security scans, and apply custom policies to
 container images within a CI/CD build system, or used/integrated
 directly into your container environment.
 
+**For new users we recommend using the Anchore Engine service**
+`Anchore Engine <https://github.com/anchore/anchore-engine>`_
+
 This repository contains the anchore analysis scanner tool (with a
 basic CLI interface), which can be appropriate for lower-level
 integrations - for new users and current users who have been looking
