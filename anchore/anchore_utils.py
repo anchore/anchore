@@ -64,7 +64,10 @@ def init_analyzer_cmdline(argv, name):
     FH.close()
     ret['imgid'] = argv[1]
 
-    fullid = discover_imageId(argv[1])
+    try:
+        fullid = discover_imageId(argv[1])
+    except:
+        fullid = None
     if fullid:
         ret['imgid_full'] = fullid
     else:
