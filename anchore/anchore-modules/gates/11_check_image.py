@@ -50,8 +50,10 @@ try:
             outlist.append("BASEOUTOFDATE Image base image ("+str(thefrom)+") ID is ("+str(realbaseid)[0:12]+"), but the latest ID for ("+str(thefrom)+") is ("+str(thefromid)[0:12]+")")
 
 except Exception as err:
-    outlist.append(gate_name + " gate failed to run with exception: " + str(err))
-    exit(1)
+    import traceback
+    traceback.print_exc()
+    print "ERROR: Exception: " + str(err)
+    sys.exit(1)
 
 # write output
 anchore.anchore_utils.save_gate_output(imageId, gate_name, outlist)

@@ -478,7 +478,13 @@ def discover_gates_orig():
 
 def discover_from_info(dockerfile_contents):
     fromline = fromid = None
-    fromline = re.match(".*FROM\s+(\S+).*", dockerfile_contents).group(1)
+
+    #fromline = re.match(".*FROM\s+(\S+).*", dockerfile_contents).group(1)
+
+    fromlines = re.findall("\s*FROM\s+(\S+)\s*[\n]", dockerfile_contents)
+    if fromlines:
+        fromline = fromlines[0]
+
     if fromline:
         fromline = fromline.lower()
         if re.match("scratch", fromline) or re.match(".*<unknown>.*", fromline):
