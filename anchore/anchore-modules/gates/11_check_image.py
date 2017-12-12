@@ -47,7 +47,7 @@ try:
 
         (thefrom, thefromid) = anchore.anchore_utils.discover_from_info(idata['dockerfile_contents'])
         if realbaseid != thefromid:
-            outlist.append("BASEOUTOFDATE Image base image ("+str(thefrom)+") ID is ("+str(realbaseid)[0:12]+"), but the latest ID for ("+str(thefrom)+") is ("+str(thefromid)[0:12]+")")
+            outlist.append("BASEOUTOFDATE Image stored base image ("+str(thefrom)+") ID is ("+str(realbaseid)[0:12]+"), but the latest detected base ID for ("+str(thefrom)+") is ("+str(thefromid)[0:12]+")")
 
 except Exception as err:
     import traceback
