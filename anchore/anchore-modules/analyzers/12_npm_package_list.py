@@ -43,17 +43,16 @@ try:
         patt = re.match(".*package\.json$", tfile)
         if patt:
             thefile = '/'.join([unpackdir, 'rootfs', tfile])
-            with open(thefile, 'r') as FH:
-                try:
+            try:
+                with open(thefile, 'r') as FH:
                     pbuf = FH.read().decode('utf8')
                     pdata = json.loads(pbuf)
                     precord = anchore.anchore_utils.npm_parse_meta(pdata)
                     for k in precord.keys():
                         record = precord[k]
                         pkglist[tfile] = json.dumps(record)
-
-                except:
-                    print "WARN: found package.json but cannot parse (bad json): " + str(tfile)
+            except Exception as err:
+                print "WARN: found package.json but cannot parse (" + str(tfile) +") - exception: " + str(err)
 
 except Exception as err:
     import traceback

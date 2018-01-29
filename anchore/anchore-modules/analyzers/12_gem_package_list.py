@@ -43,17 +43,15 @@ try:
         patt = re.match(".*specifications.*\.gemspec$", tfile)
         if patt:
             thefile = '/'.join([unpackdir, 'rootfs', tfile])
-            with open(thefile, 'r') as FH:
-                try:
+            try:
+                with open(thefile, 'r') as FH:
                     pdata = FH.read().decode('utf8')
                     precord = anchore.anchore_utils.gem_parse_meta(pdata)
                     for k in precord.keys():
                         record = precord[k]
                         pkglist[tfile] = json.dumps(record)
-                except Exception as err:
-                    print "WARN: " + str(thefile) + " : " + str(err)
-
-                
+            except Exception as err:
+                print "WARN: found gemspec but cannot parse (" + str(tfile) +") - exception: " + str(err)
 
 except Exception as err:
     import traceback
