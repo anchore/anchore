@@ -28,6 +28,7 @@ from configuration import AnchoreConfiguration
 from anchore.util import contexts, scripting
 import anchore_auth
 import anchore_feeds
+from .apk import compare_versions as apk_compare_versions_impl
 
 _logger = logging.getLogger(__name__)
 
@@ -841,25 +842,16 @@ def dpkg_compare_versions(v1, op, v2):
     return(subprocess.call(cmd))
 
 def apkg_compare_versions(v1, op, v2):
-
-    if op == 'eq':
-        if v1 == v2:
-            return(0);
-        else:
-            return(1);
-
-    elif op == 'lt':
-        if v1 < v2:
+    try:
+        result = apk_compare_versions_impl(v1, op, v2)
+        if result:
             return(0)
         else:
             return(1)
-    elif op == 'gt':
-        if v1 > v2:
-            return(0)
-        else:
-            return(1)
-
-    _logger.error("invalid op specified in compare: " + str(op))
+    except Exception as err:
+        _logger.error("cannot compare version strings - exception: " + str(err))
+        return(1)
+        
     return(1)
 
 def dpkg_get_all_packages(unpackdir):
