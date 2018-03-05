@@ -1235,7 +1235,7 @@ def get_distro_from_path(inpath):
                 elif key == "ID_LIKE":
                     meta['LIKEDISTRO'] = ','.join(val.split())
             except:
-                a=1
+                pass
         FH.close()
     elif os.path.exists('/'.join([inpath, "/etc/system-release-cpe"])):
         FH=open('/'.join([inpath, "/etc/system-release-cpe"]), 'r')
@@ -1281,7 +1281,8 @@ def get_distro_from_path(inpath):
             meta['DISTROVERS'] = slist[1]
         except:
             meta['DISTROVERS'] = "0"
-    elif os.path.exists('/'.join([inpath, "/etc/debian_version"])):
+
+    if meta['DISTRO'] == 'debian' and not meta['DISTROVERS'] and os.path.exists('/'.join([inpath, "/etc/debian_version"])):
         with open('/'.join([inpath, "/etc/debian_version"]), 'r') as FH:
             meta['DISTRO'] = 'debian'
             for line in FH.readlines():
@@ -1289,6 +1290,8 @@ def get_distro_from_path(inpath):
                 patt = re.match("(\d+)\..*", line)
                 if patt:
                     meta['DISTROVERS'] = patt.group(1)
+                elif re.match(".*sid.*", line):
+                    meta['DISTROVERS'] = 'unstable'
 
     if not meta['DISTRO']:
         meta['DISTRO'] = "Unknown"
