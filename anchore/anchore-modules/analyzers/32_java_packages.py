@@ -37,13 +37,14 @@ def fuzzy_java(input_el):
     ret_names = []
     ret_versions = []
 
-    iversion = input_el.get('implementation_version', "N/A")
+    iversion = input_el.get('implementation-version', "N/A")
     if iversion != 'N/A':
         ret_versions.append(iversion)
 
-    sversion = input_el.get('specification_version', "N/A")
+    sversion = input_el.get('specification-version', "N/A")
     if sversion != 'N/A':
-        ret_versions.append(sversion)
+        if sversion not in ret_versions:
+            ret_versions.append(sversion)
 
     # do some heuristic tokenizing
     try:
