@@ -33,64 +33,6 @@ imgid = config['imgid_full']
 outputdir = config['dirs']['outputdir']
 unpackdir = config['dirs']['unpackdir']
 
-def fuzzy_java(input_el):
-    ret_names = []
-    ret_versions = []
-
-    iversion = input_el.get('implementation-version', "N/A")
-    if iversion != 'N/A':
-        ret_versions.append(iversion)
-
-    sversion = input_el.get('specification-version', "N/A")
-    if sversion != 'N/A':
-        if sversion not in ret_versions:
-            ret_versions.append(sversion)
-
-    # do some heuristic tokenizing
-    try:
-        toks = re.findall("[^-]+", input_el['name'])
-        firstname = None
-        fullname = []
-        firstversion = None
-        fullversion = []
-
-        doingname = True
-        for tok in toks:
-            if re.match("^[0-9]", tok):
-                doingname = False
-
-            if doingname:
-                if not firstname:
-                    firstname = tok
-                else:
-                    fullname.append(tok)
-            else:
-                if not firstversion:
-                    firstversion = tok
-                else:
-                    fullversion.append(tok)
-
-        if firstname:
-            firstname_nonums = re.sub("[0-9].*$", "", firstname)
-            for gthing in [firstname, firstname_nonums]:
-                if gthing not in ret_names:
-                    ret_names.append(gthing)
-                if '-'.join([gthing]+fullname) not in ret_names:
-                    ret_names.append('-'.join([gthing]+fullname))
-
-        if firstversion:
-            firstversion_nosuffix = re.sub("\.(RELEASE|GA)$", "", firstversion)
-            for gthing in [firstversion, firstversion_nosuffix]:
-                if gthing not in ret_versions:
-                    ret_versions.append(gthing)
-                if '-'.join([gthing]+fullversion) not in ret_versions:
-                    ret_versions.append('-'.join([gthing]+fullversion))
-
-    except Exception as err:
-        pass
-    
-    return(ret_names, ret_versions)
-
 def process_java_archive(prefix, filename, inZFH):
     ret = []
 
@@ -170,14 +112,6 @@ def process_java_archive(prefix, filename, inZFH):
                 top_el['origin'] = svendor
             elif ivendor:
                 top_el['origin'] = ivendor
-
-            try:
-                guessed_names, guessed_versions = fuzzy_java(top_el)
-            except:
-                guessed_names = guessed_versions = []
-
-            top_el['guessed_names'] = guessed_names
-            top_el['guessed_versions'] = guessed_versions
 
         except:
             # no manifest could be parsed out, leave the el values unset
