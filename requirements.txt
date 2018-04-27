@@ -5,3 +5,4 @@ requests
 pyyaml
 clint
 jsonschema
+enum34
